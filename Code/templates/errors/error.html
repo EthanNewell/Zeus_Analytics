@@ -1,0 +1,5 @@
+{% load static %}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ошибка {{ status_code }}</title><link rel="stylesheet" href="{% static 'css/app.css' %}"></head>
+<body><main class="container"><section class="panel module-panel"><p class="eyebrow">Код прозрачности</p><h1>{{ status_code }}</h1>
+{% if status_code == 403 %}<p>Недостаточно прав для этого действия. Обратитесь к администратору.</p>{% elif status_code == 404 %}<p>Страница или документ не найдены.</p>{% else %}<p>Не удалось выполнить запрос. Повторите попытку позднее.</p>{% endif %}
+<p class="muted">Код обращения: {{ request.request_id|default:"не назначен" }}</p><a href="{% url 'dashboard:case_list' %}">Вернуться в реестр</a></section></main></body></html>

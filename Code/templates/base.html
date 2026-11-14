@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Код прозрачности{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard:case_list' %}"><span class="brand-mark">КП</span> Код прозрачности</a>
+    <nav aria-label="Основная навигация">
+      {% if user.is_authenticated %}
+        <a href="{% url 'dashboard:case_list' %}">Реестр</a>
+        {% if perms.cases.import_cases %}<a href="{% url 'imports:upload' %}">Импорт</a>{% endif %}
+        {% if user.is_staff %}<a href="{% url 'admin:index' %}">Управление</a>{% endif %}
+        <span class="username">{{ user.username }}</span>
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="link-button" type="submit">Выйти</button></form>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="container">
+    {% for message in messages %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="container footer">Рабочее место специалиста · Сведения требуют проверки по источникам</footer>
+</body>
+</html>

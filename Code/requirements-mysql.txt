@@ -1,0 +1,3 @@
+# mysqlclient has no runtime Python dependencies. System headers are installed in Dockerfile.
+-r requirements.txt
+mysqlclient==2.3.1

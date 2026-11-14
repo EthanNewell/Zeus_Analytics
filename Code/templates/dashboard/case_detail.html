@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ case.reference }} · Код прозрачности{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'dashboard:case_list' %}">← Реестр случаев</a>
+<p class="eyebrow">{{ case.reference }}</p><h1>{{ case.title }}</h1>
+{% if case.is_demonstration %}<div class="notice">Демонстрационные данные. Пример не подтверждает существование реального нарушения.</div>{% endif %}
+<div class="detail-grid">
+  <section class="panel"><h2>Исходные сведения</h2><dl>
+    <dt>Кадастровый номер</dt><dd>{{ case.cadastral_number|default:"Нет данных" }}</dd>
+    <dt>Происхождение</dt><dd>{{ case.get_origin_display }}</dd>
+    <dt>Основание / источник</dt><dd>{{ case.source_reference|default:"Не указан" }}</dd>
+  </dl><h3>Анализ</h3><p class="muted">Не запускался. Результаты индикаторов пока отсутствуют.</p></section>
+  <section class="panel"><h2>Документы и источники</h2>
+    {% for item in evidence %}<div class="evidence-item"><strong>{{ item.title }}</strong><p>{{ item.get_origin_display }}</p><p class="muted">{{ item.source_reference|default:"Источник не указан" }}</p>{% if item.file %}<a href="{% url 'dashboard:evidence_download' item.id %}">Скачать документ</a>{% endif %}</div>
+    {% empty %}<p class="muted">Доступных документов нет.</p>{% endfor %}
+  </section>
+</div>
+<section class="panel section-gap"><h2>История проверки</h2><p class="muted">Вывод сотрудника хранится отдельно от исходных фактов и результатов анализа.</p>
+  {% for review in reviews %}<article class="review"><span class="subtext">{{ review.created_at|date:"d.m.Y H:i" }} МСК · {{ review.author.username }}</span><h3>{{ review.get_outcome_display }}</h3><p>{{ review.comment|linebreaksbr }}</p></article>
+  {% empty %}<p class="muted">Доступных записей проверки пока нет.</p>{% endfor %}
+  {% if perms.cases.add_review %}<form method="post" action="{% url 'dashboard:review_create' case.id %}" class="review-form">{% csrf_token %}
+    <h3>Добавить результат проверки</h3>{{ review_form.as_p }}<button class="button" type="submit">Сохранить в истории</button>
+  </form>{% endif %}
+</section>
+{% endblock %}

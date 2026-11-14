@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Вход · Код прозрачности{% endblock %}
+{% block content %}
+<div class="login-layout">
+  <section class="login-intro">
+    <p class="eyebrow">Код прозрачности</p>
+    <h1>Факты. Источники.<br>Обоснованная проверка.</h1>
+    <p class="muted">Единое рабочее место для сопоставления земельных событий и сохранения результатов проверки.</p>
+    <div class="intro-note">Индикатор помогает выбрать случай для проверки. Итоговое решение принимает специалист.</div>
+  </section>
+  <section class="panel login-panel">
+    <p class="eyebrow">Доступ для сотрудников</p>
+    <h2>Вход в систему</h2>
+    <p class="muted">Используйте учётную запись, выданную администратором.</p>
+    <form method="post" action="{% url 'accounts:login' %}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <label for="{{ form.username.id_for_label }}">Логин</label>
+      {{ form.username.errors }}{{ form.username }}
+      <label for="{{ form.password.id_for_label }}">Пароль</label>
+      {{ form.password.errors }}{{ form.password }}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="button full-width" type="submit">Войти</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
