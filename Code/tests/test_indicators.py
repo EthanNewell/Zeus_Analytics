@@ -630,3 +630,97 @@ class ReviewFindingsTests(TestCase):
             Review.objects.create(case=other, author=self.head, outcome="confirmed", comment="ок")
         with self.assertNumQueries(8):  # constant: no query per row
             self.client.get(reverse("dashboard:case_export"))
+
+
+class EvidenceAndSourcesTests(TestCase):
+    """Documents and links attached by employees; the sources page."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.specialist = User.objects.create_user(
+            "specialist", password="a-specialist-test-password"
+        )
+        cls.specialist.groups.add(Group.objects.get(name="Specialist"))
+        cls.case = Case.objects.create(reference="61:02:0600010:2843", title="Участок")
+
+    def setUp(self):
+        self.client.force_login(self.specialist)
+        self.url = reverse("dashboard:evidence_create", args=[self.case.id])
+
+    def test_link_and_file_are_attached_with_author(self):
+        from cases.models import Evidence
+
+        response = self.client.post(
+            self.url,
+            {"title": "Выписка ЕГРН", "url": "https://rosreestr.gov.ru/x", "origin": "unknown"},
+        )
+        self.assertRedirects(
+            response,
+            reverse("dashboard:case_detail", args=[self.case.id]) + "#documents",
+            fetch_redirect_response=False,
+        )
+        pdf = SimpleUploadedFile("vypiska.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+        self.client.post(
+            self.url, {"title": "Протокол комиссии", "file": pdf, "origin": "author_marked_real"}
+        )
+        self.assertEqual(Evidence.objects.count(), 2)
+        self.assertEqual({e.added_by_id for e in Evidence.objects.all()}, {self.specialist.pk})
+        detail = self.client.get(reverse("dashboard:case_detail", args=[self.case.id]))
+        self.assertContains(detail, "https://rosreestr.gov.ru/x")
+        self.assertContains(detail, "Протокол комиссии")
+        file_evidence = Evidence.objects.get(title="Протокол комиссии")
+        download = self.client.get(reverse("dashboard:evidence_download", args=[file_evidence.id]))
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 test")
+        self.assertIn("vypiska.pdf", download["Content-Disposition"])
+
+    def test_bad_attachments_are_rejected(self):
+        from cases.models import Evidence
+
+        cases = [
+            {"title": "Пусто"},
+            {"title": "Скрипт", "file": SimpleUploadedFile("x.exe", b"MZ")},
+            {"title": "Ссылка", "url": "javascript:alert(1)"},
+        ]
+        for data in cases:
+            with self.subTest(data=data["title"]):
+                self.assertEqual(
+                    self.client.post(self.url, {**data, "origin": "unknown"}).status_code, 400
+                )
+        self.assertFalse(Evidence.objects.exists())
+
+    def test_guest_and_outsider_cannot_attach(self):
+        self.client.logout()
+        self.assertEqual(
+            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 302
+        )
+        User.objects.create_user("outsider", password="an-outsider-password")
+        self.client.login(username="outsider", password="an-outsider-password")
+        self.assertEqual(
+            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 403
+        )
+
+    def test_sources_page_links_indicators_from_passports(self):
+        from cases.sources import sources_with_usage
+
+        class Batch:
+            def __init__(self, indicator, note):
+                self.indicator, self.sources_note, self.notes = indicator, note, ""
+
+        rows = {
+            row["source"].key: row["codes"]
+            for row in sources_with_usage(
+                [
+                    Batch("I4", "Источники данных: ГИС «Торги» (torgi.gov.ru), НСПД, Росреестр."),
+                    Batch("I6", "ЕГРЮЛ/ЕГРИП (ФНС), НСПД"),
+                ]
+            )
+        }
+        self.assertEqual(rows["torgi"], ["I4"])
+        self.assertEqual(rows["nspd"], ["I4", "I6"])
+        self.assertEqual(rows["egrul"], ["I6"])
+        self.assertEqual(self.client.get(reverse("dashboard:sources")).status_code, 200)
+
+    def test_every_indicator_states_its_tz_rule(self):
+        self.assertTrue(all(indicator.tz_rule for indicator in INDICATORS.values()))
+        self.assertContains(self.client.get(reverse("dashboard:methodology")), "Р1.6")

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 SPECIALIST_PERMISSIONS = (
     "view_case",
     "view_evidence",
+    "add_evidence",
     "view_review",
     "add_review",
 )

@@ -4,9 +4,11 @@ from collections import Counter
 
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
@@ -19,10 +21,11 @@ from cases.geometry import centroid
 from cases.indicators import INDICATORS
 from cases.models import Attention, Case, Evidence, Record
 from cases.selectors import REVIEW_FILTERS, case_list, case_story, latest_reviews, svg_outline
-from cases.services import add_review
+from cases.services import add_evidence, add_review
+from cases.sources import sources_with_usage
 from imports.models import ImportBatch
 
-from .forms import ReviewForm
+from .forms import EvidenceForm, ReviewForm
 
 STATUS_LABELS = {
     RuleStatus.TRIGGERED: "Сработал",
@@ -122,7 +125,7 @@ def cases(request):
     )
 
 
-def detail_context(request, case, form=None):
+def detail_context(request, case, form=None, evidence_form=None):
     records = case.records.all()
     story = case_story(case, latest_outcomes(records))
     return {
@@ -131,6 +134,7 @@ def detail_context(request, case, form=None):
         "outline": svg_outline(case.geometry),
         "grid": range(0, 241, 30),
         "review_form": form if form is not None else ReviewForm(),
+        "evidence_form": evidence_form if evidence_form is not None else EvidenceForm(),
         "reviews": case.reviews.select_related("author")
         if request.user.has_perm("cases.view_review")
         else [],
@@ -157,6 +161,27 @@ def review_create(request, case_id):
         return redirect("dashboard:case_detail", case_id=case.id)
     return render(
         request, "dashboard/case_detail.html", detail_context(request, case, form), status=400
+    )
+
+
+@permission_required(["cases.view_case", "cases.add_evidence"], raise_exception=True)
+@require_POST
+def evidence_create(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+    form = EvidenceForm(request.POST, request.FILES)
+    if form.is_valid():
+        try:
+            add_evidence(actor=request.user, case=case, **form.cleaned_data)
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Документ добавлен к объекту.")
+            return redirect(reverse("dashboard:case_detail", args=[case.id]) + "#documents")
+    return render(
+        request,
+        "dashboard/case_detail.html",
+        detail_context(request, case, evidence_form=form),
+        status=400,
     )
 
 
@@ -229,6 +254,24 @@ def officials(request):
         key=lambda person: -person["repeats"],
     )
     return render(request, "dashboard/officials.html", {"people": people})
+
+
+@permission_required("cases.view_case", raise_exception=True)
+@require_GET
+def sources(request):
+    latest = {}
+    for batch in ImportBatch.objects.select_related("uploaded_by"):
+        latest.setdefault(batch.indicator, batch)
+    batches = sorted(latest.values(), key=lambda batch: int(batch.indicator[1:]))
+    return render(
+        request,
+        "dashboard/sources.html",
+        {
+            "sources": sources_with_usage(batches),
+            "batches": [(INDICATORS.get(batch.indicator), batch) for batch in batches],
+            "records": Record.objects.count(),
+        },
+    )
 
 
 @permission_required("cases.view_case", raise_exception=True)

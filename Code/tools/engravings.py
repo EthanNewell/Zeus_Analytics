@@ -68,6 +68,10 @@ FRAMES = {
         "16:9",
         "Close-up on a desk: printed spreadsheets with columns of figures shown as abstract dots and dashes, a magnifying glass lying on them, a steel ruler and a pencil.",
     ),
+    "band-sources": (
+        "16:9",
+        "A wall of old wooden card-catalogue cabinets with many small numbered-free drawers in a state registry office, one drawer pulled out with index cards, soft window light, deep perspective.",
+    ),
 }
 
 # Logo candidates: one iconic object filling the square, readable at 40 px like the

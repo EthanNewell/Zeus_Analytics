@@ -29,9 +29,19 @@
   const density = { high: 0.62, normal: 0.36, low: 0.2, insufficient: 0.08, none: 0.06, not_run: 0.06 };
   const map = L.map("map", { zoomControl: true, attributionControl: true }).setView(center, 8);
   // 2GIS basemap: Russian place names and borders; greyed by CSS to stay monochrome.
-  L.tileLayer("https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1", {
+  const tiles = L.tileLayer("https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1", {
     maxZoom: 18, subdomains: "0123", attribution: "Подложка © 2ГИС"
   }).addTo(map);
+  // 2GIS sometimes drops a tile request: retry it on the next server instead of leaving a grey hole
+  tiles.on("tileerror", (event) => {
+    const tile = event.tile;
+    const tries = Number(tile.dataset.tries || 0);
+    if (tries >= 4) return;
+    tile.dataset.tries = tries + 1;
+    setTimeout(() => {
+      tile.src = tile.src.replace(/tile(\d)\./, (_, n) => "tile" + ((Number(n) + 1) % 4) + ".").replace(/&r=\d+|$/, "&r=" + (tries + 1));
+    }, 400 * (tries + 1));
+  });
   const layers = [];
   const byId = {};
   const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

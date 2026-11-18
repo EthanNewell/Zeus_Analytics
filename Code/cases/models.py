@@ -128,11 +128,16 @@ class Evidence(models.Model):
         "происхождение", max_length=32, choices=Origin, default=Origin.UNKNOWN
     )
     source_reference = models.CharField("источник", max_length=500, blank=True)
+    url = models.URLField("ссылка", max_length=500, blank=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
+    )
+    added_at = models.DateTimeField("добавлен", auto_now_add=True, null=True)
 
     class Meta:
-        ordering = ["title", "id"]
-        verbose_name = "источник"
-        verbose_name_plural = "источники"
+        ordering = ["-added_at", "title", "id"]
+        verbose_name = "документ"
+        verbose_name_plural = "документы"
 
 
 class ReviewOutcome(models.TextChoices):

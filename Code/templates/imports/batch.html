@@ -12,7 +12,7 @@
       <div class="stat"><span class="eyebrow">Реальных ячеек</span><span class="num-xl">{{ batch.real_cells }}</span><span class="org o-real small">по маркировке автора</span></div>
       <div class="stat"><span class="eyebrow">Синтетических</span><span class="num-xl">{{ batch.synthetic_cells }}</span><span class="org o-synth small">или без маркировки</span></div>
     </div>
-    {% if perms.cases.run_analysis %}<form method="post" action="{% url 'analysis:run' %}" style="display:grid;max-width:24rem">{% csrf_token %}<button class="btn btn-primary" type="submit" data-lbl="Запустить анализ">Запустить анализ</button></form>{% endif %}
+    {% if perms.cases.run_analysis %}<form method="post" action="{% url 'analysis:run' %}" style="display:grid">{% csrf_token %}<button class="btn btn-primary" type="submit" data-lbl="Запустить анализ">Запустить анализ</button></form>{% endif %}
   </div>
 </div></section>
 {% endblock %}

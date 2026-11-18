@@ -34,7 +34,7 @@
 <section class="section">
   {% for row in rows %}
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">{{ row.indicator.code_display }} / v{{ row.rule.version }} / {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span><h2 class="h2">{{ row.indicator.title }}</h2></div>
+    <div class="block-rail"><span class="eyebrow">{{ row.indicator.code_display }} / v{{ row.rule.version }} / {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span><h2 class="h2">{{ row.indicator.title }}</h2><span class="code code-wrap">{{ row.indicator.tz_rule }}</span></div>
     <div class="block-body cols-3">
       <div><span class="eyebrow">Вопрос</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.question }}</p></div>
       <div><span class="eyebrow">Условие и порог</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.threshold }}</p></div>
@@ -42,6 +42,19 @@
     </div>
   </div>
   {% endfor %}
+</section>
+<section class="section" id="tz">
+  <div class="block">
+    <div class="block-rail"><span class="eyebrow">Правила ТЗ</span><h2 class="h1">Соответствие Р1.2, Р1.6, Р1.8</h2><p class="small soft">Полностью — в docs/indicator-mapping.md</p></div>
+    <div class="block-body tbl-wrap"><table class="tbl">
+      <thead><tr><th>Правило ТЗ</th><th>Чем покрыто</th><th>Статус</th></tr></thead>
+      <tbody>
+        <tr><td>Р1.6 — приобретение связанным лицом до начала процедуры</td><td data-label="Покрыто"><div class="codes"><span class="code">И6</span><span class="code">И1</span><span class="code">И10</span></div></td><td data-label="Статус" class="small">Реализовано как И6; одна фамилия — «недостаточно данных»</td></tr>
+        <tr><td>Р1.8 — последующая реализация выгоды, контекст</td><td data-label="Покрыто"><div class="codes"><span class="code">И3</span></div></td><td data-label="Статус" class="small">Реализовано как И3; приоритет не поднимает</td></tr>
+        <tr><td>Р1.2 — новый ВРИ не соответствует регламенту</td><td data-label="Покрыто"><span class="soft">—</span></td><td data-label="Статус" class="small">Нет данных: в таблицах нет истории ВРИ и редакций ПЗЗ. И2 — другой кандидат</td></tr>
+      </tbody>
+    </table></div>
+  </div>
 </section>
 <section class="section" id="quality">
   <div class="block">

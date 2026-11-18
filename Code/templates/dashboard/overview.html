@@ -38,7 +38,7 @@
         <tbody>{% for row in per_indicator %}
           <tr class="row">
             <td><a class="row-link" href="{% url 'dashboard:case_list' %}?indicator={{ row.indicator.code }}"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</a>{% if row.indicator.kind == 'context' %}<span class="sub">контекстный признак</span>{% endif %}</td>
-            <td class="hide-s" style="vertical-align:middle">{% if row.total %}<div class="bar"><span class="b-trig" style="width:{{ row.triggered|percent:row.total }}%"></span><span class="b-insuf" style="width:{{ row.insufficient|percent:row.total }}%"></span></div>{% endif %}</td>
+            <td class="hide-s mid">{% if row.total %}<div class="bar"><span class="b-trig" style="width:{{ row.triggered|percent:row.total }}%"></span><span class="b-insuf" style="width:{{ row.insufficient|percent:row.total }}%"></span></div>{% endif %}</td>
             <td class="r" data-label="Сработал">{{ row.triggered }} из {{ row.total }}</td>
             <td class="r" data-label="Нет данных">{{ row.insufficient }}</td>
             <td class="r" data-label="Сверка">{% if row.compared %}{{ row.agreed }}/{{ row.compared }}{% else %}—{% endif %}</td>
@@ -54,17 +54,17 @@
     <div class="block-rail">
       <span class="eyebrow">Очередь проверки</span>
       <h2 class="h1">Требуют внимания</h2>
-      <a class="btn" data-lbl="Весь реестр" href="{% url 'dashboard:case_list' %}" style="justify-self:start">Весь реестр</a>
+      <a class="btn" data-lbl="Весь реестр" href="{% url 'dashboard:case_list' %}">Весь реестр</a>
     </div>
     <div class="block-body tbl-wrap">
       <table class="tbl">
         <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог</th><th class="hide-s">Проверка</th><th></th></tr></thead>
         <tbody>{% for case in top %}{% with review=reviews|get_item:case.pk %}
           <tr class="row">
-            <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title|truncatechars:72 }}</a><span class="sub">{{ case.reference }}{% if case.is_demonstration %} / демонстрация{% endif %}</span></td>
+            <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title }}</a><span class="sub">{{ case.reference }}{% if case.is_demonstration %} / демонстрация{% endif %}</span></td>
             <td data-label="Индикаторы"><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</div></td>
             <td data-label="Итог"><span class="state small">{% attention_level case.attention %}{{ case.get_attention_display }}</span></td>
-            <td class="hide-s small">{% if review %}{{ review.get_outcome_display }}{% else %}<span class="soft">не проверялся</span>{% endif %}</td>
+            <td class="hide-s small nowrap">{% if review %}{{ review.get_outcome_display }}{% else %}<span class="soft">не проверялся</span>{% endif %}</td>
             <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
           </tr>
         {% endwith %}{% endfor %}</tbody>
@@ -75,10 +75,7 @@
 </section>
 
 <section class="section">
-  <div class="block" style="margin-bottom:var(--s7)">
-    <div class="block-rail"><span class="eyebrow">Что мы ищем</span></div>
-    <div class="block-body"><h2 class="display-l">Три механизма риска</h2></div>
-  </div>
+  <div class="section-head"><span class="eyebrow">Что мы ищем</span><h2 class="display-l">Три механизма риска</h2></div>
   <div class="feat-grid">
     <article class="feat">
       <span class="eyebrow">#1 / И1, И3, И6</span>
