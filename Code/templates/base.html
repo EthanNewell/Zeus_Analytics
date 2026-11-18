@@ -59,21 +59,12 @@
   {% if user.is_authenticated %}
   <footer class="foot">
     <div class="wrap foot-in">
-      <div class="foot-top">
-        <span class="foot-mark"><span class="mark" aria-hidden="true"></span>Код прозрачности</span>
-        <nav class="foot-nav" aria-label="Разделы">
-          <a href="{% url 'dashboard:overview' %}">Обзор</a>
-          <a href="{% url 'dashboard:case_list' %}">Реестр</a>
-          <a href="{% url 'dashboard:map' %}">Карта</a>
-          <a href="{% url 'dashboard:officials' %}">Лица</a>
-          <a href="{% url 'dashboard:sources' %}">Источники</a>
-          <a href="{% url 'dashboard:methodology' %}">Методика</a>
-          {% if perms.cases.import_cases %}<a href="{% url 'imports:upload' %}">Загрузка</a>{% endif %}
-        </nav>
-      </div>
-      <div class="foot-bottom">
-        <p class="body-s">Индикатор — повод для проверки, а не вывод о нарушении. Решение принимает сотрудник.</p>
-        <p class="body-s">Данные: ЕГРН, НСПД, ЕГРЮЛ, ГИС «Торги», акты Правительства Ростовской области — через таблицы исследования. Правила v1.0.</p>
+      <a class="foot-mark" href="{% url 'dashboard:overview' %}"><span class="mark" aria-hidden="true"></span>Код прозрачности</a>
+      <div class="foot-meta body-s">
+        <span>ЕГРН / НСПД / ЕГРЮЛ / ГИС «Торги»</span>
+        <span>правила 1.0</span>
+        <span>{% if last_run %}анализ {{ last_run.started_at|date:"d.m.Y H:i" }}{% else %}анализ не запускался{% endif %}</span>
+        <span class="nowrap" data-clock>{% now "H:i" %} МСК</span>
       </div>
     </div>
   </footer>
@@ -201,6 +192,14 @@
       document.addEventListener("click", (event) => { if (event.target.isConnected && !box.contains(event.target)) open(false); });
       render();
     });
+  })();
+  </script>
+  <script>
+  (function () {
+    const clock = document.querySelector("[data-clock]");
+    if (!clock) return;
+    const tick = () => { clock.textContent = new Date().toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow" }) + " МСК"; };
+    tick(); setInterval(tick, 1000);
   })();
   </script>
   <script>

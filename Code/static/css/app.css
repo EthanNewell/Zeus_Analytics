@@ -341,17 +341,13 @@ details.facts[open] summary .chev { transform: rotate(180deg); }
 .login-form { display: grid; gap: var(--s4); }
 .login-form .btn { margin-top: var(--s2); }
 
-/* footer: the blue ground again, like the first screen */
+/* footer as on ЭВА-РИСК: the mark and one line about the data — no menu, no disclaimers */
 .foot { background: var(--blue); color: #fff; }
-.foot-in { display: grid; gap: var(--s7); padding-block: clamp(3rem, 7vw, 5.5rem) var(--s6); }
-.foot-top { display: grid; gap: var(--s6); }
-.foot-mark { display: inline-flex; align-items: center; gap: 0.4em; font-weight: 200; font-stretch: 62%; font-size: clamp(2.4rem, 6vw, 5.6rem); line-height: 1; text-transform: uppercase; }
-.foot-mark .mark { width: 1em; height: 1em; }
-.foot-nav { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; }
-.foot-nav a { padding: var(--s3) 0; border-top: 1px solid rgba(255, 255, 255, 0.4); font-size: clamp(0.66rem, 0.6rem + 0.18vw, 0.76rem); font-weight: 400; letter-spacing: 0.16em; text-transform: uppercase; }
-.foot-nav a:hover { filter: brightness(0.78); }
-.foot-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--cg); padding-top: var(--s4); border-top: 1px solid rgba(255, 255, 255, 0.4); }
-.foot-bottom p { opacity: 0.86; }
+.foot-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s4) clamp(2rem, 5vw, 5rem); padding-block: clamp(4rem, 12vh, 8rem); }
+.foot-mark { display: inline-flex; align-items: center; gap: 0.7em; font-weight: 300; font-size: clamp(1.05rem, 2.2vw, 1.6rem); letter-spacing: 0.1em; text-transform: uppercase; }
+.foot-mark .mark { width: 2.1em; height: 2.1em; }
+.foot-mark:hover { filter: brightness(0.82); }
+.foot-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2) var(--s4); }
 
 /* paragraphs set as rectangles on wide screens only; narrow columns stay left-aligned */
 @media (min-width: 62.01rem) { p.j, .j p { text-align: justify; hyphens: none; } }
@@ -365,8 +361,6 @@ details.facts[open] summary .chev { transform: rotate(180deg); }
   .block, .person, .case-head-in, .map-grid { grid-template-columns: minmax(0, 1fr); }
   .block > .block-rail, .block > .block-body, .person > :first-child, .person > :last-child,
   .case-head-in > :first-child, .head-side, .map-grid > .map, .map-grid > .map-list { grid-column: 1; }
-  .foot-bottom { grid-template-columns: minmax(0, 1fr); }
-  .foot-nav { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-columns: auto; column-gap: var(--s4); }
   .map-list { max-height: none; }
   .feat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filters-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -375,6 +369,7 @@ details.facts[open] summary .chev { transform: rotate(180deg); }
   .seg { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 40rem) {
+  .foot-meta { justify-content: flex-start; }
   .hero { padding-block: calc(4.5rem + var(--s3)) var(--s4); }
   .hero-copy { gap: var(--s4); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
