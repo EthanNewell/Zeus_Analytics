@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from analysis.contracts import RuleStatus
@@ -316,7 +317,9 @@ def case_export(request):
                     ", ".join(INDICATORS[code].code_display for code in case.triggered_list),
                     " | ".join(outcomes.get(case.pk, [])),
                     review.get_outcome_display() if review else "",
-                    review.created_at.strftime("%d.%m.%Y %H:%M") if review else "",
+                    timezone.localtime(review.created_at).strftime("%d.%m.%Y %H:%M")
+                    if review
+                    else "",
                     review.author.username if review else "",
                     "да" if case.is_demonstration else "нет",
                 )

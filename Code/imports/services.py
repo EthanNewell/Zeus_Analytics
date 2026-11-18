@@ -133,21 +133,26 @@ def read_csv(content):
             text = content.decode("cp1251")
         except UnicodeDecodeError as error:
             raise UnreadableFile("Файл CSV должен быть в кодировке UTF-8.") from error
-    sample = text[:4096]
-    delimiter = ";" if sample.count(";") >= sample.count(",") else ","
-    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    grid = []
-    for row_index, row in enumerate(reader, start=1):
-        grid.append(
+    # the delimiter is the one that yields a known header row, not the most frequent sign:
+    # contours use «;» inside cells and object descriptions are full of commas
+    for delimiter in (";", ",", "\t"):
+        try:
+            rows = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+        except csv.Error as error:
+            raise UnreadableFile(
+                "Не удалось разобрать CSV: слишком длинное поле или кавычки."
+            ) from error
+        grid = [
             [
                 {"value": value, "origin": None, "cell": f"{_column_letter(col)}{row_index}"}
                 for col, value in enumerate(row, start=1)
             ]
-        )
-    table = _parse_grid(grid, "CSV", default_origin=Origin.UNKNOWN)
-    if table is None:
-        return ParsedTable(None, "", [], [], [ImportError(0, "file", "unknown_table", _unknown())])
-    return table
+            for row_index, row in enumerate(rows, start=1)
+        ]
+        table = _parse_grid(grid, "CSV", default_origin=Origin.UNKNOWN)
+        if table is not None:
+            return table
+    return ParsedTable(None, "", [], [], [ImportError(0, "file", "unknown_table", _unknown())])
 
 
 def _column_letter(index):
@@ -205,17 +210,17 @@ def _parse_grid(grid, sheet_name, *, default_origin):
         parsed = _parse_row(indicator, row, positions, default_origin, errors)
         if parsed is None:
             continue
-        if parsed.key in seen:
+        if parsed.key.casefold() in seen:
             errors.append(
                 ImportError(
                     parsed.row_number,
                     indicator.column(indicator.key_column).header,
                     "duplicate",
-                    f"Запись повторяет строку {seen[parsed.key]}.",
+                    f"Запись повторяет строку {seen[parsed.key.casefold()]}.",
                 )
             )
             continue
-        seen[parsed.key] = parsed.row_number
+        seen[parsed.key.casefold()] = parsed.row_number
         rows.append(parsed)
     if not rows and not errors:
         errors.append(ImportError(0, "file", "empty", "В таблице нет строк с данными."))
@@ -342,6 +347,9 @@ def _save(actor, name, content, file_format, table):
         )
         created += was_created
         updated += not was_created
+        if not was_created:
+            for case in record.cases.all():
+                touched_cases[case.pk] = case  # may be unlinked below: recompute it too
         cases = [_upsert_case(spec, row, batch) for spec in row.cases]
         record.cases.set(cases)
         for case in cases:
@@ -356,11 +364,13 @@ def _save(actor, name, content, file_format, table):
 def _upsert_case(spec, row, batch):
     case, _ = Case.objects.get_or_create(
         reference=spec.reference[:100],
-        defaults={"title": spec.title[:300], "cadastral_number": spec.cadastral_number},
+        defaults={"title": spec.title[:300], "cadastral_number": spec.cadastral_number[:40]},
     )
     changed = False
     for attribute in ("cadastral_number", "object_kind", "address", "area_sq_m"):
         value = getattr(spec, attribute)
+        if isinstance(value, str):
+            value = value[: Case._meta.get_field(attribute).max_length]
         if value and not getattr(case, attribute):
             setattr(case, attribute, value)
             changed = True

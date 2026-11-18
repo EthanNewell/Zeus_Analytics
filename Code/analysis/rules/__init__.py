@@ -15,6 +15,7 @@ from cases.facts import (
     fact_value,
     normalize_header,
     parse_points,
+    text_starts_no,
     text_starts_yes,
 )
 from cases.geometry import shape_metrics
@@ -191,6 +192,8 @@ def rule_i4(facts):
     used = ["participants", "bypass", "start_price", "final_price"]
     participants = fact_value(facts, "participants")
     bypass = fact_value(facts, "bypass")
+    if text_starts_no(bypass):
+        bypass = None  # «Нет», «Не выявлено» — explicit negative, not a sign
     if participants == 1:
         return Evaluation(
             RuleStatus.TRIGGERED,
@@ -275,8 +278,18 @@ def rule_i8(facts):
     used = ["coords"]
     if fact_state(facts, "coords") != PRESENT:
         return _insufficient("I8", [_label("I8", "coords")], used, "форму границ")
-    shape = shape_metrics(parse_points(fact_value(facts, "coords")))
+    try:
+        shape = shape_metrics(parse_points(fact_value(facts, "coords")))
+    except ValueError:
+        shape = {"fill": None}
     fill = shape["fill"]
+    if not fill:
+        return _insufficient(
+            "I8",
+            ["Контур с площадью (не меньше трёх точек не на одной линии)"],
+            used,
+            "форму границ",
+        )
     metrics = [
         ("Площадь по координатам", f"{number(shape['area'])} м²"),
         ("Описанный прямоугольник", f"{number(shape['rectangle'])} м²"),

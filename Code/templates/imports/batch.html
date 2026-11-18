@@ -32,9 +32,9 @@
     <div class="block-body tbl-wrap"><table class="tbl">
       <thead><tr><th>Строка</th><th>Запись</th><th>Объекты</th><th class="hide-s">Разметка автора</th></tr></thead>
       <tbody>{% for record in records %}<tr>
-        <td>{{ record.row_number }}</td>
+        <td data-label="Строка">{{ record.row_number }}</td>
         <td class="small">{{ record.title|truncatechars:80 }}{% if record.is_demonstration %}<span class="sub">демонстрация</span>{% endif %}</td>
-        <td><div class="codes">{% for case in record.cases.all %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div></td>
+        <td data-label="Объекты"><div class="codes">{% for case in record.cases.all %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div></td>
         <td class="hide-s small">{{ record.author_mark|default:"—" }}</td>
       </tr>{% endfor %}</tbody>
     </table></div>

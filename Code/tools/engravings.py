@@ -166,7 +166,7 @@ def duotone(source, target, size):
     lut_g = [round(BLUE[1] + (255 - BLUE[1]) * (v / 255) ** 1.15) for v in range(256)]
     lut_b = [round(BLUE[2] + (255 - BLUE[2]) * (v / 255) ** 1.15) for v in range(256)]
     coloured = Image.merge("RGB", (image.point(lut_r), image.point(lut_g), image.point(lut_b)))
-    coloured.save(target, quality=64, optimize=True, progressive=True)
+    coloured.save(target, quality=60, optimize=True, progressive=True)
 
 
 def mark(source, target, size=256):
@@ -216,7 +216,7 @@ def main():
         if name == "mark":
             mark(source, static / "mark.webp")
             continue
-        size = (1000, 1000) if ratio == "1:1" else (1600, 900)
+        size = (1000, 1000) if ratio == "1:1" else (1500, 844)
         duotone(source, static / f"{name}.jpg", size)
         print(f"{name}: {static / (name + '.jpg')}")
 

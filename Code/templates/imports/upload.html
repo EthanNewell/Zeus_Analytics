@@ -27,8 +27,8 @@
         <thead><tr><th>Файл</th><th>Индикатор</th><th class="r">Строк</th><th class="r hide-s">Новых / обновлено</th><th class="hide-s">Загрузил</th><th></th></tr></thead>
         <tbody>{% for batch in batches %}<tr class="row">
           <td><a class="row-link" href="{% url 'imports:batch' batch.id %}">{{ batch.file_name }}</a><span class="sub">{{ batch.created_at|date:"d.m.Y H:i" }}</span></td>
-          <td><span class="code">И{{ batch.indicator|slice:"1:" }}</span></td>
-          <td class="r">{{ batch.rows_total }}</td>
+          <td data-label="Индикатор"><span class="code">И{{ batch.indicator|slice:"1:" }}</span></td>
+          <td class="r" data-label="Строк">{{ batch.rows_total }}</td>
           <td class="r hide-s">{{ batch.rows_created }} / {{ batch.rows_updated }}</td>
           <td class="hide-s small">{{ batch.uploaded_by.username }}</td>
           <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>

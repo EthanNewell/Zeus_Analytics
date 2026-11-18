@@ -1,4 +1,5 @@
 import time
+import uuid
 
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -23,7 +24,14 @@ def run_analysis(*, actor, case_ids=None):
     started = time.monotonic()
     records = Record.objects.prefetch_related("cases")
     if case_ids:
-        records = records.filter(cases__id__in=case_ids).distinct()
+        try:
+            case_ids = [uuid.UUID(str(value)) for value in case_ids]
+        except ValueError as error:
+            raise AnalysisNotConfigured("Неверный идентификатор объекта.") from error
+        # a record shared by several cases (И2, И10) touches its neighbours too: take every
+        # record of every affected case, so each verdict is computed from all its records
+        affected = Case.objects.filter(records__cases__id__in=case_ids).values("pk")
+        records = records.filter(cases__in=affected).distinct()
     records = list(records)
     if not records:
         raise AnalysisNotConfigured(
@@ -76,6 +84,14 @@ def run_analysis(*, actor, case_ids=None):
     Case.objects.bulk_update(
         cases.values(), ["attention", "attention_rank", "triggered_codes", "signal_count"]
     )
+    if not case_ids:
+        # objects left without records (a re-import unlinked them) keep no stale verdict
+        Case.objects.exclude(pk__in=cases).update(
+            attention=Attention.NONE,
+            attention_rank=ATTENTION_ORDER[Attention.NONE],
+            triggered_codes="",
+            signal_count=0,
+        )
     compared = [outcome for outcome in outcomes if outcome.expected_status]
     run.records_count = len(outcomes)
     run.cases_count = len(cases)

@@ -52,7 +52,7 @@
         <thead><tr><th>Индикатор</th><th class="r">Совпало</th><th>Расхождения</th></tr></thead>
         <tbody>{% for row in rows %}<tr>
           <td><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</td>
-          <td class="r">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
+          <td class="r" data-label="Совпало">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
           <td class="small">{% for outcome in row.mismatches %}<p>{{ outcome.record.title|truncatechars:70 }}: у автора «{{ outcome.record.author_mark }}», у правила — {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p>{% empty %}<span class="soft">нет</span>{% endfor %}</td>
         </tr>{% endfor %}</tbody>
       </table></div>

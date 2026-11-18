@@ -14,7 +14,7 @@ ABSENT_TOKENS = {"—", "–", "-", "нет события", "не примен�
 
 CADASTRAL_RE = re.compile(r"\b(\d{2}):(\d{2}):(\d{6,7}):(\d{1,6})\b")
 SHORT_RE = re.compile(r"(?<![\d:])[:](\d{1,6})\b")
-RANGE_RE = re.compile(r"\b(\d{2}:\d{2}:\d{6,7}):(\d{1,6})\s*[–—-]\s*(?:\1)?:?(\d{1,6})\b")
+RANGE_RE = re.compile(r"\b(\d{2}:\d{2}:\d{6,7}):(\d{1,6})\s*[–—-]\s*(?:\1)?:(\d{1,6})\b")
 DATE_IN_TEXT_RE = re.compile(r"\bот\s+(\d{2})\.(\d{2})\.(\d{4})\b")
 HEADER_SPACE_RE = re.compile(r"\s+")
 
@@ -33,8 +33,16 @@ REGION_BY_CODE = {
 }
 
 
+COMPARISON_RE = re.compile(r"<=|>=|[≤≥<>?]")
+
+
 def normalize_header(text):
-    text = str(text or "").replace("ё", "е").replace("Ё", "Е").replace(" ", " ")
+    """Header key: case, «ё», spaces and comparison signs do not matter.
+
+    «≤»/«≥» are lost as «?» when Excel saves CSV in cp1251, so they compare as one sign.
+    """
+    text = str(text or "").replace("ё", "е").replace("Ё", "Е").replace("\u00a0", " ")
+    text = COMPARISON_RE.sub("~", text)
     return HEADER_SPACE_RE.sub(" ", text).strip().lower()
 
 
@@ -115,8 +123,18 @@ def fact_date(facts, key):
     return dt.date.fromisoformat(value) if value else None
 
 
+YES_RE = re.compile(r"^да(?![а-я])")
+NO_RE = re.compile(r"^(нет|не)(?![а-я])")
+
+
 def text_starts_yes(text):
-    return bool(text) and normalize_header(text).startswith("да")
+    """«Да — …» is yes; «Данных нет» is not."""
+    return bool(text) and bool(YES_RE.match(normalize_header(text)))
+
+
+def text_starts_no(text):
+    """«Нет», «Не выявлено», «не установлены» are an explicit negative answer."""
+    return bool(text) and bool(NO_RE.match(normalize_header(text)))
 
 
 def add_months(date, months):
@@ -132,21 +150,20 @@ def _leap(year):
 
 
 def cadastral_numbers(text, expand_limit=50):
-    """Full cadastral numbers in text; expands «:1543, :1544» and «:3352 – :3356»."""
+    """Full cadastral numbers in reading order; expands «:1543, :1544» and «:3352 – :3356».
+
+    A range needs a colon after the dash («:3356» or the full number of the same quarter),
+    so «:40 – 61:01:…» or «:5 — 12.03.2023» are never read as ranges.
+    """
     if not text:
         return []
     text = str(text)
-    found = []
-
-    def add(number):
-        if number not in found:
-            found.append(number)
-
+    events, spans = [], []
     for match in RANGE_RE.finditer(text):
         prefix, start, end = match.group(1), int(match.group(2)), int(match.group(3))
-        if 0 < end - start <= expand_limit:
-            for value in range(start, end + 1):
-                add(f"{prefix}:{value}")
+        values = range(start, end + 1) if 0 < end - start <= expand_limit else (start, end)
+        events.append((match.start(), [f"{prefix}:{value}" for value in values]))
+        spans.append((match.start(), match.end()))
     last_prefix = None
     position = 0
     tokens = sorted(
@@ -155,14 +172,19 @@ def cadastral_numbers(text, expand_limit=50):
         key=lambda item: item[0],
     )
     for start, kind, match in tokens:
-        if start < position:
-            continue
+        inside = any(begin <= start < end for begin, end in spans)
         if kind == "full":
-            add(match.group(0))
             last_prefix = ":".join(match.groups()[:3])
-            position = match.end()
-        elif last_prefix:
-            add(f"{last_prefix}:{match.group(1)}")
+            if not inside and start >= position:
+                events.append((start, [match.group(0)]))
+                position = match.end()
+        elif last_prefix and not inside and start >= position:
+            events.append((start, [f"{last_prefix}:{match.group(1)}"]))
+    found = []
+    for _, numbers in sorted(events, key=lambda item: item[0]):
+        for number in numbers:
+            if number not in found:
+                found.append(number)
     return found
 
 
@@ -200,8 +222,14 @@ def parse_points(text):
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             raise ValueError("координаты вне диапазона WGS-84")
         points.append([lat, lon])
-    if len(points) < 3:
-        raise ValueError("нужно не меньше трёх точек контура")
+    if len({tuple(point) for point in points}) < 3:
+        raise ValueError("нужно не меньше трёх разных точек контура")
+    area = sum(
+        points[i][1] * points[i - 1][0] - points[i - 1][1] * points[i][0]
+        for i in range(len(points))
+    )
+    if area == 0:
+        raise ValueError("контур без площади: точки лежат на одной линии")
     return points
 
 

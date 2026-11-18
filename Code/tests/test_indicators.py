@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
 
@@ -228,11 +229,11 @@ class SummaryTests(TestCase):
                 "правка — 61:02:0120102:1543, :1544; участок 61:01:0600005:3352 – :3354"
             ),
             [
+                "61:02:0120102:1543",
+                "61:02:0120102:1544",
                 "61:01:0600005:3352",
                 "61:01:0600005:3353",
                 "61:01:0600005:3354",
-                "61:02:0120102:1543",
-                "61:02:0120102:1544",
             ],
         )
 
@@ -441,3 +442,191 @@ class UserPathTests(TestCase):
             self.client.get(reverse("dashboard:case_list"), {"attention": "high"}),
             "61:39:0600012:744",
         )
+
+
+class EmptyAndRoleTests(TestCase):
+    """Every page works before the first import, and each role sees only its actions."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.users = {}
+        for group in ["Specialist", "Controller", "Head"]:
+            user = User.objects.create_user(group.lower(), password=f"a-{group}-test-password")
+            user.groups.add(Group.objects.get(name=group))
+            cls.users[group] = user
+
+    def test_pages_render_on_empty_database(self):
+        self.client.force_login(self.users["Head"])
+        for name in ["overview", "case_list", "map", "officials", "methodology"]:
+            with self.subTest(page=name):
+                response = self.client.get(reverse(f"dashboard:{name}"))
+                self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            self.client.get(reverse("dashboard:overview")), "Анализ ещё не запускался"
+        )
+        self.assertEqual(self.client.get(reverse("imports:upload")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("dashboard:case_export")).status_code, 200)
+
+    def test_menu_and_actions_follow_the_role(self):
+        upload, export, run = (
+            reverse("imports:upload"),
+            reverse("dashboard:case_export"),
+            reverse("analysis:run"),
+        )
+        expectations = {
+            "Specialist": (False, False, False),
+            "Controller": (True, False, True),
+            "Head": (True, True, True),
+        }
+        for group, (can_upload, can_export, can_run) in expectations.items():
+            with self.subTest(role=group):
+                self.client.force_login(self.users[group])
+                page = self.client.get(reverse("dashboard:overview")).content.decode()
+                self.assertEqual(f'href="{upload}"' in page, can_upload)
+                self.assertEqual(f'action="{run}"' in page, can_run)
+                listing = self.client.get(reverse("dashboard:case_list")).content.decode()
+                self.assertEqual(export in listing, can_export)
+                self.assertEqual(self.client.get(export).status_code, 200 if can_export else 403)
+
+
+class ReviewFindingsTests(TestCase):
+    """Regressions found by the code review of 19.11.2026."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.head = User.objects.create_user("head", password="a-head-test-password")
+        cls.head.groups.add(Group.objects.get(name="Head"))
+
+    def test_words_starting_with_da_are_not_yes(self):
+        dates = dict(
+            purchase_date="2025-05-22", procedure_start="2025-08-05", official="Иванов И.И."
+        )
+        result = evaluate("I6", inn_match="Данных в ЕГРЮЛ нет", surname_match="Нет", **dates)
+        self.assertNotEqual(result.status, RuleStatus.TRIGGERED)
+
+    def test_negative_bypass_answer_is_not_a_sign(self):
+        for answer in ["Нет", "Не выявлено", "не установлены"]:
+            with self.subTest(answer=answer):
+                result = evaluate(
+                    "I4", participants=3, bypass=answer, start_price=100, final_price=100
+                )
+                self.assertEqual(result.status, RuleStatus.NOT_TRIGGERED)
+
+    def test_degenerate_contour_is_rejected_and_never_crashes_analysis(self):
+        from cases.facts import parse_points
+
+        for text in ["47 39; 47 39; 47 39", "47 39; 47.1 39.1; 47.2 39.2"]:
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                parse_points(text)
+        self.assertEqual(
+            evaluate("I8", coords="47 39; 47 39; 47 39").status, RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_cadastral_ranges_are_strict_and_in_reading_order(self):
+        self.assertEqual(
+            cadastral_numbers("61:01:0600005:40 – 61:01:0600006:20"),
+            ["61:01:0600005:40", "61:01:0600006:20"],
+        )
+        self.assertEqual(
+            cadastral_numbers("участок 61:01:0600005:5 — 12.03.2023"), ["61:01:0600005:5"]
+        )
+        self.assertEqual(
+            cadastral_numbers("а 61:02:0120102:1543, б 61:01:0600005:1 – :2")[0],
+            "61:02:0120102:1543",
+        )
+
+    def test_csv_delimiter_comes_from_the_header(self):
+        headers = [column.header for column in INDICATORS["I8"].columns]
+        many_points = "; ".join(f"47.{i:04d} 39.{(i * 7) % 10000:04d}" for i in range(40))
+        row = ["1", "61:02:0120105:999", "форма, с запятой", RECTANGLE, "1000", "1000", "", ""]
+        self.assertGreater(many_points.count(";"), 30)
+        content = (
+            ",".join(f'"{h}"' for h in headers) + "\n" + ",".join(f'"{value}"' for value in row)
+        ).encode()
+        result = import_table(actor=self.head, uploaded_file=SimpleUploadedFile("И8.csv", content))
+        self.assertFalse(result.errors, result.errors)
+
+    def test_cp1251_csv_keeps_the_research_mark(self):
+        headers = [column.header for column in INDICATORS["I1"].columns]
+        values = {
+            "number": "1",
+            "cadastral": "61:02:0600010:2843",
+            "right_date": "22.05.2025",
+            "category_change_date": "17.02.2026",
+            "mark": "Да",
+        }
+        line = ";".join(values.get(column.key, "нет данных") for column in INDICATORS["I1"].columns)
+        content = (";".join(headers).replace("≤", "?") + "\n" + line).encode("cp1251")
+        self.assertFalse(
+            import_table(
+                actor=self.head, uploaded_file=SimpleUploadedFile("И1.csv", content)
+            ).errors
+        )
+        self.assertEqual(Record.objects.get().author_mark, "Да")
+
+    def test_long_descriptions_fit_the_fields(self):
+        long_object = (
+            "Земельный участок, " + "очень длинное местоположение, " * 30 + "КН 61:02:0600010:2843"
+        )
+        headers = [column.header for column in INDICATORS["I4"].columns]
+        values = {
+            "number": "1",
+            "object": long_object,
+            "participants": "1",
+            "start_price": "100",
+            "final_price": "100",
+            "mark": "Да",
+        }
+        content = (
+            ";".join(headers)
+            + "\n"
+            + ";".join(f'"{values.get(c.key, "—")}"' for c in INDICATORS["I4"].columns)
+        ).encode()
+        self.assertFalse(
+            import_table(
+                actor=self.head, uploaded_file=SimpleUploadedFile("И4.csv", content)
+            ).errors
+        )
+        self.assertLessEqual(len(Case.objects.get().address), 500)
+
+    def test_unlinked_case_loses_its_stale_verdict(self):
+        headers = [column.header for column in INDICATORS["I10"].columns]
+
+        def upload(comment):
+            row = ["1", "Иванов Иван Иванович", "2", f'"{comment}"', "Да"]
+            content = (";".join(headers) + "\n" + ";".join(row)).encode()
+            self.assertFalse(
+                import_table(
+                    actor=self.head, uploaded_file=SimpleUploadedFile("И10.csv", content)
+                ).errors
+            )
+
+        upload("правка — 61:02:0120102:10, :11")
+        run_analysis(actor=self.head)
+        self.assertEqual(Case.objects.get(reference="61:02:0120102:11").attention, Attention.HIGH)
+        upload("правка — 61:02:0120102:10")
+        run_analysis(actor=self.head)
+        self.assertEqual(Case.objects.get(reference="61:02:0120102:11").attention, Attention.NONE)
+
+    def test_bad_case_ids_do_not_crash(self):
+        self.client.force_login(self.head)
+        response = self.client.post(reverse("analysis:run"), {"case_ids": "junk"}, follow=True)
+        self.assertContains(response, "Неверный идентификатор")
+
+    def test_export_time_is_local_and_queries_do_not_grow(self):
+        from cases.models import Review
+
+        case = Case.objects.create(reference="X-1", title="Объект")
+        Review.objects.create(case=case, author=self.head, outcome="confirmed", comment="ок")
+        self.client.force_login(self.head)
+        local = timezone.localtime(Review.objects.get().created_at).strftime("%d.%m.%Y %H:%M")
+        self.assertIn(
+            local, self.client.get(reverse("dashboard:case_export")).content.decode("utf-8-sig")
+        )
+        for index in range(10):
+            other = Case.objects.create(reference=f"Y-{index}", title="Объект")
+            Review.objects.create(case=other, author=self.head, outcome="confirmed", comment="ок")
+        with self.assertNumQueries(8):  # constant: no query per row
+            self.client.get(reverse("dashboard:case_export"))

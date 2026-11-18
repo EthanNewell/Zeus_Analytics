@@ -12,7 +12,7 @@ class ReviewForm(forms.ModelForm):
             "comment": forms.Textarea(
                 attrs={
                     "rows": 4,
-                    "class": "field",
+                    "class": "input",
                     "placeholder": "Что проверено, какие документы открыты, к какому выводу пришли",
                 }
             ),

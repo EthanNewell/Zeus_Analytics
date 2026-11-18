@@ -136,7 +136,9 @@ class ApplicationTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), b"private evidence")
         self.assertIn("attachment", response["Content-Disposition"])
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
-        response.close()
+        # Consuming streaming_content already closed the response with the test client's
+        # signal guard; a second close() would fire request_finished and drop the
+        # MySQL connection in the middle of the test transaction.
         self.user.groups.clear()
         self.user.user_permissions.add(
             Permission.objects.get(codename="view_case", content_type__app_label="cases")

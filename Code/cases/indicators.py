@@ -157,7 +157,7 @@ def resolve_i2(facts):
     return [
         CaseSpec(
             reference=_text_reference(f"{municipality}|{act}"),
-            title=f"{municipality}: {location}".strip(": "),
+            title=(location or municipality)[:120],
             object_kind="Территория изменения документа",
             address=f"{municipality}, {location}".strip(", "),
             geometry=geometry,

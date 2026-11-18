@@ -81,7 +81,7 @@ python manage.py test --settings=config.settings.test
 
 Набор объектов общий для одного подразделения. Перед добавлением нескольких подразделений потребуется фильтрация всех чтений, записей и выгрузок по принадлежности.
 
-Соглашения: [conventions.md](docs/conventions.md). Подключение модулей: [contracts.md](docs/contracts.md). Стенд и восстановление: [deploy.md](docs/deploy.md). Проверка выпуска: [smoke-check.md](docs/smoke-check.md).
+Сценарий показа на 3–5 минут: [demo.md](docs/demo.md). Соглашения: [conventions.md](docs/conventions.md). Подключение модулей: [contracts.md](docs/contracts.md). Стенд и восстановление: [deploy.md](docs/deploy.md). Проверка выпуска: [smoke-check.md](docs/smoke-check.md).
 
 ## Проверки состояния
 

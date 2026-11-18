@@ -44,7 +44,11 @@ def case_list(query="", attention="", indicator="", region="", review=""):
 
 def latest_reviews(case_ids):
     latest = {}
-    for review in Review.objects.filter(case_id__in=case_ids).order_by("case_id", "-created_at"):
+    for review in (
+        Review.objects.filter(case_id__in=case_ids)
+        .select_related("author")
+        .order_by("case_id", "-created_at")
+    ):
         latest.setdefault(review.case_id, review)
     return latest
 
