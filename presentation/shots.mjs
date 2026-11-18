@@ -17,14 +17,16 @@ const shots = [
   ["findings", AKSAI, ".finding", 1180],
   ["timeline", AKSAI, "ol.timeline", 1408],
   ["outline", TAIL, ".case-head", 1040],
-  ["map", "map/", ".map-grid", 1408],
+  ["shape", TAIL, ".outline-plate", 1408],
+  // карта занимает 80 % высоты окна: при окне 1408 × 652 кадр выходит в пропорции области слайда
+  ["map", "map/", ".map-grid", 1408, 652],
   ["registry", "cases/", "table", 1408],
   ["quality", "method/", ".quality", 1408],
 ];
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
-for (const [name, path, selector, width] of shots) {
-  const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: 2 });
+for (const [name, path, selector, width, height = 900] of shots) {
+  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
   await page.goto(base + path, { waitUntil: "networkidle" });
   await page.addStyleTag({ content: ":root { --gut: 0px !important; } .hdr, header, .toasts, .case-head a.eyebrow { display: none !important; } * { transition: none !important; }" });
   await page.waitForTimeout(name === "map" ? 5000 : 600);
