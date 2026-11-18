@@ -102,6 +102,14 @@ class Command(BaseCommand):
             record.save(update_fields=["facts", "title"])
         self.stdout.write(f"masked {changed} real-person fields")
 
+    @staticmethod
+    def canonical(url):
+        """One spelling per page: empty parameters dropped, one value per key, keys sorted."""
+        parts = urlsplit(url)
+        params = dict((k, v) for k, v in parse_qsl(parts.query) if v)
+        query = urlencode(sorted(params.items()))
+        return parts.path + (f"?{query}" if query else "")
+
     def target(self, url):
         """Site URL (path + query) → relative file path of the static page."""
         parts = urlsplit(url)
@@ -117,7 +125,7 @@ class Command(BaseCommand):
     def crawl(self, client, out, prefix):
         queue, seen = ["/"], set()
         while queue:
-            url = queue.pop(0)
+            url = self.canonical(queue.pop(0))
             if url in seen:
                 continue
             seen.add(url)
@@ -135,7 +143,7 @@ class Command(BaseCommand):
                 attr, link, anchor = match.group(1), match.group(2), match.group(3) or ""
                 if not link or link.startswith(("http:", "https:", "mailto:", "data:", "javascript:")):
                     return match.group(0)
-                absolute = urljoin(current, link)
+                absolute = self.canonical(urljoin(current, link))
                 if absolute.startswith("/static/"):
                     return f'{attr}{prefix}{absolute.lstrip("/")}{anchor}"'
                 if any(absolute.startswith(skip) for skip in SKIP):

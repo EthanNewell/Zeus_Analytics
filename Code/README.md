@@ -26,10 +26,10 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py bootstrap_roles
 docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py demo_users
-docker compose exec web python manage.py load_tables /путь/к/таблицам --user head
+docker compose exec web python manage.py load_tables demo_data --user head
 ```
 
-Откройте [приложение](http://localhost:8000/). `demo_users` создаёт три учётные записи — `specialist`, `controller`, `head` — со случайными паролями, которые печатает один раз. `load_tables` загружает все `.xlsx`/`.csv` из папки обычным путём импорта и запускает анализ. Таблицы исследования в репозиторий не кладутся: репозиторий публичный, а в реальных строках есть сведения о людях.
+Откройте [приложение](http://localhost:8000/). `demo_users` создаёт три учётные записи — `specialist`, `controller`, `head` — со случайными паролями, которые печатает один раз. `load_tables` загружает все `.xlsx`/`.csv` из папки обычным путём импорта и запускает анализ. В `demo_data/` лежат семь таблиц исследования (И1, И2, И3, И4, И6, И8, И10): большая часть строк синтетическая, реальные поля отмечены автором жёлтым. Репозиторий публичный, поэтому ФИО в таблицах сокращены до инициалов, а ИНН скрыты; на итог анализа это не влияет — 70 записей, 50 объектов, совпадение с разметкой 69 из 70.
 
 `.env.example` содержит только локальные примеры секретов. Для общей среды используйте отдельные значения. Django не загружает `.env` самостоятельно: Compose передаёт переменные процессу.
 
@@ -49,7 +49,7 @@ python manage.py migrate
 python manage.py bootstrap_roles
 python manage.py createsuperuser
 python manage.py demo_users
-python manage.py load_tables /путь/к/таблицам --user head
+python manage.py load_tables demo_data --user head
 python manage.py runserver 127.0.0.1:8000
 ```
 
