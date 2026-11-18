@@ -70,6 +70,38 @@ FRAMES = {
     ),
 }
 
+# Logo candidates: one iconic object filling the square, readable at 40 px like the
+# ЭВА-РИСК helmet. Generated with --ref = that helmet, then cut out by `logo`.
+LOGO = (
+    "One single iconic object, centred, filling about 85% of the square frame, bold clear "
+    "silhouette that stays readable when shrunk to a 40-pixel icon, no background scene, "
+    "plain dark background. "
+)
+FRAMES.update(
+    {
+        "logo-theodolite": (
+            "1:1",
+            LOGO
+            + "A surveyor's theodolite head (the optical instrument) seen at three-quarter angle.",
+        ),
+        "logo-lens": (
+            "1:1",
+            LOGO
+            + "A round magnifying glass whose lens shows a few land parcels with straight boundary lines.",
+        ),
+        "logo-tower": (
+            "1:1",
+            LOGO
+            + "A classic wooden geodetic triangulation signal tower (pyramid frame with a small platform).",
+        ),
+        "logo-stake": (
+            "1:1",
+            LOGO
+            + "A boundary survey stake with a small flag driven into a square land parcel seen from above at an angle.",
+        ),
+    }
+)
+
 
 def load_keys():
     path = Path.home() / ".config/secrets/google-ai.env"
@@ -165,6 +197,31 @@ def duotone(source, target, size):
     coloured.save(target, quality=60, optimize=True, progressive=True)
 
 
+def logo(source, static, size=256):
+    """Chosen logo frame → white mark on transparency (CSS mask, any colour) + favicons."""
+    from PIL import Image, ImageOps
+
+    image = ImageOps.autocontrast(Image.open(source).convert("L"), cutoff=0.5)
+    box = image.point(lambda v: 255 if v > 200 else 0).getbbox() or (0, 0, *image.size)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    half = max(box[2] - box[0], box[3] - box[1]) * 0.53
+    image = image.crop((int(cx - half), int(cy - half), int(cx + half), int(cy + half)))
+    alpha = image.point(lambda v: 0 if v < 70 else min(255, int((v - 70) * 1.6)))
+    for name, px in (("mark.png", size), ("mark-64.png", 64)):
+        mark = alpha.resize((px, px), Image.Resampling.LANCZOS)
+        white = Image.new("L", mark.size, 255)
+        Image.merge("RGBA", (white, white, white, mark)).save(static / name, optimize=True)
+    for name, px in (("favicon.png", 64), ("apple-touch-icon.png", 180)):
+        ground = Image.new("RGBA", (px, px), (*BLUE, 255))
+        inner = int(px * 0.84)
+        mark = alpha.resize((inner, inner), Image.Resampling.LANCZOS)
+        white = Image.new("L", mark.size, 255)
+        ground.alpha_composite(
+            Image.merge("RGBA", (white, white, white, mark)), ((px - inner) // 2,) * 2
+        )
+        ground.convert("RGB").save(static / name, optimize=True)
+
+
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -172,6 +229,9 @@ def main():
     gen.add_argument("--ref", required=True)
     gen.add_argument("--out", required=True)
     gen.add_argument("names", nargs="*")
+    pick = sub.add_parser("logo")
+    pick.add_argument("source")
+    pick.add_argument("static")
     tone = sub.add_parser("duotone")
     tone.add_argument("raw")
     tone.add_argument("static")
@@ -186,11 +246,14 @@ def main():
             jobs = [pool.submit(generate, keys, name, *FRAMES[name], ref, out) for name in names]
             results = [job.result() for job in jobs]
         sys.exit(0 if all(results) else 1)
+    if args.command == "logo":
+        logo(Path(args.source), Path(args.static))
+        return
     raw, static = Path(args.raw), Path(args.static)
     static.mkdir(parents=True, exist_ok=True)
     for name, (ratio, _) in FRAMES.items():
         source = raw / f"{name}.png"
-        if not source.exists():
+        if not source.exists() or name.startswith("logo-"):
             continue
         size = (1000, 1000) if ratio == "1:1" else (1500, 844)
         duotone(source, static / f"{name}.jpg", size)

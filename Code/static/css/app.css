@@ -57,6 +57,9 @@ h1, h2, h3 { overflow-wrap: anywhere; }
 .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gut); }
 
 /* ---------------------------------------------------------------- type */
+.fit { display: grid; width: 100%; min-width: 0; overflow: hidden; }
+.fit-line { display: block; white-space: nowrap; line-height: 0.9; }
+.fit:not(.fitted) .fit-line { visibility: hidden; }
 .display-xl { font-weight: 200; font-stretch: 62%; font-size: clamp(2.6rem, 7.4vw, 7.2rem); line-height: 0.94; text-transform: uppercase; text-wrap: balance; }
 .display-l { font-weight: 200; font-stretch: 64%; font-size: clamp(1.9rem, 4.6vw, 4.4rem); line-height: 0.98; text-transform: uppercase; text-wrap: balance; }
 .h1 { font-weight: 150; font-stretch: 66%; font-size: clamp(1.5rem, 3.2vw, 2.7rem); line-height: 1.08; text-transform: uppercase; text-wrap: balance; }
@@ -76,7 +79,9 @@ h1, h2, h3 { overflow-wrap: anywhere; }
 .hdr[data-hidden] { transform: translateY(-100%); }
 .hdr-in { max-width: var(--maxw); margin-inline: auto; padding: var(--s4) var(--gut); display: flex; align-items: center; gap: var(--s5); }
 .hdr-logo { margin-left: calc(-1 * var(--s3)); padding: 0 var(--s3); height: 3.15rem; background: var(--blue); color: #fff; display: inline-flex; align-items: center; gap: 0.8em; font-weight: 300; font-size: clamp(0.9rem, 0.84rem + 0.4vw, 1.1rem); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
-.hdr-mark { display: block; height: 1.7em; width: 1.7em; }
+/* the logo: engraved magnifier over land parcels, a white mask painted in the current colour */
+.mark { display: inline-block; flex: none; background: currentColor; -webkit-mask: url("../img/mark.png") center / contain no-repeat; mask: url("../img/mark.png") center / contain no-repeat; }
+.hdr-mark { width: 2.3em; height: 2.3em; }
 .hdr[data-solid] .hdr-logo { background: transparent; color: var(--blue); }
 .hdr-user { margin-left: auto; display: flex; align-items: center; gap: var(--s4); }
 .hdr-role { font-size: clamp(0.66rem, 0.6rem + 0.18vw, 0.74rem); letter-spacing: 0.15em; text-transform: uppercase; }
@@ -281,29 +286,32 @@ details.facts[open] summary .plus::before { content: "−"; }
 .leaflet-container a.leaflet-popup-close-button { color: #fff; }
 .leaflet-bar a { border-radius: 0 !important; color: var(--blue); }
 
-/* login */
+/* login: copy left, engraving right; on narrow screens the engraving becomes a banner */
 .login { min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.login-copy { display: grid; align-content: center; gap: var(--s5); padding: calc(5.5rem + var(--s5)) var(--gut) var(--s7); }
+.login-copy { display: grid; align-content: center; gap: var(--s6); padding: calc(5.5rem + var(--s5)) var(--gut) var(--s7); max-width: 46rem; width: 100%; justify-self: center; }
 .login-plate { overflow: hidden; }
 .login-plate img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.login-form { display: grid; gap: var(--s4); max-width: 30rem; }
+.login-form { display: grid; gap: var(--s4); }
+.login-form .btn { margin-top: var(--s2); }
 
 /* footer: the blue ground again, like the first screen */
 .foot { background: var(--blue); color: #fff; }
 .foot-in { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--s6) clamp(2rem, 5vw, 5rem); padding-block: clamp(3rem, 7vw, 5.5rem) var(--s7); }
 .foot-brand { display: grid; gap: var(--s4); align-content: start; }
 .foot-mark { display: inline-flex; align-items: center; gap: 0.5em; font-weight: 200; font-stretch: 62%; font-size: clamp(2rem, 3.6vw, 3.4rem); line-height: 1; text-transform: uppercase; }
-.foot-mark svg { width: 0.9em; height: 0.9em; flex: none; }
+.foot-mark .mark { width: 1.1em; height: 1.1em; }
 .foot-nav { display: grid; gap: var(--s2); align-content: start; font-weight: 200; font-size: clamp(1.1rem, 1.5vw, 1.4rem); }
 .foot-nav a:hover { filter: brightness(0.78); }
 .foot-meta { display: grid; gap: var(--s3); align-content: start; line-height: 1.6; }
 
-/* paragraphs set as rectangles on wide screens, no hyphenation */
-p.j, .j p { text-align: justify; hyphens: none; }
+/* paragraphs set as rectangles on wide screens only; narrow columns stay left-aligned */
+@media (min-width: 62.01rem) { p.j, .j p { text-align: justify; hyphens: none; } }
 
 @media (max-width: 62rem) {
   .hero-in, .case-head-in, .login, .sheet { grid-template-columns: minmax(0, 1fr); }
-  .sheet-plate, .login-plate { display: none; }
+  .sheet-plate { display: none; }
+  .login-plate { order: -1; height: 32svh; }
+  .login-copy { padding-top: var(--s6); }
   .hero-plate { width: 100%; aspect-ratio: auto; height: clamp(10rem, 28svh, 18rem); justify-self: stretch; }
   .block, .person { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
   .foot-in, .map-grid { grid-template-columns: minmax(0, 1fr); }
@@ -320,7 +328,6 @@ p.j, .j p { text-align: justify; hyphens: none; }
   .feat-grid, .cols-3 { grid-template-columns: minmax(0, 1fr); }
   .seg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hdr-role, .hide-s { display: none; }
-  p.j, .j p { text-align: left; }
   .band-plate { margin-left: calc(-1 * var(--gut)); padding-inline: var(--gut); }
   .tbl, .tbl thead, .tbl tbody, .tbl tr, .tbl th, .tbl td { display: block; }
   .tbl thead { display: none; }

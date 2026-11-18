@@ -7,19 +7,19 @@
   <title>{% block title %}Код прозрачности{% endblock %}</title>
   <link rel="preload" href="{% static 'fonts/science-gothic-cyrillic.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
-    <symbol id="i-mark" viewBox="0 0 32 32"><path d="M16 5 L27.5 25.5 H4.5 Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="18.6" r="2.3" fill="currentColor"/></symbol>
   </svg>
   {% with name=request.resolver_match.url_name %}
   <header class="hdr" data-hdr>
     <div class="hdr-in">
-      <a class="hdr-logo" href="{% if user.is_authenticated %}{% url 'dashboard:overview' %}{% else %}{% url 'accounts:login' %}{% endif %}"><svg class="hdr-mark" viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg><span>Код прозрачности</span></a>
+      <a class="hdr-logo" href="{% if user.is_authenticated %}{% url 'dashboard:overview' %}{% else %}{% url 'accounts:login' %}{% endif %}"><span class="mark hdr-mark" aria-hidden="true"></span><span>Код прозрачности</span></a>
       {% if user.is_authenticated %}
       <div class="hdr-user">
         <span class="hdr-role">{{ user.username }} / {{ user_role }}</span>
@@ -59,7 +59,7 @@
   <footer class="foot">
     <div class="wrap foot-in">
       <div class="foot-brand">
-        <span class="foot-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#i-mark"/></svg>Код прозрачности</span>
+        <span class="foot-mark"><span class="mark" aria-hidden="true"></span>Код прозрачности</span>
         <p class="body-s">Индикатор — повод для проверки, а не вывод о нарушении. Решение принимает сотрудник.</p>
       </div>
       <nav class="foot-nav" aria-label="Разделы">
@@ -78,6 +78,28 @@
   </footer>
   {% endif %}
   <script>
+  // Each line of a .fit heading is scaled to the full width of its block, so a heading
+  // lies as one rectangle (like FitLine on ЭВА-РИСК) instead of a ragged staircase.
+  (function () {
+    function fit() {
+      document.querySelectorAll(".fit").forEach((box) => {
+        const width = box.getBoundingClientRect().width;
+        box.querySelectorAll(".fit-line").forEach((line) => {
+          // measure the glyphs themselves: a grid item always stretches to its column
+          line.style.fontSize = "100px";
+          const range = document.createRange();
+          range.selectNodeContents(line);
+          const natural = range.getBoundingClientRect().width || 1;
+          line.style.fontSize = Math.min((width / natural) * 100 * 0.995, box.dataset.max || 999) + "px";
+        });
+        box.classList.add("fitted");
+      });
+    }
+    fit();
+    if (document.fonts) document.fonts.ready.then(fit);
+    let pending;
+    window.addEventListener("resize", () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(fit); });
+  })();
   (function () {
     const hdr = document.querySelector("[data-hdr]");
     const burger = document.querySelector("[data-burger]");
