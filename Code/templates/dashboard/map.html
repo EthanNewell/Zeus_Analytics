@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Карта · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Геометрия из таблиц</p>
+    <h1>Карта</h1>
+    <p class="lead">Контуры участков (И8) и изменённые зоны ПЗЗ и генплана (И2). Цвет — итог анализа. Клик по контуру открывает карточку.</p>
+  </div>
+</div>
+<div class="map" id="map" role="region" aria-label="Карта объектов"></div>
+<div class="legend section">
+  <span class="status a-high">Высокий приоритет</span><span class="status a-normal">Требует проверки</span><span class="status a-low">Контекстный признак</span><span class="status a-none">Сигналов нет</span>
+  <span>Пунктир — изменённая зона</span>
+  <span>Без координат: {{ without_geometry }} объектов (геометрия есть не во всех таблицах)</span>
+</div>
+{{ features|json_script:"features" }}
+{{ center|json_script:"center" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+<script>
+(function () {
+  const features = JSON.parse(document.getElementById("features").textContent);
+  const center = JSON.parse(document.getElementById("center").textContent);
+  const style = getComputedStyle(document.documentElement);
+  const color = (attention) => style.getPropertyValue("--" + (attention === "not_run" ? "insufficient" : attention)).trim() || "#888";
+  const map = L.map("map", { zoomControl: true, attributionControl: true }).setView(center, 8);
+  // 2GIS basemap: Russian place names and borders; greyed by CSS to stay monochrome.
+  L.tileLayer("https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1", {
+    maxZoom: 18, subdomains: "0123", attribution: "Подложка © 2ГИС"
+  }).addTo(map);
+  const layers = [];
+  const byId = {};
+  const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  features.forEach((f) => {
+    const zone = f.kind === "zone";
+    const shape = L.polygon(f.points, {
+      color: color(f.attention), weight: zone ? 2 : 2.5, dashArray: zone ? "6 6" : null,
+      fillOpacity: zone ? 0.08 : 0.28
+    }).addTo(map);
+    const marker = L.circleMarker(shape.getBounds().getCenter(), {
+      radius: 6, color: "#fff", weight: 2, fillColor: color(f.attention), fillOpacity: 1
+    }).addTo(map);
+    const html = `<b>${escape(f.title)}</b><br>${escape(f.reference)}<br>${escape(f.attention_label)}${f.codes.length ? " · " + f.codes.map(escape).join(", ") : ""}` +
+      (f.id ? `<br><a href="/cases/${f.id}/">Открыть карточку →</a>` : "");
+    shape.bindPopup(html); marker.bindPopup(html);
+    layers.push(shape);
+    if (f.id && !zone) byId[f.id] = shape;
+  });
+  if (layers.length) map.fitBounds(L.featureGroup(layers).getBounds().pad(0.1));
+  const target = byId[location.hash.slice(1)];
+  if (target) { map.fitBounds(target.getBounds(), { maxZoom: 17 }); target.openPopup(); }
+})();
+</script>
+{% endblock %}

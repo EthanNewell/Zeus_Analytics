@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Загрузка · Код прозрачности{% endblock %}
+{% block scripts %}<script>
+document.getElementById("file").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  document.getElementById("file-name").textContent = file ? file.name : "Файл .xlsx или .csv не выбран";
+});
+</script>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Импорт данных</p>
+    <h1>Загрузка таблиц</h1>
+    <p class="lead">Таблицы индикаторов в том виде, как их готовит исследование: Excel (.xlsx) или CSV. Тип таблицы определяется по заголовкам. Жёлтая заливка в Excel сохраняется как «реальное по маркировке автора», остальное — как синтетика.</p>
+  </div>
+</div>
+<div class="grid grid-main">
+  <section class="panel">
+    <h2>Новый файл</h2>
+    {% if errors %}
+    <div class="notice error section" role="alert"><b>Файл не загружен, данные не изменены.</b>
+      <ul style="margin:8px 0 0;padding-left:18px">{% for error in errors %}<li>{% if error.row %}Строка {{ error.row }}, {% endif %}{{ error.field }}: {{ error.message }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" class="section">{% csrf_token %}
+      <div class="form-row file-pick"><input id="file" type="file" name="file" accept=".xlsx,.csv" required><label class="button ghost" for="file" style="margin:0">Выбрать файл</label><span class="file-name" id="file-name">Файл .xlsx или .csv не выбран</span></div>
+      <div class="form-row"><button class="button" type="submit"><svg class="icon"><use href="#i-upload"/></svg>Загрузить и проверить</button></div>
+    </form>
+    <p class="muted small section">Файл проверяется целиком до записи: при любой ошибке ничего не сохраняется, а ошибки показываются с номерами строк. Повторная загрузка того же набора обновляет записи, а не дублирует их.</p>
+  </section>
+  <section class="panel">
+    <h2>Принимаемые таблицы</h2>
+    <ul class="list section">{% for item in indicators %}<li><span class="code">{{ item.code_display }}</span> {{ item.short }}</li>{% endfor %}</ul>
+  </section>
+</div>
+<section class="panel section">
+  <div class="panel-head"><h2>История загрузок</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Файл</th><th>Индикатор</th><th class="num-cell">Строк</th><th class="num-cell hide-phone">Новых / обновлено</th><th class="hide-phone">Загрузил</th><th></th></tr></thead>
+    <tbody>{% for batch in batches %}<tr class="row">
+      <td><a class="row-link" href="{% url 'imports:batch' batch.id %}">{{ batch.file_name }}</a><span class="sub">{{ batch.created_at|date:"d.m.Y H:i" }}</span></td>
+      <td><span class="code">И{{ batch.indicator|slice:"1:" }}</span></td>
+      <td class="num-cell">{{ batch.rows_total }}</td>
+      <td class="num-cell hide-phone">{{ batch.rows_created }} / {{ batch.rows_updated }}</td>
+      <td class="hide-phone small">{{ batch.uploaded_by.username }}</td>
+      <td class="row-arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+    </tr>{% empty %}<tr><td colspan="6" class="empty">Загрузок пока не было.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

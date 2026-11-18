@@ -1,28 +1,65 @@
-{% extends "base.html" %}
-{% block title %}Реестр случаев · Код прозрачности{% endblock %}
+{% extends "base.html" %}{% load kp %}
+{% block title %}Реестр · Код прозрачности{% endblock %}
 {% block content %}
-<p class="eyebrow">Земельные отношения</p>
-<div class="page-heading"><div><h1>Реестр случаев</h1><p class="muted">Исходные сведения и история проверки в одном месте.</p></div>
-{% if perms.cases.export_cases %}<a class="button secondary" href="{% url 'dashboard:case_export' %}?q={{ query|urlencode }}">Выгрузить CSV</a>{% endif %}</div>
-<div class="notice">Анализ ещё не запускался. Демонстрационные записи отмечены отдельно и не являются выявленными нарушениями.</div>
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Объекты проверки</p>
+    <h1>Реестр</h1>
+    <p class="lead">Сначала объекты с высоким приоритетом. Строка открывает карточку с основаниями.</p>
+  </div>
+  <div class="actions">
+    {% if perms.cases.export_cases %}<a class="button ghost" href="{% url 'dashboard:case_export' %}?{{ query_string }}"><svg class="icon"><use href="#i-download"/></svg>Выгрузить CSV</a>{% endif %}
+  </div>
+</div>
+
 <section class="panel">
-  <form method="get" class="search-form" role="search">
-    <label class="sr-only" for="search">Поиск случаев</label>
-    <input id="search" name="q" value="{{ query }}" placeholder="Название, идентификатор или кадастровый номер" maxlength="200">
-    <button class="button" type="submit">Найти</button>
+  <form method="get" class="filters" role="search">
+    <nav class="segmented" aria-label="Итог анализа">
+      <a href="?{% if filters.query %}q={{ filters.query|urlencode }}&{% endif %}indicator={{ filters.indicator }}&region={{ filters.region|urlencode }}&review={{ filters.review }}" {% if not filters.attention %}aria-current="true"{% endif %}>Все</a>
+      {% for value, label in attention_choices %}
+      <a href="?{% if filters.query %}q={{ filters.query|urlencode }}&{% endif %}attention={{ value }}&indicator={{ filters.indicator }}&region={{ filters.region|urlencode }}&review={{ filters.review }}" {% if filters.attention == value %}aria-current="true"{% endif %}><span class="status {{ value|attention_class }}">{{ label }}</span></a>
+      {% endfor %}
+    </nav>
+    {% if filters.attention %}<input type="hidden" name="attention" value="{{ filters.attention }}">{% endif %}
+    <div class="filters-row">
+      <label class="sr-only" for="q">Поиск</label>
+      <input class="field" id="q" name="q" value="{{ filters.query }}" placeholder="Кадастровый номер, адрес, правообладатель" maxlength="200">
+      <select class="field" name="indicator" aria-label="Индикатор">
+        <option value="">Все индикаторы</option>
+        {% for item in indicators %}<option value="{{ item.code }}" {% if filters.indicator == item.code %}selected{% endif %}>{{ item.code_display }} · {{ item.short }}</option>{% endfor %}
+      </select>
+      <select class="field" name="region" aria-label="Регион">
+        <option value="">Все регионы</option>
+        {% for region in regions %}<option {% if filters.region == region %}selected{% endif %}>{{ region }}</option>{% endfor %}
+      </select>
+      <select class="field" name="review" aria-label="Проверка сотрудника">
+        <option value="">Любой итог проверки</option>
+        {% for value, label in review_choices %}<option value="{{ value }}" {% if filters.review == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <button class="button" type="submit">Показать</button>
+    </div>
   </form>
-  <p class="muted count">Найдено: {{ page_obj.paginator.count }}</p>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Случай</th><th>Кадастровый номер</th><th>Происхождение</th><th>Анализ</th></tr></thead>
-    <tbody>{% for case in page_obj %}
-      <tr><td><a class="case-title" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title }}</a><span class="subtext">{{ case.reference }}{% if case.is_demonstration %} · Демонстрация{% endif %}</span></td>
-      <td>{{ case.cadastral_number|default:"Не указан" }}</td><td><span class="badge">{{ case.get_origin_display }}</span></td><td class="muted">Не запускался</td></tr>
-    {% empty %}<tr><td colspan="4" class="empty">Случаи не найдены. Измените запрос или подготовьте данные для загрузки.</td></tr>{% endfor %}</tbody>
+</section>
+
+<section class="panel section">
+  <div class="panel-head"><h2>Найдено: {{ page_obj.paginator.count }}</h2>{% if not run %}<p>Анализ не запускался</p>{% endif %}</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог анализа</th><th class="hide-phone">Регион</th><th class="hide-phone">Проверка сотрудника</th><th></th></tr></thead>
+    <tbody>{% for case in page_obj %}{% with review=reviews|get_item:case.pk %}
+      <tr class="row">
+        <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title|truncatechars:80 }}</a><span class="sub">{{ case.reference }}{% if case.object_kind %} · {{ case.object_kind }}{% endif %}{% if case.is_demonstration %} · демонстрация{% endif %}</span></td>
+        <td><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% empty %}<span class="muted small">—</span>{% endfor %}</div></td>
+        <td><span class="status {{ case.attention|attention_class }}">{{ case.get_attention_display }}</span></td>
+        <td class="hide-phone small">{{ case.region|default:"—" }}</td>
+        <td class="hide-phone small">{% if review %}{{ review.get_outcome_display }}<span class="sub">{{ review.created_at|date:"d.m.Y" }} · {{ review.author.username }}</span>{% else %}<span class="muted">Не проверялся</span>{% endif %}</td>
+        <td class="row-arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+      </tr>
+    {% endwith %}{% empty %}<tr><td colspan="6" class="empty">Ничего не найдено. Измените фильтры или загрузите таблицы индикаторов.</td></tr>{% endfor %}</tbody>
   </table></div>
-  {% if page_obj.has_other_pages %}<nav class="pagination" aria-label="Страницы реестра">
-  {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">← Назад</a>{% endif %}
-  <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Далее →</a>{% endif %}
+  {% if page_obj.has_other_pages %}<nav class="pagination" aria-label="Страницы">
+    <span>{% if page_obj.has_previous %}<a href="?{{ query_string }}&page={{ page_obj.previous_page_number }}"><svg class="icon"><use href="#i-back"/></svg>Назад</a>{% endif %}</span>
+    <span class="muted">{{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    <span>{% if page_obj.has_next %}<a href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Далее<svg class="icon"><use href="#i-arrow"/></svg></a>{% endif %}</span>
   </nav>{% endif %}
 </section>
 {% endblock %}

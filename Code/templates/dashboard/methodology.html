@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load kp %}
+{% block title %}Методика · Код прозрачности{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Как работает система</p>
+    <h1>Методика</h1>
+    <p class="lead">Каждый индикатор — отдельное правило с версией. Правило берёт только исходные факты и само пересчитывает всё, что в таблице было формулой. Результат — один из четырёх статусов, объяснение и список недостающих сведений.</p>
+  </div>
+</div>
+
+<div class="grid grid-4">
+  <div class="tile"><span class="status s-trig">Сработал</span><span class="hint">Сочетание обстоятельств найдено — повод для проверки</span></div>
+  <div class="tile"><span class="status s-none">Не сработал</span><span class="hint">Только для проверенных правил и имеющихся сведений</span></div>
+  <div class="tile"><span class="status s-insuf">Недостаточно данных</span><span class="hint">Нельзя сделать вывод; это не «риска нет»</span></div>
+  <div class="tile"><span class="status s-na">Не применим</span><span class="hint">Правило не относится к объекту</span></div>
+</div>
+
+<section class="panel section">
+  <div class="panel-head"><h2>Итог по объекту</h2></div>
+  <div class="grid grid-2">
+    <ul class="list">
+      <li><span class="status a-high">Высокий приоритет</span><span class="sub">Подтверждённая связь с должностным лицом (И6), повтор лица (И10) или два основных индикатора сразу</span></li>
+      <li><span class="status a-normal">Требует проверки</span><span class="sub">Сработал один основной индикатор</span></li>
+      <li><span class="status a-low">Контекстный признак</span><span class="sub">Только И3: показывает механизм выгоды, сам приоритет не поднимает</span></li>
+    </ul>
+    <ul class="list">
+      <li><span class="status a-insufficient">Недостаточно данных</span><span class="sub">Ничего не сработало, но где-то не хватило сведений</span></li>
+      <li><span class="status a-none">Сигналов нет</span><span class="sub">Ни одно правило не сработало на имеющихся данных</span></li>
+      <li><span class="muted small">Процента «коррупционности» нет намеренно: совпадения не складываются в вероятность вины.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" aria-label="Индикаторы">
+  {% for row in rows %}
+  <article class="panel">
+    <div class="finding-head">
+      <h2><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.title }}</h2>
+      <span class="tag">v{{ row.rule.version }} · {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span>
+    </div>
+    <div class="grid grid-3 section">
+      <div><p class="eyebrow">Вопрос</p><p class="small">{{ row.indicator.question }}</p></div>
+      <div><p class="eyebrow">Условие и порог</p><p class="small">{{ row.indicator.threshold }}</p></div>
+      <div><p class="eyebrow">Ограничения</p><p class="small">{{ row.indicator.limitations }}</p></div>
+    </div>
+    {% if row.sources %}<p class="muted small section">{% for source in row.sources %}{{ source }}{% endfor %}</p>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+
+<section class="panel section" id="quality">
+  <div class="panel-head"><h2>Сверка с разметкой исследования</h2><p>{% if run %}Запуск {{ run.started_at|date:"d.m.Y H:i" }}{% endif %}</p></div>
+  <p class="small muted">В каждой таблице исследования есть колонка с ответом автора. Правила системы считают ответ заново по исходным фактам, и мы сравниваем. Это контрольный набор: он показывает работу правил на тестовых примерах, а не качество выявления коррупции на реальных данных.</p>
+  <div class="table-wrap" style="margin-top:var(--gap-l)"><table>
+    <thead><tr><th>Индикатор</th><th class="num-cell">Совпало</th><th>Расхождения</th></tr></thead>
+    <tbody>{% for row in rows %}<tr>
+      <td><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</td>
+      <td class="num-cell">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
+      <td class="small">{% for outcome in row.mismatches %}<p>{{ outcome.record.title|truncatechars:70 }}: у автора «{{ outcome.record.author_mark }}», у правила — {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p>{% empty %}<span class="muted">нет</span>{% endfor %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% if run %}<p class="small section"><b>Итого {{ run.agreed_count }} из {{ run.compared_count }}.</b>{% if run.agreed_count != run.compared_count %} Расхождения намеренные: совпадение одной фамилии мы не считаем доказанной связью и требуем документов — временная близость событий и совпадение фамилий не заменяют подтверждения связи участников.{% endif %}</p>{% endif %}
+</section>
+{% endblock %}

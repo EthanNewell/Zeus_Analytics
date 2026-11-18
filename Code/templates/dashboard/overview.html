@@ -1,0 +1,79 @@
+{% extends "base.html" %}{% load kp %}
+{% block title %}Обзор · Код прозрачности{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Земельные отношения · коррупционные риски</p>
+    <h1>Обзор</h1>
+    <p class="lead">{% if run %}Последний анализ {{ run.started_at|date:"d.m.Y в H:i" }}: {{ run.records_count }} записей по {{ per_indicator|length }} индикаторам, {{ run.cases_count }} объектов, {{ run.duration_ms }} мс.{% else %}Анализ ещё не запускался. Загрузите таблицы индикаторов и запустите проверку.{% endif %}</p>
+  </div>
+  <div class="actions">
+    {% if perms.cases.run_analysis %}
+    <form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:overview' %}"><button class="button" type="submit"><svg class="icon"><use href="#i-play"/></svg>Запустить анализ</button></form>
+    {% endif %}
+    <a class="button ghost" href="{% url 'dashboard:case_list' %}">Открыть реестр<svg class="icon"><use href="#i-arrow"/></svg></a>
+  </div>
+</div>
+
+<div class="grid grid-4">
+  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=high"><span class="num">{{ counts.high }}</span><span class="status a-high">Высокий приоритет</span><span class="hint">Несколько индикаторов или подтверждённая связь</span></a>
+  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=normal"><span class="num">{{ counts.normal }}</span><span class="status a-normal">Требуют проверки</span><span class="hint">Сработал один основной индикатор</span></a>
+  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=insufficient"><span class="num">{{ counts.insufficient }}</span><span class="status a-insufficient">Недостаточно данных</span><span class="hint">Вывод невозможен без сведений</span></a>
+  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=none"><span class="num">{{ counts.none }}</span><span class="status a-none">Без сигналов</span><span class="hint">{% if counts.low %}Ещё {{ counts.low }} — только контекстный признак. {% endif %}Всего {{ total_cases }} объектов</span></a>
+</div>
+
+<div class="grid grid-main section">
+  <section class="panel">
+    <div class="panel-head"><h2>Индикаторы</h2><a class="small muted" href="{% url 'dashboard:methodology' %}">Как считаются</a></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Индикатор</th><th class="hide-phone">Результаты</th><th class="num-cell">Сработал</th><th class="num-cell">Нет данных</th><th class="num-cell">Сверка</th></tr></thead>
+      <tbody>{% for row in per_indicator %}
+        <tr class="row">
+          <td><a class="row-link" href="{% url 'dashboard:case_list' %}?indicator={{ row.indicator.code }}"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</a>{% if row.indicator.kind == 'context' %}<span class="sub">Контекстный признак</span>{% endif %}</td>
+          <td class="hide-phone" style="vertical-align:middle">{% if row.total %}<div class="bar" title="{{ row.triggered }} сработал · {{ row.insufficient }} нет данных · {{ row.not_triggered }} не сработал"><span class="b-trig" style="width:{{ row.triggered|percent:row.total }}%"></span><span class="b-insuf" style="width:{{ row.insufficient|percent:row.total }}%"></span></div>{% endif %}</td>
+          <td class="num-cell">{{ row.triggered }} из {{ row.total }}</td>
+          <td class="num-cell">{{ row.insufficient }}</td>
+          <td class="num-cell">{% if row.compared %}{{ row.agreed }}/{{ row.compared }}{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <div class="legend section"><span><i style="background:var(--ink)"></i>Сработал</span><span><i style="background:var(--insufficient)"></i>Недостаточно данных</span><span><i style="background:var(--surface-2)"></i>Не сработал</span><span>Сверка — совпадение с разметкой исследования</span></div>
+  </section>
+  <div class="stack">
+    <section class="panel">
+      <h2>Сверка с исследованием</h2>
+      {% if run and run.compared_count %}
+      <p class="num" style="font-size:36px;font-weight:650;margin-top:12px">{{ run.agreed_count }} из {{ run.compared_count }}</p>
+      <p class="muted small" style="margin-top:6px">записей правила оценили так же, как автор исследования. Каждое расхождение объяснено в методике.</p>
+      <a class="back-link" href="{% url 'dashboard:methodology' %}#quality">Посмотреть расхождения<svg class="icon"><use href="#i-arrow"/></svg></a>
+      {% else %}<p class="muted small" style="margin-top:8px">Появится после первого анализа.</p>{% endif %}
+    </section>
+    <section class="panel">
+      <h2>Данные</h2>
+      {% if batch %}
+      <p class="muted small" style="margin-top:8px">Последняя загрузка {{ batch.created_at|date:"d.m.Y H:i" }}: {{ batch.file_name }}.</p>
+      <div class="legend section"><span class="origin o-real">реальные по маркировке автора</span><span class="origin o-synth">синтетические</span></div>
+      <p class="muted small" style="margin-top:12px">Набор смешанный: сигналы на синтетике помечены как демонстрационные и не являются выявленными нарушениями.</p>
+      {% else %}<p class="muted small" style="margin-top:8px">Данных пока нет.</p>{% endif %}
+    </section>
+  </div>
+</div>
+
+{% if top %}
+<section class="panel section">
+  <div class="panel-head"><h2>Требуют внимания</h2><a class="small muted" href="{% url 'dashboard:case_list' %}">Весь реестр</a></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог</th><th class="hide-phone">Проверка</th><th></th></tr></thead>
+    <tbody>{% for case in top %}{% with review=reviews|get_item:case.pk %}
+      <tr class="row">
+        <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title|truncatechars:70 }}</a><span class="sub">{{ case.reference }}{% if case.is_demonstration %} · демонстрация{% endif %}</span></td>
+        <td><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</div></td>
+        <td><span class="status {{ case.attention|attention_class }}">{{ case.get_attention_display }}</span></td>
+        <td class="hide-phone small">{% if review %}{{ review.get_outcome_display }}{% else %}<span class="muted">Не проверялся</span>{% endif %}</td>
+        <td class="row-arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+      </tr>
+    {% endwith %}{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

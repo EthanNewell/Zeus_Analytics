@@ -1,26 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Вход · Код прозрачности{% endblock %}
 {% block content %}
-<div class="login-layout">
+<div class="login">
   <section class="login-intro">
-    <p class="eyebrow">Код прозрачности</p>
-    <h1>Факты. Источники.<br>Обоснованная проверка.</h1>
-    <p class="muted">Единое рабочее место для сопоставления земельных событий и сохранения результатов проверки.</p>
-    <div class="intro-note">Индикатор помогает выбрать случай для проверки. Итоговое решение принимает специалист.</div>
+    <div>
+      <p class="eyebrow" style="color:inherit;opacity:.6">Земельные отношения</p>
+      <h1>Риски в кадастре — с фактами и источниками</h1>
+      <p>Рабочее место специалиста по профилактике коррупции: система сопоставляет сделки, смену категорий, правки ПЗЗ и связи с должностными лицами, объясняет каждый сигнал и хранит ход проверки.</p>
+    </div>
+    <div class="login-points">
+      <div><b>7</b>индикаторов исследования</div>
+      <div><b>4</b>статуса без «процента коррупции»</div>
+      <div><b>1</b>решение — за сотрудником</div>
+    </div>
   </section>
-  <section class="panel login-panel">
-    <p class="eyebrow">Доступ для сотрудников</p>
-    <h2>Вход в систему</h2>
-    <p class="muted">Используйте учётную запись, выданную администратором.</p>
+  <section class="login-form">
+    <h2>Вход для сотрудников</h2>
+    <p class="muted small" style="margin-top:6px">Учётные записи выдаёт администратор.</p>
     <form method="post" action="{% url 'accounts:login' %}">
       {% csrf_token %}
       {{ form.non_field_errors }}
-      <label for="{{ form.username.id_for_label }}">Логин</label>
-      {{ form.username.errors }}{{ form.username }}
-      <label for="{{ form.password.id_for_label }}">Пароль</label>
-      {{ form.password.errors }}{{ form.password }}
+      <div class="form-row"><label for="{{ form.username.id_for_label }}">Логин</label>{{ form.username.errors }}<input class="field" type="text" name="username" id="{{ form.username.id_for_label }}" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
+      <div class="form-row"><label for="{{ form.password.id_for_label }}">Пароль</label>{{ form.password.errors }}<input class="field" type="password" name="password" id="{{ form.password.id_for_label }}" autocomplete="current-password" required></div>
       {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <button class="button full-width" type="submit">Войти</button>
+      <button class="button block" type="submit">Войти</button>
     </form>
   </section>
 </div>

@@ -1,29 +1,53 @@
-{% load static %}
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Код прозрачности{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+  </svg>
   <header class="topbar">
-    <a class="brand" href="{% url 'dashboard:case_list' %}"><span class="brand-mark">КП</span> Код прозрачности</a>
-    <nav aria-label="Основная навигация">
+    <div class="container topbar-inner">
+      <a class="brand" href="{% if user.is_authenticated %}{% url 'dashboard:overview' %}{% else %}{% url 'accounts:login' %}{% endif %}"><span class="brand-mark">КП</span>Код прозрачности</a>
       {% if user.is_authenticated %}
-        <a href="{% url 'dashboard:case_list' %}">Реестр</a>
-        {% if perms.cases.import_cases %}<a href="{% url 'imports:upload' %}">Импорт</a>{% endif %}
-        {% if user.is_staff %}<a href="{% url 'admin:index' %}">Управление</a>{% endif %}
-        <span class="username">{{ user.username }}</span>
+      {% with name=request.resolver_match.url_name %}
+      <nav class="nav" aria-label="Разделы">
+        <a href="{% url 'dashboard:overview' %}" {% if name == 'overview' %}aria-current="page"{% endif %}>Обзор</a>
+        <a href="{% url 'dashboard:case_list' %}" {% if name == 'case_list' or name == 'case_detail' %}aria-current="page"{% endif %}>Реестр</a>
+        <a href="{% url 'dashboard:map' %}" {% if name == 'map' %}aria-current="page"{% endif %}>Карта</a>
+        <a href="{% url 'dashboard:officials' %}" {% if name == 'officials' %}aria-current="page"{% endif %}>Должностные лица</a>
+        <a href="{% url 'dashboard:methodology' %}" {% if name == 'methodology' %}aria-current="page"{% endif %}>Методика</a>
+        {% if perms.cases.import_cases %}<a href="{% url 'imports:upload' %}" {% if name == 'upload' or name == 'batch' %}aria-current="page"{% endif %}>Загрузка</a>{% endif %}
+      </nav>
+      {% endwith %}
+      <div class="user">
+        <span><span class="user-name">{{ user.username }}</span> <span class="user-role">{{ user_role }}</span></span>
+        {% if user.is_staff %}<a class="link-button" href="{% url 'admin:index' %}">Управление</a>{% endif %}
         <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="link-button" type="submit">Выйти</button></form>
+      </div>
       {% endif %}
-    </nav>
+    </div>
   </header>
   <main class="container">
-    {% for message in messages %}<div class="notice" role="status">{{ message }}</div>{% endfor %}
+    {% if messages %}<div class="messages">{% for message in messages %}<div class="notice{% if message.level_tag == 'error' %} error{% endif %}" role="status">{{ message }}</div>{% endfor %}</div>{% endif %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="container footer">Рабочее место специалиста · Сведения требуют проверки по источникам</footer>
+  {% if user.is_authenticated %}
+  <footer class="container footer">
+    <span>Индикатор — повод для проверки, а не вывод о нарушении. Решение принимает сотрудник.</span>
+    <span>Версия {{ app_version }}</span>
+  </footer>
+  {% endif %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

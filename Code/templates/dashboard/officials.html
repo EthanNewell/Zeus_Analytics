@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load kp %}
+{% block title %}Должностные лица · Код прозрачности{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Индикатор И10</p>
+    <h1>Должностные лица</h1>
+    <p class="lead">Кто повторяется в эпизодах других индикаторов. Повтор — повод посмотреть на решения лица вместе, а не вывод о вине. Все лица в наборе синтетические.</p>
+  </div>
+</div>
+<section class="panel">
+  {% for person in people %}
+  <article class="person">
+    <div>
+      <h2>{{ person.record.title }}</h2>
+      {% if person.outcome %}<p style="margin-top:8px"><span class="status {% if person.outcome.status == 'triggered' %}s-high{% else %}{{ person.outcome.status|status_class }}{% endif %}">{% if person.outcome.status == 'triggered' %}Повторяется · эпизодов: {{ person.repeats }}{% else %}Один эпизод{% endif %}</span></p>{% endif %}
+    </div>
+    <div>
+      <ol class="episodes">{% for episode in person.episodes %}<li>{{ episode }}</li>{% endfor %}</ol>
+      {% if person.cases %}<div class="codes" style="margin-top:12px">{% for case in person.cases %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div>{% endif %}
+    </div>
+  </article>
+  {% empty %}<p class="muted">Таблица И10 ещё не загружена.</p>{% endfor %}
+</section>
+{% endblock %}

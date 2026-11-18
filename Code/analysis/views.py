@@ -1,5 +1,7 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
-from django.shortcuts import render
+from django.shortcuts import redirect
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .services import AnalysisNotConfigured, run_analysis
@@ -9,9 +11,16 @@ from .services import AnalysisNotConfigured, run_analysis
 @require_POST
 def run(request):
     try:
-        run_analysis(actor=request.user, case_ids=request.POST.getlist("case_ids"))
+        result = run_analysis(actor=request.user, case_ids=request.POST.getlist("case_ids"))
     except AnalysisNotConfigured as error:
-        return render(
-            request, "dashboard/module.html", {"title": "Анализ", "detail": str(error)}, status=501
+        messages.error(request, str(error))
+    else:
+        messages.success(
+            request,
+            f"Анализ выполнен за {result.duration_ms} мс: {result.records_count} записей, "
+            f"{result.triggered_count} сработавших индикаторов, {result.cases_count} объектов.",
         )
-    raise RuntimeError("Wire the AnalysisRun redirect when implementing the analysis adapter")
+    target = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(target, {request.get_host()}):
+        target = ""
+    return redirect(target or "dashboard:overview")
