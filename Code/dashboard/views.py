@@ -104,10 +104,17 @@ def cases(request):
             "query_string": query_string.urlencode(),
             "reviews": reviews,
             "attention_choices": [
-                (value, label) for value, label in Attention.choices if value != Attention.NOT_RUN
+                (Attention.HIGH, "Высокий"),
+                (Attention.NORMAL, "Требуют проверки"),
+                (Attention.LOW, "Контекст"),
+                (Attention.INSUFFICIENT, "Нет данных"),
+                (Attention.NONE, "Без сигналов"),
             ],
             "indicators": INDICATORS.values(),
-            "regions": Case.objects.exclude(region="").order_by("region").values_list("region", flat=True).distinct(),
+            "regions": Case.objects.exclude(region="")
+            .order_by("region")
+            .values_list("region", flat=True)
+            .distinct(),
             "review_choices": REVIEW_FILTERS.items(),
             "run": AnalysisRun.objects.first(),
         },
@@ -121,6 +128,7 @@ def detail_context(request, case, form=None):
         "case": case,
         "story": story,
         "outline": svg_outline(case.geometry),
+        "grid": range(0, 241, 30),
         "review_form": form if form is not None else ReviewForm(),
         "reviews": case.reviews.select_related("author")
         if request.user.has_perm("cases.view_review")
@@ -187,7 +195,9 @@ def case_map(request):
             }
         )
     without = Case.objects.filter(geometry=None).count()
-    center = centroid([feature["points"][0] for feature in features]) if features else [47.23, 39.72]
+    center = (
+        centroid([feature["points"][0] for feature in features]) if features else [47.23, 39.72]
+    )
     return render(
         request,
         "dashboard/map.html",
@@ -238,7 +248,9 @@ def methodology(request):
                 "sources": sorted(
                     {
                         note
-                        for note in ImportBatch.objects.filter(indicator=code).values_list("sources_note", flat=True)
+                        for note in ImportBatch.objects.filter(indicator=code).values_list(
+                            "sources_note", flat=True
+                        )
                         if note
                     }
                 ),

@@ -1,79 +1,103 @@
-{% extends "base.html" %}{% load kp %}
-{% block title %}Обзор · Код прозрачности{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div>
-    <p class="eyebrow">Земельные отношения · коррупционные риски</p>
-    <h1>Обзор</h1>
-    <p class="lead">{% if run %}Последний анализ {{ run.started_at|date:"d.m.Y в H:i" }}: {{ run.records_count }} записей по {{ per_indicator|length }} индикаторам, {{ run.cases_count }} объектов, {{ run.duration_ms }} мс.{% else %}Анализ ещё не запускался. Загрузите таблицы индикаторов и запустите проверку.{% endif %}</p>
+{% extends "base.html" %}{% load kp static %}
+{% block title %}Код прозрачности — коррупционные риски в кадастре{% endblock %}
+{% block top %}
+<section class="hero">
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <div class="hero-rail eyebrow"><span>Рабочее место специалиста</span><span class="nowrap">ЕГРН / НСПД / ЕГРЮЛ / ГИС «Торги»</span></div>
+      <h1 class="display-xl">Где в кадастре прячется риск</h1>
+      <p class="body-s j">Система сопоставляет сделки, смену категорий, правки ПЗЗ и связи с должностными лицами, объясняет каждый сигнал и хранит ход проверки. Решение принимает сотрудник: индикатор — повод проверить, а не вывод о нарушении.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" data-lbl="Открыть реестр" href="{% url 'dashboard:case_list' %}">Открыть реестр</a>
+        {% if perms.cases.run_analysis %}<form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:overview' %}"><button class="btn" type="submit" data-lbl="Запустить анализ">Запустить анализ</button></form>
+        {% else %}<a class="btn" data-lbl="Как считается" href="{% url 'dashboard:methodology' %}">Как считается</a>{% endif %}
+      </div>
+      <div class="stats">
+        <a class="stat" href="{% url 'dashboard:case_list' %}?attention=high"><span class="eyebrow">Высокий приоритет</span><span class="num-xl">{{ counts.high }}</span><span class="state small">{% attention_level 'high' %}объектов</span></a>
+        <a class="stat" href="{% url 'dashboard:case_list' %}?attention=normal"><span class="eyebrow">Требуют проверки</span><span class="num-xl">{{ counts.normal }}</span><span class="state small">{% attention_level 'normal' %}объектов</span></a>
+        <a class="stat" href="{% url 'dashboard:case_list' %}?attention=insufficient"><span class="eyebrow">Недостаточно данных</span><span class="num-xl">{{ counts.insufficient }}</span><span class="state small">{% attention_level 'insufficient' %}объектов</span></a>
+        <a class="stat" href="{% url 'dashboard:methodology' %}#quality"><span class="eyebrow">Сверка с исследованием</span><span class="num-xl">{% if run %}{{ run.agreed_count }}/{{ run.compared_count }}{% else %}—{% endif %}</span><span class="small">записей совпало</span></a>
+      </div>
+    </div>
+    <figure class="hero-plate"><img src="{% static 'img/hero.jpg' %}" alt="Поля, разделённые на участки: гравюра" width="1000" height="1000" fetchpriority="high"></figure>
   </div>
-  <div class="actions">
-    {% if perms.cases.run_analysis %}
-    <form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:overview' %}"><button class="button" type="submit"><svg class="icon"><use href="#i-play"/></svg>Запустить анализ</button></form>
-    {% endif %}
-    <a class="button ghost" href="{% url 'dashboard:case_list' %}">Открыть реестр<svg class="icon"><use href="#i-arrow"/></svg></a>
-  </div>
-</div>
-
-<div class="grid grid-4">
-  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=high"><span class="num">{{ counts.high }}</span><span class="status a-high">Высокий приоритет</span><span class="hint">Несколько индикаторов или подтверждённая связь</span></a>
-  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=normal"><span class="num">{{ counts.normal }}</span><span class="status a-normal">Требуют проверки</span><span class="hint">Сработал один основной индикатор</span></a>
-  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=insufficient"><span class="num">{{ counts.insufficient }}</span><span class="status a-insufficient">Недостаточно данных</span><span class="hint">Вывод невозможен без сведений</span></a>
-  <a class="tile" href="{% url 'dashboard:case_list' %}?attention=none"><span class="num">{{ counts.none }}</span><span class="status a-none">Без сигналов</span><span class="hint">{% if counts.low %}Ещё {{ counts.low }} — только контекстный признак. {% endif %}Всего {{ total_cases }} объектов</span></a>
-</div>
-
-<div class="grid grid-main section">
-  <section class="panel">
-    <div class="panel-head"><h2>Индикаторы</h2><a class="small muted" href="{% url 'dashboard:methodology' %}">Как считаются</a></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Индикатор</th><th class="hide-phone">Результаты</th><th class="num-cell">Сработал</th><th class="num-cell">Нет данных</th><th class="num-cell">Сверка</th></tr></thead>
-      <tbody>{% for row in per_indicator %}
-        <tr class="row">
-          <td><a class="row-link" href="{% url 'dashboard:case_list' %}?indicator={{ row.indicator.code }}"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</a>{% if row.indicator.kind == 'context' %}<span class="sub">Контекстный признак</span>{% endif %}</td>
-          <td class="hide-phone" style="vertical-align:middle">{% if row.total %}<div class="bar" title="{{ row.triggered }} сработал · {{ row.insufficient }} нет данных · {{ row.not_triggered }} не сработал"><span class="b-trig" style="width:{{ row.triggered|percent:row.total }}%"></span><span class="b-insuf" style="width:{{ row.insufficient|percent:row.total }}%"></span></div>{% endif %}</td>
-          <td class="num-cell">{{ row.triggered }} из {{ row.total }}</td>
-          <td class="num-cell">{{ row.insufficient }}</td>
-          <td class="num-cell">{% if row.compared %}{{ row.agreed }}/{{ row.compared }}{% else %}—{% endif %}</td>
-        </tr>
-      {% endfor %}</tbody>
-    </table></div>
-    <div class="legend section"><span><i style="background:var(--ink)"></i>Сработал</span><span><i style="background:var(--insufficient)"></i>Недостаточно данных</span><span><i style="background:var(--surface-2)"></i>Не сработал</span><span>Сверка — совпадение с разметкой исследования</span></div>
-  </section>
-  <div class="stack">
-    <section class="panel">
-      <h2>Сверка с исследованием</h2>
-      {% if run and run.compared_count %}
-      <p class="num" style="font-size:36px;font-weight:650;margin-top:12px">{{ run.agreed_count }} из {{ run.compared_count }}</p>
-      <p class="muted small" style="margin-top:6px">записей правила оценили так же, как автор исследования. Каждое расхождение объяснено в методике.</p>
-      <a class="back-link" href="{% url 'dashboard:methodology' %}#quality">Посмотреть расхождения<svg class="icon"><use href="#i-arrow"/></svg></a>
-      {% else %}<p class="muted small" style="margin-top:8px">Появится после первого анализа.</p>{% endif %}
-    </section>
-    <section class="panel">
-      <h2>Данные</h2>
-      {% if batch %}
-      <p class="muted small" style="margin-top:8px">Последняя загрузка {{ batch.created_at|date:"d.m.Y H:i" }}: {{ batch.file_name }}.</p>
-      <div class="legend section"><span class="origin o-real">реальные по маркировке автора</span><span class="origin o-synth">синтетические</span></div>
-      <p class="muted small" style="margin-top:12px">Набор смешанный: сигналы на синтетике помечены как демонстрационные и не являются выявленными нарушениями.</p>
-      {% else %}<p class="muted small" style="margin-top:8px">Данных пока нет.</p>{% endif %}
-    </section>
-  </div>
-</div>
-
-{% if top %}
-<section class="panel section">
-  <div class="panel-head"><h2>Требуют внимания</h2><a class="small muted" href="{% url 'dashboard:case_list' %}">Весь реестр</a></div>
-  <div class="table-wrap"><table>
-    <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог</th><th class="hide-phone">Проверка</th><th></th></tr></thead>
-    <tbody>{% for case in top %}{% with review=reviews|get_item:case.pk %}
-      <tr class="row">
-        <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title|truncatechars:70 }}</a><span class="sub">{{ case.reference }}{% if case.is_demonstration %} · демонстрация{% endif %}</span></td>
-        <td><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</div></td>
-        <td><span class="status {{ case.attention|attention_class }}">{{ case.get_attention_display }}</span></td>
-        <td class="hide-phone small">{% if review %}{{ review.get_outcome_display }}{% else %}<span class="muted">Не проверялся</span>{% endif %}</td>
-        <td class="row-arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
-      </tr>
-    {% endwith %}{% endfor %}</tbody>
-  </table></div>
 </section>
-{% endif %}
+{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="block">
+    <div class="block-rail">
+      <span class="eyebrow">Индикаторы</span>
+      <h2 class="h1">Семь правил исследования</h2>
+      <p class="small soft">{% if run %}Последний анализ {{ run.started_at|date:"d.m.Y H:i" }}: {{ run.records_count }} записей, {{ run.cases_count }} объектов, {{ run.duration_ms }} мс.{% else %}Анализ ещё не запускался.{% endif %}</p>
+      <div class="legend small"><span class="state"><span class="bar" style="min-width:1.4rem"><span class="b-trig" style="width:100%"></span></span>сработал</span><span class="state"><span class="bar" style="min-width:1.4rem"><span class="b-insuf" style="width:100%"></span></span>нет данных</span></div>
+    </div>
+    <div class="block-body tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Индикатор</th><th class="hide-s">Результаты</th><th class="r">Сработал</th><th class="r">Нет данных</th><th class="r">Сверка</th><th></th></tr></thead>
+        <tbody>{% for row in per_indicator %}
+          <tr class="row">
+            <td><a class="row-link" href="{% url 'dashboard:case_list' %}?indicator={{ row.indicator.code }}"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</a>{% if row.indicator.kind == 'context' %}<span class="sub">контекстный признак</span>{% endif %}</td>
+            <td class="hide-s" style="vertical-align:middle">{% if row.total %}<div class="bar"><span class="b-trig" style="width:{{ row.triggered|percent:row.total }}%"></span><span class="b-insuf" style="width:{{ row.insufficient|percent:row.total }}%"></span></div>{% endif %}</td>
+            <td class="r">{{ row.triggered }} из {{ row.total }}</td>
+            <td class="r">{{ row.insufficient }}</td>
+            <td class="r">{% if row.compared %}{{ row.agreed }}/{{ row.compared }}{% else %}—{% endif %}</td>
+            <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if top %}
+  <div class="block">
+    <div class="block-rail">
+      <span class="eyebrow">Очередь проверки</span>
+      <h2 class="h1">Требуют внимания</h2>
+      <a class="btn" data-lbl="Весь реестр" href="{% url 'dashboard:case_list' %}" style="justify-self:start">Весь реестр</a>
+    </div>
+    <div class="block-body tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог</th><th class="hide-s">Проверка</th><th></th></tr></thead>
+        <tbody>{% for case in top %}{% with review=reviews|get_item:case.pk %}
+          <tr class="row">
+            <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title|truncatechars:72 }}</a><span class="sub">{{ case.reference }}{% if case.is_demonstration %} / демонстрация{% endif %}</span></td>
+            <td><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</div></td>
+            <td><span class="state small">{% attention_level case.attention %}{{ case.get_attention_display }}</span></td>
+            <td class="hide-s small">{% if review %}{{ review.get_outcome_display }}{% else %}<span class="soft">не проверялся</span>{% endif %}</td>
+            <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+          </tr>
+        {% endwith %}{% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="block" style="margin-bottom:var(--s7)">
+    <div class="block-rail"><span class="eyebrow">Что мы ищем</span></div>
+    <div class="block-body"><h2 class="display-l">Три механизма риска</h2></div>
+  </div>
+  <div class="feat-grid">
+    <article class="feat">
+      <span class="eyebrow">#1 / И1, И3, И6</span>
+      <h3 class="h2">Сделка перед решением</h3>
+      <p class="body-s j">Участок покупают незадолго до смены категории или правки зоны, покупатель связан с чиновником, который участвует в решении, а после — продажа с выгодой.</p>
+      <figure class="feat-plate plate"><img src="{% static 'img/m1.jpg' %}" alt="Теодолит в поле: гравюра" loading="lazy" width="1000" height="1000"></figure>
+    </article>
+    <article class="feat">
+      <span class="eyebrow">#2 / И2, И4, И10</span>
+      <h3 class="h2">Решение под владельца</h3>
+      <p class="body-s j">Зону ПЗЗ меняют ради участков одного правообладателя, торги проходят с единственным участником, одно и то же должностное лицо повторяется в разных эпизодах.</p>
+      <figure class="feat-plate plate"><img src="{% static 'img/m2.jpg' %}" alt="Документы и печать: гравюра" loading="lazy" width="1000" height="1000"></figure>
+    </article>
+    <article class="feat">
+      <span class="eyebrow">#3 / И8</span>
+      <h3 class="h2">Граница с изломом</h3>
+      <p class="body-s j">Контур участка с «хвостом», вырезом или прирезанной полосой. Коэффициент заполнения считается по координатам, а не берётся из таблицы.</p>
+      <figure class="feat-plate plate"><img src="{% static 'img/m3.jpg' %}" alt="Кадастровый план: гравюра" loading="lazy" width="1000" height="1000"></figure>
+    </article>
+  </div>
+</section>
 {% endblock %}

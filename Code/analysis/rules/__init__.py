@@ -106,11 +106,16 @@ def rule_i2(facts):
     missing = _missing("I2", facts, used)
     if missing:
         return _insufficient(
-            "I2", missing, used, "долю основного владельца в изменённой зоне (сведения — в приложении к акту)"
+            "I2",
+            missing,
+            used,
+            "долю основного владельца в изменённой зоне (сведения — в приложении к акту)",
         )
     zone, owner = fact_value(facts, "zone_area"), fact_value(facts, "owner_area")
     if not zone:
-        return _insufficient("I2", [_label("I2", "zone_area")], used, "долю владельца: площадь зоны равна нулю")
+        return _insufficient(
+            "I2", [_label("I2", "zone_area")], used, "долю владельца: площадь зоны равна нулю"
+        )
     share = owner / zone
     metrics = [("Доля основного владельца в зоне", f"{number(share * 100, 1)} %")]
     after = fact_value(facts, "zone_after") or "новую зону"
@@ -149,7 +154,11 @@ def rule_i3(facts):
             RuleStatus.NOT_TRIGGERED,
             Priority.LOW,
             "Продажи после смены категории не было"
-            + (" — выгода не реализована." if growth_after_change else ", рост КС после смены категории не выявлен."),
+            + (
+                " — выгода не реализована."
+                if growth_after_change
+                else ", рост КС после смены категории не выявлен."
+            ),
             used,
             metrics=metrics,
         )
@@ -275,7 +284,12 @@ def rule_i8(facts):
     ]
     stated = fact_value(facts, "area")
     if isinstance(stated, int | float) and stated:
-        metrics.append(("Расхождение с площадью из таблицы", f"{number((shape['area'] - stated) / stated * 100, 1)} %"))
+        metrics.append(
+            (
+                "Расхождение с площадью из таблицы",
+                f"{number((shape['area'] - stated) / stated * 100, 1)} %",
+            )
+        )
     if fill < FILL_THRESHOLD:
         shape_text = fact_value(facts, "shape")
         return Evaluation(

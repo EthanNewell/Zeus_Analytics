@@ -14,9 +14,7 @@ ABSENT_TOKENS = {"—", "–", "-", "нет события", "не примен�
 
 CADASTRAL_RE = re.compile(r"\b(\d{2}):(\d{2}):(\d{6,7}):(\d{1,6})\b")
 SHORT_RE = re.compile(r"(?<![\d:])[:](\d{1,6})\b")
-RANGE_RE = re.compile(
-    r"\b(\d{2}:\d{2}:\d{6,7}):(\d{1,6})\s*[–—-]\s*(?:\1)?:?(\d{1,6})\b"
-)
+RANGE_RE = re.compile(r"\b(\d{2}:\d{2}:\d{6,7}):(\d{1,6})\s*[–—-]\s*(?:\1)?:?(\d{1,6})\b")
 DATE_IN_TEXT_RE = re.compile(r"\bот\s+(\d{2})\.(\d{2})\.(\d{4})\b")
 HEADER_SPACE_RE = re.compile(r"\s+")
 

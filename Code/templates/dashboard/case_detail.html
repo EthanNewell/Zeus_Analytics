@@ -1,111 +1,113 @@
 {% extends "base.html" %}{% load kp %}
 {% block title %}{{ case.reference }} · Код прозрачности{% endblock %}
-{% block content %}
-<a class="back-link" href="{% url 'dashboard:case_list' %}"><svg class="icon"><use href="#i-back"/></svg>Реестр</a>
-<div class="page-head" style="margin-top:12px">
-  <div>
-    <p class="eyebrow">{{ case.object_kind|default:"Объект" }} · {{ case.reference }}</p>
-    <h1>{{ case.title }}</h1>
-    <div class="case-meta">
-      <span class="status {{ case.attention|attention_class }}">{{ case.get_attention_display }}</span>
-      {% if case.triggered_list %}<span class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</span>{% endif %}
-      {% if case.region %}<span>{{ case.region }}</span>{% endif %}
-      {% if case.area_sq_m %}<span>{{ case.area_sq_m|floatformat:"0g" }} м²</span>{% endif %}
+{% block top %}
+<section class="case-head">
+  <div class="wrap case-head-in">
+    <div style="display:grid;gap:var(--s5)">
+      <a class="eyebrow" href="{% url 'dashboard:case_list' %}"><svg class="icon"><use href="#i-back"/></svg> Реестр</a>
+      <span class="eyebrow">{{ case.object_kind|default:"Объект" }} / {{ case.reference }}</span>
+      <h1 class="display-l">{{ case.title }}</h1>
+      <div class="case-meta">
+        <span class="state">{% attention_level case.attention %}<span class="eyebrow">{{ case.get_attention_display }}</span></span>
+        {% if case.triggered_list %}<span class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</span>{% endif %}
+        {% if case.region %}<span class="eyebrow">{{ case.region }}</span>{% endif %}
+        {% if case.area_sq_m %}<span class="eyebrow">{{ case.area_sq_m|floatformat:"0g" }} м²</span>{% endif %}
+      </div>
+      {% if case.is_demonstration %}<p class="small" style="max-width:60ch">Демонстрационные данные: часть сведений синтетическая. Сигналы показывают работу правил и не являются выявленными нарушениями.</p>{% endif %}
     </div>
+    {% if outline %}
+    <figure class="outline-plate" aria-label="Контур участка по координатам, север сверху">
+      <svg viewBox="0 0 240 240" role="img">
+        {% for x in grid %}<line class="grid-line" x1="{{ x }}" y1="0" x2="{{ x }}" y2="240"/><line class="grid-line" x1="0" y1="{{ x }}" x2="240" y2="{{ x }}"/>{% endfor %}
+        <path d="{{ outline }}"/>
+      </svg>
+      <figcaption class="eyebrow" style="margin-top:var(--s2)">Контур по координатам / север сверху</figcaption>
+    </figure>
+    {% endif %}
   </div>
-</div>
-{% if case.is_demonstration %}<div class="notice">Демонстрационные данные: часть сведений синтетическая. Сигналы показывают работу правил и не являются выявленными нарушениями.</div>{% endif %}
-
-<div class="grid grid-main section">
-  <div class="stack">
-    <section class="panel">
-      <div class="panel-head"><h2>Почему объект в реестре</h2><p>Правила по каждому индикатору</p></div>
+</section>
+{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="block">
+    <div class="block-rail"><span class="eyebrow">Анализ</span><h2 class="h1">Почему объект в реестре</h2><p class="small soft">Каждый индикатор — отдельное правило: статус, объяснение, расчёт и чего не хватает.</p></div>
+    <div class="block-body">
       {% for item in story.findings %}{% with outcome=item.outcome indicator=item.indicator %}
       <article class="finding">
         <div class="finding-head">
-          <h3><span class="code">{{ indicator.code_display }}</span>{{ indicator.short }}</h3>
-          {% if outcome %}<span class="status {{ outcome.status|status_class }}{% if outcome.status == 'triggered' and outcome.priority == 'high' %} s-high{% endif %}">{{ outcome.status|status_label }}</span>{% else %}<span class="status a-not_run">Не анализировалось</span>{% endif %}
+          <h3 class="h2"><span class="code">{{ indicator.code_display }}</span> {{ indicator.short }}</h3>
+          {% if outcome %}<span class="state">{% outcome_level outcome %}{% if outcome.status == 'triggered' %}<span class="tag tag-blue">{{ outcome.status|status_label }}</span>{% else %}<span class="tag">{{ outcome.status|status_label }}</span>{% endif %}</span>{% else %}<span class="tag tag-line">Не анализировалось</span>{% endif %}
         </div>
-        <p class="muted small" style="margin-top:4px">{{ indicator.question }}</p>
+        <p class="small soft">{{ indicator.question }}</p>
         {% if outcome %}
-        <p>{{ outcome.explanation }}</p>
-        {% if outcome.metrics %}<div class="metrics">{% for label, value in outcome.metrics %}<div class="metric">{{ label }}<b>{{ value }}</b></div>{% endfor %}</div>{% endif %}
-        {% if outcome.missing_fields %}<div class="missing">Чего не хватает:<ul>{% for field in outcome.missing_fields %}<li>{{ field }}</li>{% endfor %}</ul></div>{% endif %}
-        {% if not outcome.agrees %}<p class="mismatch">В разметке исследования здесь «{{ item.record.author_mark }}». Правило намеренно строже — <a href="{% url 'dashboard:methodology' %}#quality" style="text-decoration:underline">почему</a>.</p>{% endif %}
-        <p class="check-hint">Что учесть: {{ indicator.limitations }}</p>
-        <p class="tag" style="margin-top:8px">Правило {{ indicator.code_display }} v{{ outcome.rule_version }} · запуск {{ outcome.run.started_at|date:"d.m.Y H:i" }}{% if outcome.is_demonstration %} · на демонстрационных данных{% endif %}</p>
+        <p class="body-s j">{{ outcome.explanation }}</p>
+        {% if outcome.metrics %}<div class="metrics">{% for label, value in outcome.metrics %}<div class="metric"><span class="eyebrow">{{ label }}</span><b>{{ value }}</b></div>{% endfor %}</div>{% endif %}
+        {% if outcome.missing_fields %}<div class="notice small"><span class="eyebrow">Чего не хватает</span><ul style="margin:var(--s2) 0 0;padding-left:1.1rem">{% for field in outcome.missing_fields %}<li>{{ field }}</li>{% endfor %}</ul></div>{% endif %}
+        {% if not outcome.agrees %}<p class="small">В разметке исследования здесь «{{ item.record.author_mark }}». Правило намеренно строже — <a class="code" href="{% url 'dashboard:methodology' %}#quality">почему</a></p>{% endif %}
+        <p class="small soft j">Что учесть: {{ indicator.limitations }}</p>
+        <span class="eyebrow soft">Правило {{ indicator.code_display }} v{{ outcome.rule_version }} / запуск {{ outcome.run.started_at|date:"d.m.Y H:i" }}{% if outcome.is_demonstration %} / демонстрационные данные{% endif %}</span>
         {% endif %}
       </article>
-      {% endwith %}{% empty %}<p class="muted">Записей индикаторов по объекту нет.</p>{% endfor %}
-    </section>
+      {% endwith %}{% empty %}<p class="soft">Записей индикаторов по объекту нет.</p>{% endfor %}
+    </div>
+  </div>
 
-    <section class="panel" id="review">
-      <div class="panel-head"><h2>Проверка сотрудника</h2><p>Хранится отдельно от фактов и сигналов</p></div>
+  {% if story.timeline %}
+  <div class="block">
+    <div class="block-rail"><span class="eyebrow">Хронология</span><h2 class="h1">Как шли события</h2></div>
+    <ol class="timeline block-body" style="gap:0">{% for event in story.timeline %}<li><time class="eyebrow" datetime="{{ event.date|date:'Y-m-d' }}">{{ event.date|date:"d.m.Y" }}</time><span class="body-s">{{ event.label }} <span class="code">{{ event.indicator.code_display }}</span>{% if event.detail %}<span class="small soft" style="display:block">{{ event.detail|truncatechars:160 }}</span>{% endif %}</span></li>{% endfor %}</ol>
+  </div>
+  {% endif %}
+
+  <div class="block">
+    <div class="block-rail"><span class="eyebrow">Объект</span><h2 class="h1">Участники и основания</h2>
+      <div class="legend small" style="margin-top:var(--s3)"><span class="org o-real">реальное по маркировке</span><span class="org o-synth">синтетика</span><span class="org o-calc">расчёт в таблице</span><span class="org o-unknown">уточнить</span></div>
+    </div>
+    <div class="block-body">
+      <dl class="kv" style="grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))">
+        {% if case.cadastral_number %}<div><dt class="eyebrow">Кадастровый номер</dt><dd>{{ case.cadastral_number }}</dd></div>{% endif %}
+        {% if case.address %}<div><dt class="eyebrow">Местоположение</dt><dd>{{ case.address }}</dd></div>{% endif %}
+        <div><dt class="eyebrow">Происхождение</dt><dd>{{ case.get_origin_display }}</dd></div>
+        {% if story.sources %}<div><dt class="eyebrow">Источники сведений</dt><dd class="small">{{ story.sources|join:"; " }}</dd></div>{% endif %}
+      </dl>
+      {% if case.geometry %}<a class="btn" data-lbl="Показать на карте" href="{% url 'dashboard:map' %}#{{ case.id }}" style="justify-self:start">Показать на карте</a>{% endif %}
+      {% if story.parties %}<ul class="list">{% for party in story.parties %}<li><span class="body-s">{{ party.value|linebreaksbr }}</span><span class="meta small"><span class="eyebrow">{{ party.roles|join:" / " }}</span><span class="org {{ party.origin|origin_class }}">{{ party.origin|origin_short }}</span></span></li>{% endfor %}</ul>{% endif %}
+      {% if story.documents or evidence %}<ul class="list">
+        {% for doc in story.documents %}<li><span class="body-s">{{ doc.value }}</span><span class="meta small"><span class="eyebrow">{{ doc.label }}</span><span class="org {{ doc.origin|origin_class }}">{{ doc.origin|origin_short }}</span></span></li>{% endfor %}
+        {% for item in evidence %}<li><span class="body-s">{{ item.title }}</span><span class="meta small"><span class="eyebrow">{{ item.get_origin_display }}</span>{% if item.file %}<a class="code" href="{% url 'dashboard:evidence_download' item.id %}">Скачать</a>{% endif %}</span></li>{% endfor %}
+      </ul>{% endif %}
+    </div>
+  </div>
+
+  <div class="block" id="review">
+    <div class="block-rail"><span class="eyebrow">Решение человека</span><h2 class="h1">Проверка сотрудника</h2><p class="small soft">Хранится отдельно: не меняет исходные факты и сигнал системы.</p></div>
+    <div class="block-body">
       {% if perms.cases.add_review %}
-      <form method="post" action="{% url 'dashboard:review_create' case.id %}">{% csrf_token %}
-        {{ review_form.non_field_errors }}
-        <div class="form-row">
-          <span class="sr-only">Результат</span>
-          {{ review_form.outcome.errors }}
-          <ul class="choice-list">{% for radio in review_form.outcome %}<li><label>{{ radio.tag }}{{ radio.choice_label }}</label></li>{% endfor %}</ul>
-        </div>
-        <div class="form-row">
-          <label for="{{ review_form.comment.id_for_label }}">Обоснование и реквизиты документов</label>
-          {{ review_form.comment.errors }}{{ review_form.comment }}
-        </div>
-        <div class="form-row"><button class="button" type="submit">Сохранить в истории</button></div>
+      <form method="post" action="{% url 'dashboard:review_create' case.id %}" style="display:grid;gap:var(--s4)">{% csrf_token %}
+        {{ review_form.non_field_errors }}{{ review_form.outcome.errors }}
+        <ul class="choice">{% for radio in review_form.outcome %}<li><label>{{ radio.tag }}<span class="body-s">{{ radio.choice_label }}</span></label></li>{% endfor %}</ul>
+        <div><label class="field-label eyebrow" for="{{ review_form.comment.id_for_label }}">Обоснование и реквизиты документов</label>{{ review_form.comment.errors }}{{ review_form.comment }}</div>
+        <button class="btn btn-primary" type="submit" data-lbl="Сохранить в истории" style="justify-self:start">Сохранить в истории</button>
       </form>
       {% endif %}
-      {% if reviews %}<div class="section">{% for review in reviews %}
-        <article class="review"><span class="sub">{{ review.created_at|date:"d.m.Y H:i" }} · {{ review.author.get_full_name|default:review.author.username }}</span><h3>{{ review.get_outcome_display }}</h3><p class="small">{{ review.comment|linebreaksbr }}</p></article>
-      {% endfor %}</div>{% elif not perms.cases.add_review %}<p class="muted small">Записей проверки пока нет.</p>{% endif %}
-    </section>
+      {% if reviews %}<div>{% for review in reviews %}
+        <article class="review"><span class="eyebrow soft">{{ review.created_at|date:"d.m.Y H:i" }} / {{ review.author.username }}</span><h3 class="h2">{{ review.get_outcome_display }}</h3><p class="body-s">{{ review.comment|linebreaksbr }}</p></article>
+      {% endfor %}</div>{% elif not perms.cases.add_review %}<p class="soft">Записей проверки пока нет.</p>{% endif %}
+    </div>
+  </div>
 
-    <section class="panel">
-      <div class="panel-head"><h2>Исходные факты</h2><p>Каждое поле — с происхождением и ячейкой источника</p></div>
-      <div class="legend" style="margin-bottom:8px"><span class="origin o-real">реальное по маркировке автора</span><span class="origin o-synth">синтетическое</span><span class="origin o-calc">расчёт в исходной таблице</span><span class="origin o-unknown">уточнить</span><span class="origin o-missing">нет данных</span></div>
+  <div class="block">
+    <div class="block-rail"><span class="eyebrow">Первоисточник</span><h2 class="h1">Исходные факты</h2><p class="small soft">Каждое поле — с ячейкой файла и происхождением. Жирным — то, на что опирается правило.</p></div>
+    <div class="block-body" style="gap:0">
       {% for table in story.fact_tables %}
       <details class="facts" {% if forloop.first %}open{% endif %}>
-        <summary><span><span class="code">{{ table.indicator.code_display }}</span> {{ table.indicator.short }} <span class="muted small">· {{ table.record.batch.file_name }}, строка {{ table.record.row_number }}</span></span><svg class="icon"><use href="#i-chevron"/></svg></summary>
-        <div class="table-wrap"><table class="facts-table"><tbody>
-          {% for row in table.rows %}<tr {% if row.used %}class="used"{% endif %}><td>{{ row.column.header }}</td><td>{{ row.fact|fact_display:row.column|linebreaksbr }}</td><td class="num-cell"><span class="origin {{ row.fact.origin|origin_class }}">{{ row.fact.cell }}</span></td></tr>{% endfor %}
+        <summary><span><span class="code">{{ table.indicator.code_display }}</span> <span class="h3">{{ table.indicator.short }}</span> <span class="small soft">/ {{ table.record.batch.file_name }}, строка {{ table.record.row_number }}</span></span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="tbl-wrap"><table class="tbl facts-tbl"><tbody>
+          {% for row in table.rows %}<tr {% if row.used %}class="used"{% endif %}><td class="small">{{ row.column.header }}</td><td class="small">{{ row.fact|fact_display:row.column|linebreaksbr }}</td><td class="r"><span class="org {{ row.fact.origin|origin_class }}">{{ row.fact.cell }}</span></td></tr>{% endfor %}
         </tbody></table></div>
       </details>
       {% endfor %}
-      <p class="muted small" style="margin-top:12px">Жирным — факты, на которые опирается правило.</p>
-    </section>
+    </div>
   </div>
-
-  <div class="stack">
-    <section class="panel">
-      <h2>Объект</h2>
-      {% if outline %}<svg class="outline section" viewBox="0 0 240 240" role="img" aria-label="Контур участка по координатам"><path d="{{ outline }}"/></svg><p class="muted small" style="text-align:center;margin-top:6px">Контур по координатам, север сверху</p>{% endif %}
-      <dl class="dl section">
-        {% if case.cadastral_number %}<div><dt>Кадастровый номер</dt><dd>{{ case.cadastral_number }}</dd></div>{% endif %}
-        {% if case.address %}<div><dt>Местоположение</dt><dd>{{ case.address }}</dd></div>{% endif %}
-        <div><dt>Происхождение</dt><dd>{{ case.get_origin_display }}</dd></div>
-        {% if story.sources %}<div><dt>Источники сведений</dt><dd class="small">{{ story.sources|join:"; " }}</dd></div>{% endif %}
-      </dl>
-      {% if case.geometry %}<a class="back-link" href="{% url 'dashboard:map' %}#{{ case.id }}">Показать на карте<svg class="icon"><use href="#i-arrow"/></svg></a>{% endif %}
-    </section>
-
-    {% if story.timeline %}<section class="panel">
-      <div class="panel-head"><h2>Хронология</h2></div>
-      <ol class="timeline">{% for event in story.timeline %}<li><time datetime="{{ event.date|date:'Y-m-d' }}">{{ event.date|date:"d.m.Y" }}</time><span>{{ event.label }} <span class="code">{{ event.indicator.code_display }}</span>{% if event.detail %}<span class="sub">{{ event.detail|truncatechars:140 }}</span>{% endif %}</span></li>{% endfor %}</ol>
-    </section>{% endif %}
-
-    {% if story.parties %}<section class="panel">
-      <div class="panel-head"><h2>Участники</h2></div>
-      <ul class="list">{% for party in story.parties %}<li>{{ party.value|linebreaksbr }}<span class="sub"><span>{{ party.roles|join:" · " }}</span><span class="origin {{ party.origin|origin_class }}">{{ party.origin|origin_short }}</span></span></li>{% endfor %}</ul>
-    </section>{% endif %}
-
-    {% if story.documents or evidence %}<section class="panel">
-      <div class="panel-head"><h2>Документы и основания</h2></div>
-      <ul class="list">
-        {% for doc in story.documents %}<li>{{ doc.value }}<span class="sub"><span>{{ doc.label }}</span><span class="origin {{ doc.origin|origin_class }}">{{ doc.origin|origin_short }}</span></span></li>{% endfor %}
-        {% for item in evidence %}<li>{{ item.title }}<span class="sub"><span>{{ item.get_origin_display }}</span>{% if item.file %}<a href="{% url 'dashboard:evidence_download' item.id %}">Скачать</a>{% endif %}</span></li>{% endfor %}
-      </ul>
-    </section>{% endif %}
-  </div>
-</div>
+</section>
 {% endblock %}

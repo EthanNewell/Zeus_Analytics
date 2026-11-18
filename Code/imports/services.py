@@ -96,10 +96,13 @@ def read_xlsx(content):
     for sheet in formulas.worksheets:
         value_sheet = values[sheet.title]
         grid = []
-        for row_cells, value_cells in zip(
-            sheet.iter_rows(), value_sheet.iter_rows(), strict=False
-        ):
-            grid.append([_xlsx_cell(cell, value) for cell, value in zip(row_cells, value_cells, strict=False)])
+        for row_cells, value_cells in zip(sheet.iter_rows(), value_sheet.iter_rows(), strict=False):
+            grid.append(
+                [
+                    _xlsx_cell(cell, value)
+                    for cell, value in zip(row_cells, value_cells, strict=False)
+                ]
+            )
         table = _parse_grid(grid, sheet.title, default_origin=Origin.SYNTHETIC)
         if table is not None:
             return table
@@ -181,7 +184,9 @@ def _parse_grid(grid, sheet_name, *, default_origin):
             positions[column.key] = headers[column.normalized]
         elif column.required:
             errors.append(
-                ImportError(header_index + 1, column.header, "missing_column", "Нет обязательной колонки.")
+                ImportError(
+                    header_index + 1, column.header, "missing_column", "Нет обязательной колонки."
+                )
             )
     if errors:
         return ParsedTable(indicator, sheet_name, [], [], errors)
@@ -239,12 +244,18 @@ def _parse_row(indicator, row, positions, default_origin, errors):
                 elif column.kind == "wkt":
                     parse_wkt_polygon(value)
             except ValueError as error:
-                row_errors.append(ImportError(row_number, column.header, "invalid_value", str(error)))
+                row_errors.append(
+                    ImportError(row_number, column.header, "invalid_value", str(error))
+                )
                 continue
         elif state == PRESENT:
             value = to_json_value("text", value)
         if column.required and state != PRESENT:
-            row_errors.append(ImportError(row_number, column.header, "required", "Обязательное значение не заполнено."))
+            row_errors.append(
+                ImportError(
+                    row_number, column.header, "required", "Обязательное значение не заполнено."
+                )
+            )
         if state != PRESENT:
             value = None
         facts[column.key] = {
@@ -260,7 +271,12 @@ def _parse_row(indicator, row, positions, default_origin, errors):
     cases = indicator.resolve_cases(facts)
     if not cases and indicator.code != "I10":
         errors.append(
-            ImportError(row_number, indicator.column(indicator.key_column).header, "no_object", "Не удалось определить объект (кадастровый номер или описание).")
+            ImportError(
+                row_number,
+                indicator.column(indicator.key_column).header,
+                "no_object",
+                "Не удалось определить объект (кадастровый номер или описание).",
+            )
         )
         return None
     key = str(facts[indicator.key_column]["value"])[:200]
@@ -373,7 +389,9 @@ def _refresh_case_origin(case):
         for record in records
         for fact in record.facts.values()
     )
-    case.origin = Origin.AUTHOR_MARKED_REAL if key_real and not case.is_demonstration else (
-        Origin.SYNTHETIC if case.is_demonstration else Origin.UNKNOWN
+    case.origin = (
+        Origin.AUTHOR_MARKED_REAL
+        if key_real and not case.is_demonstration
+        else (Origin.SYNTHETIC if case.is_demonstration else Origin.UNKNOWN)
     )
     case.save(update_fields=["is_demonstration", "origin", "updated_at"])

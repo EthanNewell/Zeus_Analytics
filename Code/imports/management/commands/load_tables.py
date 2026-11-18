@@ -13,7 +13,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("folder")
-        parser.add_argument("--user", required=True, help="Existing user with import and analysis permissions")
+        parser.add_argument(
+            "--user", required=True, help="Existing user with import and analysis permissions"
+        )
 
     def handle(self, folder, user, **options):
         actor = get_user_model().objects.filter(username=user).first()
@@ -30,7 +32,9 @@ class Command(BaseCommand):
             if result.errors:
                 failed = True
                 for error in result.errors:
-                    self.stderr.write(f"{path.name}: строка {error.row}, {error.field}: {error.message}")
+                    self.stderr.write(
+                        f"{path.name}: строка {error.row}, {error.field}: {error.message}"
+                    )
             else:
                 self.stdout.write(f"{path.name}: {len(result.case_ids)} объектов")
         if failed:

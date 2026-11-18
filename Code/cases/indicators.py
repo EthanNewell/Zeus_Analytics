@@ -109,7 +109,14 @@ def _object_text_cases(facts, key):
             )
         ]
     address = _address_from_object(text)
-    return [CaseSpec(reference=_text_reference(text), title=address or text, object_kind=kind, address=address)]
+    return [
+        CaseSpec(
+            reference=_text_reference(text),
+            title=address or text,
+            object_kind=kind,
+            address=address,
+        )
+    ]
 
 
 def _address_from_object(text):
@@ -140,7 +147,10 @@ def resolve_i2(facts):
     if facts.get("geometry", {}).get("state") == PRESENT:
         geometry = parse_wkt_polygon(facts["geometry"]["value"])
     if numbers:
-        return [CaseSpec(reference=number, title=f"Земельный участок {number}", cadastral_number=number) for number in numbers]
+        return [
+            CaseSpec(reference=number, title=f"Земельный участок {number}", cadastral_number=number)
+            for number in numbers
+        ]
     location = fact_value(facts, "location") or ""
     municipality = fact_value(facts, "municipality") or ""
     act = fact_value(facts, "approval_act") or fact_value(facts, "prep_act") or location
@@ -210,16 +220,31 @@ INDICATORS = {
                 C("object_kind", "Вид объекта недвижимости"),
                 C("status", "Статус объекта"),
                 C("cadastral", "Кадастровый номер", required=True),
-                C("cn_date", "Дата присвоения кадастрового номера", "date", timeline="Присвоен кадастровый номер"),
+                C(
+                    "cn_date",
+                    "Дата присвоения кадастрового номера",
+                    "date",
+                    timeline="Присвоен кадастровый номер",
+                ),
                 C("ownership_form", "Форма собственности"),
                 C("holder", "Правообладатель (по выписке ЕГРН)", party="Правообладатель"),
                 C("right_kind", "Вид права"),
                 C("right_number", "Номер государственной регистрации права", document=True),
-                C("right_date", "Дата государственной регистрации права", "date", timeline="Регистрация права"),
+                C(
+                    "right_date",
+                    "Дата государственной регистрации права",
+                    "date",
+                    timeline="Регистрация права",
+                ),
                 C("category_before", "Категория до перевода"),
                 C("category_after", "Категория после перевода"),
                 C("act", "Акт о переводе", document=True),
-                C("category_change_date", "Дата изменения категории", "date", timeline="Смена категории"),
+                C(
+                    "category_change_date",
+                    "Дата изменения категории",
+                    "date",
+                    timeline="Смена категории",
+                ),
                 C("days", "Дней от регистрации права до смены категории", calculated=True),
                 C("mark", "Покупка ≤ 12 мес. до смены категории", mark=True),
             ),
@@ -240,9 +265,20 @@ INDICATORS = {
                 C("doc_kind", "Вид документа"),
                 C("municipality", "Муниципальное образование", required=True),
                 C("base_doc", "Исходный утверждённый документ", document=True),
-                C("prep_act", "Акт о подготовке изменений", document=True, timeline="Акт о подготовке изменений"),
+                C(
+                    "prep_act",
+                    "Акт о подготовке изменений",
+                    document=True,
+                    timeline="Акт о подготовке изменений",
+                ),
                 C("protocol", "Протокол комиссии / общественных обсуждений", document=True),
-                C("approval_act", "Акт об утверждении изменений", document=True, timeline="Утверждение изменений", required=True),
+                C(
+                    "approval_act",
+                    "Акт об утверждении изменений",
+                    document=True,
+                    timeline="Утверждение изменений",
+                    required=True,
+                ),
                 C("justification", "Заявленное обоснование"),
                 C("location", "Местоположение изменяемой территории"),
                 C("zone_before", "Зона ДО изменений"),
@@ -253,9 +289,22 @@ INDICATORS = {
                 C("owner_share", "Доля основного владельца в зоне", calculated=True),
                 C("plots_count", "Кол-во участков в зоне", "number"),
                 C("plots", "Кадастровые номера участков в зоне"),
-                C("holders_prep", "Правообладатели на дату акта о подготовке", party="Правообладатели на дату подготовки"),
-                C("holders_approval", "Правообладатели на дату утверждения", party="Правообладатели на дату утверждения"),
-                C("owner_reg_date", "Дата регистрации права основного владельца", "date", timeline="Регистрация права основного владельца"),
+                C(
+                    "holders_prep",
+                    "Правообладатели на дату акта о подготовке",
+                    party="Правообладатели на дату подготовки",
+                ),
+                C(
+                    "holders_approval",
+                    "Правообладатели на дату утверждения",
+                    party="Правообладатели на дату утверждения",
+                ),
+                C(
+                    "owner_reg_date",
+                    "Дата регистрации права основного владельца",
+                    "date",
+                    timeline="Регистрация права основного владельца",
+                ),
                 C("neighbors", "Соседние участки (КН)"),
                 C("neighbor_holders", "Правообладатели соседних участков"),
                 C("neighbor_zone", "Зона соседних участков после изменений"),
@@ -279,29 +328,56 @@ INDICATORS = {
                 C("address", "Адрес (местоположение)"),
                 C("area", "Площадь, кв. м", "number"),
                 C("change_type", "Тип изменения"),
-                C("holder", "Правообладатель на дату смены категории", party="Правообладатель на дату смены категории"),
+                C(
+                    "holder",
+                    "Правообладатель на дату смены категории",
+                    party="Правообладатель на дату смены категории",
+                ),
                 C("right", "Вид, номер и дата регистрации права", document=True),
                 C("category_before", "Категория до"),
                 C("category_after", "Категория после"),
-                C("category_change_date", "Дата смены категории", "date", timeline="Смена категории"),
+                C(
+                    "category_change_date",
+                    "Дата смены категории",
+                    "date",
+                    timeline="Смена категории",
+                ),
                 C("ks_before", "КС до, руб.", "number"),
                 C("ks_before_det", "Дата определения КС до", "date"),
                 C("ks_before_start", "Дата начала применения КС до", "date"),
                 C("ks_after", "КС после, руб.", "number"),
                 C("ks_after_det", "Дата определения КС после", "date"),
-                C("ks_after_start", "Дата начала применения КС после", "date", timeline="Применяется новая кадастровая стоимость"),
+                C(
+                    "ks_after_start",
+                    "Дата начала применения КС после",
+                    "date",
+                    timeline="Применяется новая кадастровая стоимость",
+                ),
                 C("ks_egrn_date", "Дата внесения КС в ЕГРН", "date"),
                 C("ks_basis", "Основание определения КС после", document=True),
                 C("ks_delta", "Изменение КС, руб.", calculated=True),
                 C("ks_ratio", "Рост КС, раз", calculated=True),
-                C("ks_days", "Дней от смены категории до начала применения новой КС (< 0 — изменение раньше смены)", calculated=True),
+                C(
+                    "ks_days",
+                    "Дней от смены категории до начала применения новой КС (< 0 — изменение раньше смены)",
+                    calculated=True,
+                ),
                 C("split_date", "Дата раздела (дробления)", "date", timeline="Раздел участка"),
                 C("split_count", "Кол-во образованных участков", "number"),
                 C("split_numbers", "КН образованных участков"),
-                C("resale_date", "Дата перепродажи (перехода права)", "date", timeline="Перепродажа"),
+                C(
+                    "resale_date",
+                    "Дата перепродажи (перехода права)",
+                    "date",
+                    timeline="Перепродажа",
+                ),
                 C("new_holder", "Новый правообладатель", party="Новый правообладатель"),
                 C("deal_price", "Цена сделки, руб.", "number"),
-                C("profit_sale", "Продажа после смены категории с выгодой (рост КС)", calculated=True),
+                C(
+                    "profit_sale",
+                    "Продажа после смены категории с выгодой (рост КС)",
+                    calculated=True,
+                ),
                 C("mark", "Соответствие индикатору", mark=True),
             ),
         ),
@@ -319,13 +395,21 @@ INDICATORS = {
             columns=(
                 C("number", "№"),
                 C("object", "Объект (вид, адрес, кадастровый номер, площадь)", required=True),
-                C("seller", "Правообладатель (продавец / арендодатель)", party="Продавец / арендодатель"),
+                C(
+                    "seller",
+                    "Правообладатель (продавец / арендодатель)",
+                    party="Продавец / арендодатель",
+                ),
                 C("method", "Способ предоставления и правовое основание", document=True),
                 C("contract", "Вид договора, номер и дата", document=True, timeline="Договор"),
                 C("participants", "Число участников", "number"),
                 C("start_price", "Начальная цена, руб.", "number"),
                 C("final_price", "Итоговая цена (цена договора), руб.", "number"),
-                C("counterparty", "Контрагент (победитель / единственный участник)", party="Контрагент"),
+                C(
+                    "counterparty",
+                    "Контрагент (победитель / единственный участник)",
+                    party="Контрагент",
+                ),
                 C("bypass", "Признаки обхода обязательных условий"),
                 C("mark", "Соответствие индикатору", mark=True),
             ),
@@ -345,12 +429,25 @@ INDICATORS = {
                 C("number", "№"),
                 C("object", "Объект (вид, адрес, кадастровый номер)", required=True),
                 C("buyer", "Покупатель (ФИО / наименование, ИНН)", party="Покупатель"),
-                C("founders", "Учредители и руководитель покупателя по ЕГРЮЛ (текущие и прежние)", party="Учредители и руководитель покупателя"),
-                C("purchase_date", "Дата регистрации права покупателя", "date", timeline="Регистрация права покупателя"),
+                C(
+                    "founders",
+                    "Учредители и руководитель покупателя по ЕГРЮЛ (текущие и прежние)",
+                    party="Учредители и руководитель покупателя",
+                ),
+                C(
+                    "purchase_date",
+                    "Дата регистрации права покупателя",
+                    "date",
+                    timeline="Регистрация права покупателя",
+                ),
                 C("procedure", "Процедура (вид, акт)", document=True),
                 C("procedure_start", "Дата начала процедуры", "date", timeline="Начало процедуры"),
                 C("days", "Дней от покупки до начала процедуры", calculated=True),
-                C("official", "Должностное лицо, участвовавшее в решении (ФИО, ИНН, должность, роль)", party="Должностное лицо в решении"),
+                C(
+                    "official",
+                    "Должностное лицо, участвовавшее в решении (ФИО, ИНН, должность, роль)",
+                    party="Должностное лицо в решении",
+                ),
                 C("surname_match", "Совпадение фамилии"),
                 C("inn_match", "Совпадение ИНН в ЕГРЮЛ"),
                 C("link_level", "Уровень достоверности связи", calculated=True),

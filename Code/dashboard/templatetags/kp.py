@@ -1,6 +1,7 @@
 import datetime as dt
 
 from django import template
+from django.utils.safestring import mark_safe
 
 from analysis.contracts import RuleStatus
 from cases.facts import ABSENT, MISSING
@@ -69,12 +70,16 @@ def fact_display(fact, column=None):
         except (TypeError, ValueError):
             return value
     if kind == "number" and isinstance(value, int | float):
-        text = f"{value:,.2f}".rstrip("0").rstrip(".") if not float(value).is_integer() else f"{int(value):,}"
+        text = (
+            f"{value:,.2f}".rstrip("0").rstrip(".")
+            if not float(value).is_integer()
+            else f"{int(value):,}"
+        )
         return text.replace(",", " ").replace(".", ",")
     if kind == "points":
         return f"контур, {value.count(';') + 1} точек"
     if kind == "wkt":
-        return f"полигон зоны, {value.count(',') } точек"
+        return f"полигон зоны, {value.count(',')} точек"
     return value
 
 
@@ -97,3 +102,42 @@ def percent(part, whole):
 @register.filter
 def code_display(code):
     return "И" + str(code)[1:]
+
+
+ATTENTION_LEVEL = {"high": 5, "normal": 3, "low": 2, "none": 0, "insufficient": -1, "not_run": -1}
+
+
+def _level_svg(level):
+    cells = []
+    for index in range(5):
+        if level < 0:
+            cells.append(
+                f'<rect x="{index * 4 + 0.5}" y="0.5" width="2" height="8" fill="none" stroke="currentColor" stroke-opacity="0.6"/>'
+            )
+        else:
+            opacity = 1 if index < level else 0.22
+            cells.append(
+                f'<rect x="{index * 4}" y="0" width="3" height="9" fill="currentColor" fill-opacity="{opacity}"/>'
+            )
+    return mark_safe(
+        '<svg class="lv" viewBox="0 0 19 9" width="19" height="9" aria-hidden="true" shape-rendering="crispEdges">'
+        + "".join(cells)
+        + "</svg>"
+    )
+
+
+@register.simple_tag
+def attention_level(attention):
+    """Five cells, filled by the case's attention; empty outline means «no data»."""
+    return _level_svg(ATTENTION_LEVEL.get(attention, -1))
+
+
+@register.simple_tag
+def outcome_level(outcome):
+    if outcome is None:
+        return _level_svg(-1)
+    if outcome.status == RuleStatus.TRIGGERED:
+        return _level_svg({"high": 5, "normal": 3, "low": 2}.get(outcome.priority, 3))
+    if outcome.status == RuleStatus.NOT_TRIGGERED:
+        return _level_svg(0)
+    return _level_svg(-1)

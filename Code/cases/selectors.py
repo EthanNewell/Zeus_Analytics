@@ -95,12 +95,26 @@ def case_story(case, outcomes_by_record):
                     if len(value) > len(party["value"]):
                         party["value"] = value
                 else:
-                    seen_parties[key] = {"roles": [column.party], "value": value, "origin": fact["origin"]}
+                    seen_parties[key] = {
+                        "roles": [column.party],
+                        "value": value,
+                        "origin": fact["origin"],
+                    }
                     parties.append(seen_parties[key])
             if column.document and value not in seen_documents:
                 seen_documents.add(value)
-                documents.append({"label": column.header, "value": value, "origin": fact["origin"], "indicator": indicator, "record": record})
-        fact_tables.append({"record": record, "indicator": indicator, "rows": rows, "outcome": outcome})
+                documents.append(
+                    {
+                        "label": column.header,
+                        "value": value,
+                        "origin": fact["origin"],
+                        "indicator": indicator,
+                        "record": record,
+                    }
+                )
+        fact_tables.append(
+            {"record": record, "indicator": indicator, "rows": rows, "outcome": outcome}
+        )
     unique_timeline = {}
     for event in timeline:
         unique_timeline.setdefault((event["date"], event["label"]), event)

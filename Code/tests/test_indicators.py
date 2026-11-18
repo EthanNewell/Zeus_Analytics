@@ -32,11 +32,29 @@ def facts(**values):
     result = {}
     for key, value in values.items():
         if value is None:
-            result[key] = {"value": None, "state": "missing", "origin": "", "cell": "", "label": key}
+            result[key] = {
+                "value": None,
+                "state": "missing",
+                "origin": "",
+                "cell": "",
+                "label": key,
+            }
         elif value == "—":
-            result[key] = {"value": None, "state": "absent", "origin": "synthetic", "cell": "", "label": key}
+            result[key] = {
+                "value": None,
+                "state": "absent",
+                "origin": "synthetic",
+                "cell": "",
+                "label": key,
+            }
         else:
-            result[key] = {"value": value, "state": "present", "origin": "synthetic", "cell": "", "label": key}
+            result[key] = {
+                "value": value,
+                "state": "present",
+                "origin": "synthetic",
+                "cell": "",
+                "label": key,
+            }
     return result
 
 
@@ -54,45 +72,105 @@ class RuleTests(TestCase):
             self.assertTrue(result.missing)
 
     def test_i1_purchase_window(self):
-        self.assertStatus(evaluate("I1", right_date="2025-05-22", category_change_date="2026-02-17"), RuleStatus.TRIGGERED, Priority.NORMAL)
-        self.assertStatus(evaluate("I1", right_date="2024-10-03", category_change_date="2026-03-18"), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I1", right_date="2026-03-01", category_change_date="2026-02-17"), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I1", right_date=None, category_change_date="2026-02-17"), RuleStatus.INSUFFICIENT_DATA)
+        self.assertStatus(
+            evaluate("I1", right_date="2025-05-22", category_change_date="2026-02-17"),
+            RuleStatus.TRIGGERED,
+            Priority.NORMAL,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2024-10-03", category_change_date="2026-03-18"),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2026-03-01", category_change_date="2026-02-17"),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date=None, category_change_date="2026-02-17"),
+            RuleStatus.INSUFFICIENT_DATA,
+        )
 
     def test_i1_window_border_is_inclusive(self):
-        self.assertStatus(evaluate("I1", right_date="2025-02-28", category_change_date="2026-02-28"), RuleStatus.TRIGGERED)
-        self.assertStatus(evaluate("I1", right_date="2025-02-28", category_change_date="2026-03-01"), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(
+            evaluate("I1", right_date="2025-02-28", category_change_date="2026-02-28"),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2025-02-28", category_change_date="2026-03-01"),
+            RuleStatus.NOT_TRIGGERED,
+        )
 
     def test_i2_owner_share(self):
         self.assertStatus(evaluate("I2", zone_area=4.2, owner_area=4.2), RuleStatus.TRIGGERED)
         self.assertStatus(evaluate("I2", zone_area=12.5, owner_area=10.0), RuleStatus.TRIGGERED)
         self.assertStatus(evaluate("I2", zone_area=38.4, owner_area=4.6), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I2", zone_area=None, owner_area=None), RuleStatus.INSUFFICIENT_DATA)
+        self.assertStatus(
+            evaluate("I2", zone_area=None, owner_area=None), RuleStatus.INSUFFICIENT_DATA
+        )
 
     def test_i3_is_context_and_needs_sale_after_change(self):
-        base = dict(ks_before=151088, ks_after=6384000, category_change_date="2026-03-18", ks_after_start="2026-03-18")
-        self.assertStatus(evaluate("I3", resale_date="2026-09-10", **base), RuleStatus.TRIGGERED, Priority.LOW)
+        base = dict(
+            ks_before=151088,
+            ks_after=6384000,
+            category_change_date="2026-03-18",
+            ks_after_start="2026-03-18",
+        )
+        self.assertStatus(
+            evaluate("I3", resale_date="2026-09-10", **base), RuleStatus.TRIGGERED, Priority.LOW
+        )
         self.assertStatus(evaluate("I3", resale_date="—", **base), RuleStatus.NOT_TRIGGERED)
         self.assertStatus(evaluate("I3", resale_date=None, **base), RuleStatus.INSUFFICIENT_DATA)
         revaluation = dict(base, ks_after_start="2026-01-01")
-        self.assertStatus(evaluate("I3", resale_date="2026-06-09", **revaluation), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(
+            evaluate("I3", resale_date="2026-06-09", **revaluation), RuleStatus.NOT_TRIGGERED
+        )
 
     def test_i4_single_participant_or_bypass(self):
-        self.assertStatus(evaluate("I4", participants=1, start_price=520000, final_price=520000), RuleStatus.TRIGGERED)
-        self.assertStatus(evaluate("I4", participants="—", bypass="Второе заявление проигнорировано", final_price=18450), RuleStatus.TRIGGERED)
-        self.assertStatus(evaluate("I4", participants=5, bypass="—", start_price=640000, final_price=1488000), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I4", participants=None, bypass=None), RuleStatus.INSUFFICIENT_DATA)
+        self.assertStatus(
+            evaluate("I4", participants=1, start_price=520000, final_price=520000),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate(
+                "I4", participants="—", bypass="Второе заявление проигнорировано", final_price=18450
+            ),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I4", participants=5, bypass="—", start_price=640000, final_price=1488000),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I4", participants=None, bypass=None), RuleStatus.INSUFFICIENT_DATA
+        )
 
     def test_i6_link_must_be_documented(self):
-        dates = dict(purchase_date="2025-05-22", procedure_start="2025-08-05", official="Ветров А.Н., ИНН 610214942629")
-        self.assertStatus(evaluate("I6", inn_match="Да — ИНН совпал", surname_match="Да", **dates), RuleStatus.TRIGGERED, Priority.HIGH)
-        surname = evaluate("I6", inn_match="Нет — общих организаций нет", surname_match="Да — Кравченко", **dates)
+        dates = dict(
+            purchase_date="2025-05-22",
+            procedure_start="2025-08-05",
+            official="Ветров А.Н., ИНН 610214942629",
+        )
+        self.assertStatus(
+            evaluate("I6", inn_match="Да — ИНН совпал", surname_match="Да", **dates),
+            RuleStatus.TRIGGERED,
+            Priority.HIGH,
+        )
+        surname = evaluate(
+            "I6", inn_match="Нет — общих организаций нет", surname_match="Да — Кравченко", **dates
+        )
         self.assertStatus(surname, RuleStatus.INSUFFICIENT_DATA)
         self.assertIn("фамилия", surname.explanation)
-        self.assertStatus(evaluate("I6", inn_match="Нет", surname_match="Нет", **dates), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(
+            evaluate("I6", inn_match="Нет", surname_match="Нет", **dates), RuleStatus.NOT_TRIGGERED
+        )
         late = dict(dates, purchase_date="2026-02-04", procedure_start="2025-08-18")
-        self.assertStatus(evaluate("I6", inn_match="Да", surname_match="Да", **late), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I6", purchase_date="2026-02-12", procedure_start=None), RuleStatus.INSUFFICIENT_DATA)
+        self.assertStatus(
+            evaluate("I6", inn_match="Да", surname_match="Да", **late), RuleStatus.NOT_TRIGGERED
+        )
+        self.assertStatus(
+            evaluate("I6", purchase_date="2026-02-12", procedure_start=None),
+            RuleStatus.INSUFFICIENT_DATA,
+        )
 
     def test_i8_fill_is_computed_from_coordinates(self):
         anomaly = evaluate("I8", coords=L_SHAPE, area=864)
@@ -103,9 +181,15 @@ class RuleTests(TestCase):
         self.assertStatus(evaluate("I8", coords=None), RuleStatus.INSUFFICIENT_DATA)
 
     def test_i10_repeated_official(self):
-        self.assertStatus(evaluate("I10", person="Ветров А.Н.", repeats=5), RuleStatus.TRIGGERED, Priority.HIGH)
-        self.assertStatus(evaluate("I10", person="Широков П.А.", repeats=1), RuleStatus.NOT_TRIGGERED)
-        self.assertStatus(evaluate("I10", person="Иванов", repeats=None), RuleStatus.INSUFFICIENT_DATA)
+        self.assertStatus(
+            evaluate("I10", person="Ветров А.Н.", repeats=5), RuleStatus.TRIGGERED, Priority.HIGH
+        )
+        self.assertStatus(
+            evaluate("I10", person="Широков П.А.", repeats=1), RuleStatus.NOT_TRIGGERED
+        )
+        self.assertStatus(
+            evaluate("I10", person="Иванов", repeats=None), RuleStatus.INSUFFICIENT_DATA
+        )
 
     def test_author_marks_map_to_statuses(self):
         self.assertEqual(expected_status("Да"), "triggered")
@@ -140,8 +224,16 @@ class SummaryTests(TestCase):
 
     def test_cadastral_numbers_expand_shorthand_and_ranges(self):
         self.assertEqual(
-            cadastral_numbers("правка — 61:02:0120102:1543, :1544; участок 61:01:0600005:3352 – :3354"),
-            ["61:01:0600005:3352", "61:01:0600005:3353", "61:01:0600005:3354", "61:02:0120102:1543", "61:02:0120102:1544"],
+            cadastral_numbers(
+                "правка — 61:02:0120102:1543, :1544; участок 61:01:0600005:3352 – :3354"
+            ),
+            [
+                "61:01:0600005:3352",
+                "61:01:0600005:3353",
+                "61:01:0600005:3354",
+                "61:02:0120102:1543",
+                "61:02:0120102:1544",
+            ],
         )
 
 
@@ -152,7 +244,18 @@ def i8_workbook(rows, notes=()):
     sheet.title = "Аномалия границ"
     sheet.append([column.header for column in INDICATORS["I8"].columns])
     for index, (number, coords, area) in enumerate(rows, start=2):
-        sheet.append([index - 1, number, "форма", coords, area, area, f"=E{index}/F{index}", f'=IF(G{index}>=0.85,"0 — норма","1 — аномалия")'])
+        sheet.append(
+            [
+                index - 1,
+                number,
+                "форма",
+                coords,
+                area,
+                area,
+                f"=E{index}/F{index}",
+                f'=IF(G{index}>=0.85,"0 — норма","1 — аномалия")',
+            ]
+        )
     sheet["B2"].fill = PatternFill("solid", fgColor="FFFF00")
     for offset, note in enumerate(notes):
         sheet.cell(row=len(rows) + 3 + offset, column=1, value=note)
@@ -165,8 +268,20 @@ def i1_csv(rows):
     headers = [column.header for column in INDICATORS["I1"].columns]
     lines = [";".join(headers)]
     for number, bought, changed in rows:
-        values = {"number": "1", "object_kind": "Земельный участок", "cadastral": number, "right_date": bought, "category_change_date": changed, "category_before": "Земли с/х назначения", "category_after": "Земли населённых пунктов", "holder": "ООО «Тест»", "mark": "Да"}
-        lines.append(";".join(values.get(column.key, "нет данных") for column in INDICATORS["I1"].columns))
+        values = {
+            "number": "1",
+            "object_kind": "Земельный участок",
+            "cadastral": number,
+            "right_date": bought,
+            "category_change_date": changed,
+            "category_before": "Земли с/х назначения",
+            "category_after": "Земли населённых пунктов",
+            "holder": "ООО «Тест»",
+            "mark": "Да",
+        }
+        lines.append(
+            ";".join(values.get(column.key, "нет данных") for column in INDICATORS["I1"].columns)
+        )
     return "\n".join(lines).encode("utf-8")
 
 
@@ -174,18 +289,27 @@ class ImportTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         call_command("bootstrap_roles", verbosity=0)
-        cls.controller = User.objects.create_user("controller", password="a-controller-test-password")
+        cls.controller = User.objects.create_user(
+            "controller", password="a-controller-test-password"
+        )
         cls.controller.groups.add(Group.objects.get(name="Controller"))
-        cls.specialist = User.objects.create_user("specialist", password="a-specialist-test-password")
+        cls.specialist = User.objects.create_user(
+            "specialist", password="a-specialist-test-password"
+        )
         cls.specialist.groups.add(Group.objects.get(name="Specialist"))
 
     def upload(self, name, content, actor=None):
-        return import_table(actor=actor or self.controller, uploaded_file=SimpleUploadedFile(name, content))
+        return import_table(
+            actor=actor or self.controller, uploaded_file=SimpleUploadedFile(name, content)
+        )
 
     def test_xlsx_keeps_provenance_geometry_and_notes(self):
         result = self.upload(
             "И8.xlsx",
-            i8_workbook([("31:19:0504002:36", RECTANGLE, 1000), ("61:39:0600012:744", L_SHAPE, 864)], notes=["Источники координат: НСПД, выписка ЕГРН.", "Порог 0,85 — допущение."]),
+            i8_workbook(
+                [("31:19:0504002:36", RECTANGLE, 1000), ("61:39:0600012:744", L_SHAPE, 864)],
+                notes=["Источники координат: НСПД, выписка ЕГРН.", "Порог 0,85 — допущение."],
+            ),
         )
         self.assertFalse(result.errors)
         record = Record.objects.get(source_key="31:19:0504002:36")
@@ -202,8 +326,18 @@ class ImportTests(TestCase):
         self.assertEqual(batch.real_cells, 1)
 
     def test_bad_row_rejects_whole_file(self):
-        result = self.upload("И1.csv", i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026"), ("61:25:0600301:4127", "вчера", "18.03.2026")]))
-        self.assertEqual([(error.row, error.code) for error in result.errors], [(3, "invalid_value")])
+        result = self.upload(
+            "И1.csv",
+            i1_csv(
+                [
+                    ("61:02:0600010:2843", "22.05.2025", "17.02.2026"),
+                    ("61:25:0600301:4127", "вчера", "18.03.2026"),
+                ]
+            ),
+        )
+        self.assertEqual(
+            [(error.row, error.code) for error in result.errors], [(3, "invalid_value")]
+        )
         self.assertFalse(Record.objects.exists())
         self.assertFalse(Case.objects.exists())
         self.assertFalse(ImportBatch.objects.exists())
@@ -229,14 +363,28 @@ class ImportTests(TestCase):
         from django.core.exceptions import PermissionDenied
 
         with self.assertRaises(PermissionDenied):
-            self.upload("И1.csv", i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026")]), actor=self.specialist)
+            self.upload(
+                "И1.csv",
+                i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026")]),
+                actor=self.specialist,
+            )
 
     def test_analysis_stores_outcomes_and_case_attention(self):
-        self.upload("И1.csv", i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026"), ("61:25:0600301:4127", "03.10.2024", "18.03.2026")]))
+        self.upload(
+            "И1.csv",
+            i1_csv(
+                [
+                    ("61:02:0600010:2843", "22.05.2025", "17.02.2026"),
+                    ("61:25:0600301:4127", "03.10.2024", "18.03.2026"),
+                ]
+            ),
+        )
         run = run_analysis(actor=self.controller)
         self.assertEqual((run.records_count, run.triggered_count), (2, 1))
         self.assertEqual((run.compared_count, run.agreed_count), (2, 1))
-        self.assertEqual(Case.objects.get(reference="61:02:0600010:2843").attention, Attention.NORMAL)
+        self.assertEqual(
+            Case.objects.get(reference="61:02:0600010:2843").attention, Attention.NORMAL
+        )
         self.assertEqual(Case.objects.get(reference="61:25:0600301:4127").attention, Attention.NONE)
         first = RuleOutcome.objects.get(record__source_key="61:02:0600010:2843")
         self.assertEqual(first.used_fields, ["right_date", "category_change_date"])
@@ -255,24 +403,41 @@ class UserPathTests(TestCase):
 
     def test_full_path(self):
         self.client.force_login(self.head)
-        response = self.client.post(reverse("imports:upload"), {"file": SimpleUploadedFile("И8.xlsx", i8_workbook([("61:39:0600012:744", L_SHAPE, 864)]))})
+        response = self.client.post(
+            reverse("imports:upload"),
+            {
+                "file": SimpleUploadedFile(
+                    "И8.xlsx", i8_workbook([("61:39:0600012:744", L_SHAPE, 864)])
+                )
+            },
+        )
         batch = ImportBatch.objects.get()
         self.assertRedirects(response, reverse("imports:batch", args=[batch.id]))
         self.assertContains(self.client.get(response.url), "61:39:0600012:744")
-        response = self.client.post(reverse("analysis:run"), {"next": reverse("dashboard:case_list")}, follow=True)
+        response = self.client.post(
+            reverse("analysis:run"), {"next": reverse("dashboard:case_list")}, follow=True
+        )
         self.assertContains(response, "Анализ выполнен")
         self.assertContains(response, "Требует проверки")
         case = Case.objects.get(reference="61:39:0600012:744")
         detail = self.client.get(reverse("dashboard:case_detail", args=[case.id]))
         self.assertContains(detail, "описанного прямоугольника")
-        self.assertContains(detail, "<svg class=\"outline")
-        self.client.post(reverse("dashboard:review_create", args=[case.id]), {"outcome": "confirmed", "comment": "Сверено с выпиской ЕГРН"})
+        self.assertContains(detail, "outline-plate")
+        self.client.post(
+            reverse("dashboard:review_create", args=[case.id]),
+            {"outcome": "confirmed", "comment": "Сверено с выпиской ЕГРН"},
+        )
         export = self.client.get(reverse("dashboard:case_export")).content.decode("utf-8-sig")
         self.assertIn("Основания для дальнейшей проверки подтверждены", export)
         self.assertIn("И8: Контур заполняет", export)
         for name in ["overview", "map", "officials", "methodology"]:
             with self.subTest(page=name):
                 self.assertEqual(self.client.get(reverse(f"dashboard:{name}")).status_code, 200)
-        filtered = self.client.get(reverse("dashboard:case_list"), {"attention": "normal", "indicator": "I8"})
+        filtered = self.client.get(
+            reverse("dashboard:case_list"), {"attention": "normal", "indicator": "I8"}
+        )
         self.assertContains(filtered, "61:39:0600012:744")
-        self.assertNotContains(self.client.get(reverse("dashboard:case_list"), {"attention": "high"}), "61:39:0600012:744")
+        self.assertNotContains(
+            self.client.get(reverse("dashboard:case_list"), {"attention": "high"}),
+            "61:39:0600012:744",
+        )

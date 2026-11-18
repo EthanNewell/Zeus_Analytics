@@ -1,30 +1,21 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
 {% block title %}Вход · Код прозрачности{% endblock %}
-{% block content %}
-<div class="login">
-  <section class="login-intro">
-    <div>
-      <p class="eyebrow" style="color:inherit;opacity:.6">Земельные отношения</p>
-      <h1>Риски в кадастре — с фактами и источниками</h1>
-      <p>Рабочее место специалиста по профилактике коррупции: система сопоставляет сделки, смену категорий, правки ПЗЗ и связи с должностными лицами, объясняет каждый сигнал и хранит ход проверки.</p>
-    </div>
-    <div class="login-points">
-      <div><b>7</b>индикаторов исследования</div>
-      <div><b>4</b>статуса без «процента коррупции»</div>
-      <div><b>1</b>решение — за сотрудником</div>
-    </div>
-  </section>
-  <section class="login-form">
-    <h2>Вход для сотрудников</h2>
-    <p class="muted small" style="margin-top:6px">Учётные записи выдаёт администратор.</p>
-    <form method="post" action="{% url 'accounts:login' %}">
+{% block top %}
+<section class="login">
+  <div class="login-copy">
+    <div class="hero-rail eyebrow"><span>Земельные отношения</span><span>Профилактика коррупции</span></div>
+    <h1 class="display-xl">Риски в кадастре — с фактами</h1>
+    <p class="body-s j" style="max-width:40rem">Рабочее место специалиста: система сопоставляет сделки, смену категорий, правки ПЗЗ и связи с должностными лицами, объясняет каждый сигнал и хранит ход проверки.</p>
+    <form method="post" action="{% url 'accounts:login' %}" class="login-form">
       {% csrf_token %}
-      {{ form.non_field_errors }}
-      <div class="form-row"><label for="{{ form.username.id_for_label }}">Логин</label>{{ form.username.errors }}<input class="field" type="text" name="username" id="{{ form.username.id_for_label }}" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
-      <div class="form-row"><label for="{{ form.password.id_for_label }}">Пароль</label>{{ form.password.errors }}<input class="field" type="password" name="password" id="{{ form.password.id_for_label }}" autocomplete="current-password" required></div>
+      {% if form.non_field_errors %}<div class="notice notice-strong small">Неверный логин или пароль.</div>{% endif %}
+      <div><label class="field-label eyebrow" for="id_username">Логин</label><input class="input" type="text" name="username" id="id_username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
+      <div><label class="field-label eyebrow" for="id_password">Пароль</label><input class="input" type="password" name="password" id="id_password" autocomplete="current-password" required></div>
       {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <button class="button block" type="submit">Войти</button>
+      <button class="btn btn-primary" type="submit" data-lbl="Войти">Войти</button>
+      <span class="eyebrow">Учётные записи выдаёт администратор</span>
     </form>
-  </section>
-</div>
+  </div>
+  <figure class="login-plate"><img src="{% static 'img/hero.jpg' %}" alt="Поля, разделённые на участки: гравюра" width="1000" height="1000"></figure>
+</section>
 {% endblock %}

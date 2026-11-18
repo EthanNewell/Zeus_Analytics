@@ -29,13 +29,15 @@ class RuleOutcome(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     run = models.ForeignKey(AnalysisRun, on_delete=models.CASCADE, related_name="outcomes")
-    record = models.ForeignKey(
-        "cases.Record", on_delete=models.CASCADE, related_name="outcomes"
-    )
+    record = models.ForeignKey("cases.Record", on_delete=models.CASCADE, related_name="outcomes")
     rule_code = models.CharField("индикатор", max_length=8)
     rule_version = models.CharField("версия", max_length=16)
-    status = models.CharField("статус", max_length=20, choices=[(s.value, s.value) for s in RuleStatus])
-    priority = models.CharField("приоритет", max_length=8, choices=[(p.value, p.value) for p in Priority])
+    status = models.CharField(
+        "статус", max_length=20, choices=[(s.value, s.value) for s in RuleStatus]
+    )
+    priority = models.CharField(
+        "приоритет", max_length=8, choices=[(p.value, p.value) for p in Priority]
+    )
     explanation = models.TextField("объяснение")
     metrics = models.JSONField("расчёт", default=list)
     used_fields = models.JSONField("использованные факты", default=list)

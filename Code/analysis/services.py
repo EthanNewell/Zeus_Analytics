@@ -26,7 +26,9 @@ def run_analysis(*, actor, case_ids=None):
         records = records.filter(cases__id__in=case_ids).distinct()
     records = list(records)
     if not records:
-        raise AnalysisNotConfigured("Нет загруженных записей: сначала импортируйте таблицы индикаторов.")
+        raise AnalysisNotConfigured(
+            "Нет загруженных записей: сначала импортируйте таблицы индикаторов."
+        )
     run = AnalysisRun.objects.create(
         started_by=actor, rules={code: rule.version for code, rule in RULES.items()}
     )
@@ -38,7 +40,8 @@ def run_analysis(*, actor, case_ids=None):
         result = rule.evaluate(record.facts)
         expected = expected_status(record.author_mark)
         used_demo = any(
-            record.facts.get(key, {}).get("origin") in ("synthetic", "unknown") for key in result.used
+            record.facts.get(key, {}).get("origin") in ("synthetic", "unknown")
+            for key in result.used
         )
         outcomes.append(
             RuleOutcome(
@@ -87,9 +90,7 @@ def run_analysis(*, actor, case_ids=None):
 def summarize(outcomes):
     """Case attention from its rule outcomes. Context indicators never raise it to high."""
     triggered = [outcome for outcome in outcomes if outcome.status == RuleStatus.TRIGGERED]
-    codes = sorted(
-        {outcome.rule_code for outcome in triggered}, key=lambda code: int(code[1:])
-    )
+    codes = sorted({outcome.rule_code for outcome in triggered}, key=lambda code: int(code[1:]))
     main = {code for code in codes if INDICATORS[code].kind == "main"}
     if any(outcome.priority == Priority.HIGH for outcome in triggered) or len(main) >= 2:
         return Attention.HIGH, codes

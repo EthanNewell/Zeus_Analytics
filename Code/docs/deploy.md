@@ -22,13 +22,14 @@ sh scripts/staging.sh run --rm web python manage.py migrate --plan
 sh scripts/staging.sh run --rm web python manage.py migrate --noinput
 sh scripts/staging.sh run --rm web python manage.py bootstrap_roles
 sh scripts/staging.sh run --rm web python manage.py createsuperuser
-sh scripts/staging.sh run --rm web python manage.py seed_demo
+sh scripts/staging.sh run --rm web python manage.py demo_users
+sh scripts/staging.sh run --rm -v /путь/к/таблицам:/data:ro web python manage.py load_tables /data --user head
 sh scripts/staging.sh up -d --wait web
 sh scripts/staging.sh exec -T web python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready/', timeout=5)"
 sh scripts/staging.sh up -d proxy
 ```
 
-`seed_demo` — только по явному решению команды; рестарт ничего не загружает. Статика собрана в образе и отдаётся WhiteNoise. Проверьте `https://ВАШ-ДОМЕН/health/ready/`, вход и [smoke-check](smoke-check.md). Не считайте Docker health-check подтверждением применённых миграций: он использует live.
+`demo_users` и `load_tables` — только по явному решению команды; рестарт ничего не загружает. Пароли `demo_users` печатаются один раз — сохраните их в менеджере паролей. Статика собрана в образе и отдаётся WhiteNoise. Проверьте `https://ВАШ-ДОМЕН/health/ready/`, вход и [smoke-check](smoke-check.md). Не считайте Docker health-check подтверждением применённых миграций: он использует live.
 
 Встроенные HSTS-настройки ограничены одним хостом и одним часом. Проверки Django `security.W005` и `security.W021` явно исключены: стенд не управляет соседними поддоменами и не включается в браузерный preload list. Остальные предупреждения блокируют выпуск. Прокси перезаписывает `X-Forwarded-Proto`; прямого доступа к Gunicorn снаружи нет. В Nginx ограничены запросы входа и readiness. Лимит тела запроса — 3 МиБ; при изменении лимитов импорта согласованно обновить `client_max_body_size`, настройки Django и измерить обработку.
 

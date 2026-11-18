@@ -217,9 +217,15 @@ class ApplicationTests(TestCase):
         self.assertEqual(self.client.get(reverse("dashboard:case_export")).status_code, 403)
         self.client.force_login(self.head)
         response = self.client.get(reverse("dashboard:case_export"))
-        row = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";"))[0]
+        row = list(
+            csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";")
+        )[0]
         self.assertEqual(
-            (row["Демонстрационные данные"], row["Итог анализа"], row["Результат проверки сотрудника"]),
+            (
+                row["Демонстрационные данные"],
+                row["Итог анализа"],
+                row["Результат проверки сотрудника"],
+            ),
             ("да", "Анализ не запускался", "Предположение не подтвердилось"),
         )
 
@@ -244,7 +250,9 @@ class ApplicationTests(TestCase):
         self.case.save(update_fields=["title"])
         Case.objects.create(reference="OTHER", title="Другой случай")
         response = self.client.get(reverse("dashboard:case_export"), {"q": "TEST-01"})
-        rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";"))
+        rows = list(
+            csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";")
+        )
         self.assertEqual(len(rows), 1)
         self.assertTrue(rows[0]["Объект"].startswith("'"))
 
@@ -256,7 +264,9 @@ class ApplicationTests(TestCase):
         }
         call_command("bootstrap_roles", verbosity=0)
         for name, role in groups.items():
-            current = set(Group.objects.get(name=name).permissions.values_list("codename", flat=True))
+            current = set(
+                Group.objects.get(name=name).permissions.values_list("codename", flat=True)
+            )
             self.assertEqual(current, before[name])
             self.assertEqual(current, set(role.permissions))
         self.assertLess(before["Specialist"], before["Controller"])
