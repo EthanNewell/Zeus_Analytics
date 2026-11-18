@@ -15,15 +15,24 @@
       </div>
       {% if case.is_demonstration %}<p class="small" style="max-width:60ch">Демонстрационные данные: часть сведений синтетическая. Сигналы показывают работу правил и не являются выявленными нарушениями.</p>{% endif %}
     </div>
-    {% if outline %}
-    <figure class="outline-plate" aria-label="Контур участка по координатам, север сверху">
-      <svg viewBox="0 0 240 240" role="img">
-        {% for x in grid %}<line class="grid-line" x1="{{ x }}" y1="0" x2="{{ x }}" y2="240"/><line class="grid-line" x1="0" y1="{{ x }}" x2="240" y2="{{ x }}"/>{% endfor %}
-        <path d="{{ outline }}"/>
-      </svg>
-      <figcaption class="eyebrow" style="margin-top:var(--s2)">Контур по координатам / север сверху</figcaption>
-    </figure>
-    {% endif %}
+    <aside class="head-side">
+      {% if outline %}
+      <figure class="outline-plate" aria-label="Контур участка по координатам, север сверху">
+        <svg viewBox="0 0 240 240" role="img">
+          {% for x in grid %}<line class="grid-line" x1="{{ x }}" y1="0" x2="{{ x }}" y2="240"/><line class="grid-line" x1="0" y1="{{ x }}" x2="240" y2="{{ x }}"/>{% endfor %}
+          <path d="{{ outline }}"/>
+        </svg>
+        <figcaption class="eyebrow">Контур по координатам / север сверху</figcaption>
+      </figure>
+      {% else %}
+      <div class="head-summary">
+        <span class="eyebrow">Индикаторы по объекту</span>
+        <span class="num-xl">{{ case.signal_count }} из {{ story.findings|length }}</span>
+        <span class="small">сработали</span>
+        <ul class="head-list">{% for item in story.findings %}<li><span class="code">{{ item.indicator.code_display }}</span><span class="small">{{ item.indicator.short }}</span>{% outcome_level item.outcome %}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </aside>
   </div>
 </section>
 {% endblock %}
@@ -71,11 +80,11 @@
         {% if story.sources %}<div><dt class="eyebrow">Источники сведений</dt><dd class="small">{{ story.sources|join:"; " }}</dd></div>{% endif %}
       </dl>
       {% if case.geometry %}<a class="btn" data-lbl="Показать на карте" href="{% url 'dashboard:map' %}#{{ case.id }}" style="justify-self:start">Показать на карте</a>{% endif %}
-      {% if story.parties %}<ul class="list">{% for party in story.parties %}<li><span class="body-s">{{ party.value|linebreaksbr }}</span><span class="meta small"><span class="eyebrow">{{ party.roles|join:" / " }}</span><span class="org {{ party.origin|origin_class }}">{{ party.origin|origin_short }}</span></span></li>{% endfor %}</ul>{% endif %}
-      {% if story.documents or evidence %}<ul class="list">
-        {% for doc in story.documents %}<li><span class="body-s">{{ doc.value }}</span><span class="meta small"><span class="eyebrow">{{ doc.label }}</span><span class="org {{ doc.origin|origin_class }}">{{ doc.origin|origin_short }}</span></span></li>{% endfor %}
-        {% for item in evidence %}<li><span class="body-s">{{ item.title }}</span><span class="meta small"><span class="eyebrow">{{ item.get_origin_display }}</span>{% if item.file %}<a class="code" href="{% url 'dashboard:evidence_download' item.id %}">Скачать</a>{% endif %}</span></li>{% endfor %}
-      </ul>{% endif %}
+      {% if story.parties %}<div><h3 class="eyebrow" style="margin-bottom:var(--s3)">Участники</h3><ul class="list">{% for party in story.parties %}<li><span class="meta small"><span class="eyebrow">{{ party.roles|join:" / " }}</span><span class="org {{ party.origin|origin_class }}">{{ party.origin|origin_short }}</span></span><span class="body-s">{{ party.value|linebreaksbr }}</span></li>{% endfor %}</ul></div>{% endif %}
+      {% if story.documents or evidence %}<div><h3 class="eyebrow" style="margin-bottom:var(--s3)">Документы и основания</h3><ul class="list">
+        {% for doc in story.documents %}<li><span class="meta small"><span class="eyebrow">{{ doc.label }}</span><span class="org {{ doc.origin|origin_class }}">{{ doc.origin|origin_short }}</span></span><span class="body-s">{{ doc.value }}</span></li>{% endfor %}
+        {% for item in evidence %}<li><span class="meta small"><span class="eyebrow">{{ item.get_origin_display }}</span>{% if item.file %}<a class="code" href="{% url 'dashboard:evidence_download' item.id %}">Скачать</a>{% endif %}</span><span class="body-s">{{ item.title }}</span></li>{% endfor %}
+      </ul></div>{% endif %}
     </div>
   </div>
 

@@ -164,7 +164,7 @@ def review_create(request, case_id):
 @require_GET
 def case_map(request):
     features = []
-    for case in Case.objects.exclude(geometry=None):
+    for case in Case.objects.filter(geometry__isnull=False):
         features.append(
             {
                 "kind": "plot",
@@ -195,7 +195,7 @@ def case_map(request):
                 "points": points,
             }
         )
-    without = Case.objects.filter(geometry=None).count()
+    without = Case.objects.filter(geometry__isnull=True).count()
     center = (
         centroid([feature["points"][0] for feature in features]) if features else [47.23, 39.72]
     )

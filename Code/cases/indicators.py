@@ -99,10 +99,12 @@ def _object_text_cases(facts, key):
     kind = re.split(r"\s\d|\s\(", text.split(",")[0])[0].strip() if text else ""
     if numbers:
         address = _address_from_object(text)
+        if "," not in address:  # only a region, e.g. «Ростовская обл.»: not a title
+            address = ""
         return [
             CaseSpec(
                 reference=numbers[0],
-                title=address or f"Объект {numbers[0]}",
+                title=address or f"{kind or 'Объект'} {numbers[0]}",
                 cadastral_number=numbers[0],
                 object_kind=kind,
                 address=address,

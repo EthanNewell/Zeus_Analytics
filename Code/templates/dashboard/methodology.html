@@ -35,10 +35,10 @@
   {% for row in rows %}
   <div class="block">
     <div class="block-rail"><span class="eyebrow">{{ row.indicator.code_display }} / v{{ row.rule.version }} / {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span><h2 class="h2">{{ row.indicator.title }}</h2></div>
-    <div class="block-body" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s5)">
-      <div><span class="eyebrow">Вопрос</span><p class="small" style="margin-top:var(--s2)">{{ row.indicator.question }}</p></div>
-      <div><span class="eyebrow">Условие и порог</span><p class="small" style="margin-top:var(--s2)">{{ row.indicator.threshold }}</p></div>
-      <div><span class="eyebrow">Ограничения</span><p class="small" style="margin-top:var(--s2)">{{ row.indicator.limitations }}</p></div>
+    <div class="block-body cols-3">
+      <div><span class="eyebrow">Вопрос</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.question }}</p></div>
+      <div><span class="eyebrow">Условие и порог</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.threshold }}</p></div>
+      <div><span class="eyebrow">Ограничения</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.limitations }}</p></div>
     </div>
   </div>
   {% endfor %}
@@ -48,13 +48,15 @@
     <div class="block-rail"><span class="eyebrow">Контрольный набор</span><h2 class="h1">Сверка с разметкой исследования</h2>{% if run %}<span class="num-xl">{{ run.agreed_count }}/{{ run.compared_count }}</span>{% endif %}</div>
     <div class="block-body">
       <p class="body-s j">В каждой таблице исследования есть колонка с ответом автора. Правила системы считают ответ заново по исходным фактам, и мы сравниваем. Это показывает работу правил на тестовых примерах, а не качество выявления коррупции на реальных данных.{% if run and run.agreed_count != run.compared_count %} Расхождения намеренные: совпадение одной фамилии система не считает доказанной связью и требует документов — временная близость событий и совпадение фамилий не заменяют подтверждения связи участников.{% endif %}</p>
-      <div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th>Индикатор</th><th class="r">Совпало</th><th>Расхождения</th></tr></thead>
+      <div class="tbl-wrap"><table class="tbl quality">
+        <thead><tr><th>Индикатор</th><th>Совпадение</th><th class="r">Совпало</th></tr></thead>
         <tbody>{% for row in rows %}<tr>
           <td><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</td>
-          <td class="r" data-label="Совпало">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
-          <td class="small">{% for outcome in row.mismatches %}<p>{{ outcome.record.title|truncatechars:70 }}: у автора «{{ outcome.record.author_mark }}», у правила — {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p>{% empty %}<span class="soft">нет</span>{% endfor %}</td>
-        </tr>{% endfor %}</tbody>
+          <td style="vertical-align:middle">{% if row.compared %}<div class="bar"><span class="b-trig" style="width:{{ row.agreed|percent:row.compared }}%"></span></div>{% endif %}</td>
+          <td class="r nowrap" data-label="Совпало">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
+        </tr>
+        {% for outcome in row.mismatches %}<tr class="mismatch-row"><td colspan="3"><div class="notice small"><span class="eyebrow">Расхождение / {{ outcome.record.title|truncatechars:60 }}</span><p style="margin-top:var(--s2)">У автора — «{{ outcome.record.author_mark }}», у правила — {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p></div></td></tr>{% endfor %}
+        {% endfor %}</tbody>
       </table></div>
     </div>
   </div>

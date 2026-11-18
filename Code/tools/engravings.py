@@ -68,10 +68,6 @@ FRAMES = {
         "16:9",
         "Close-up on a desk: printed spreadsheets with columns of figures shown as abstract dots and dashes, a magnifying glass lying on them, a steel ruler and a pencil.",
     ),
-    "mark": (
-        "1:1",
-        "A single geodetic triangulation benchmark — a small concrete pyramid survey marker with a metal pin on top — standing in short grass, centred, simple iconic composition on a plain dark background.",
-    ),
 }
 
 
@@ -169,23 +165,6 @@ def duotone(source, target, size):
     coloured.save(target, quality=60, optimize=True, progressive=True)
 
 
-def mark(source, target, size=256):
-    """White mark on transparency: alpha from luminance, for the header plate."""
-    from PIL import Image, ImageOps
-
-    image = Image.open(source).convert("L")
-    image = ImageOps.autocontrast(image, cutoff=1)
-    # crop to the bright subject itself: the model leaves it small in a dark frame
-    box = image.point(lambda v: 255 if v > 215 else 0).getbbox() or (0, 0, *image.size)
-    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-    half = max(box[2] - box[0], box[3] - box[1]) * 0.56
-    image = image.crop((int(cx - half), int(cy - half), int(cx + half), int(cy + half)))
-    image = image.resize((size, size), Image.Resampling.LANCZOS)
-    alpha = image.point(lambda v: 0 if v < 80 else min(255, int((v - 80) * 1.5)))
-    white = Image.new("L", image.size, 255)
-    Image.merge("RGBA", (white, white, white, alpha)).save(target, "WEBP", quality=82)
-
-
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
@@ -212,9 +191,6 @@ def main():
     for name, (ratio, _) in FRAMES.items():
         source = raw / f"{name}.png"
         if not source.exists():
-            continue
-        if name == "mark":
-            mark(source, static / "mark.webp")
             continue
         size = (1000, 1000) if ratio == "1:1" else (1500, 844)
         duotone(source, static / f"{name}.jpg", size)
