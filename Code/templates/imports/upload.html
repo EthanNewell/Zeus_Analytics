@@ -16,7 +16,7 @@
         <button class="btn btn-primary" type="submit" data-lbl="Загрузить и проверить">Загрузить и проверить</button>
       </form>
       <div><span class="eyebrow">Принимаемые таблицы</span>
-        <div class="codes" style="margin-top:var(--s3)">{% for item in indicators %}<span class="code">{{ item.code_display }} / {{ item.short }}</span>{% endfor %}</div>
+        <ul class="list" style="margin-top:var(--s3)">{% for item in indicators %}<li class="list-row"><span class="code">{{ item.code_display }}</span><span class="body-s">{{ item.short }}</span></li>{% endfor %}</ul>
       </div>
     </div>
   </div>

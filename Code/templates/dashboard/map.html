@@ -1,11 +1,11 @@
 {% extends "base.html" %}{% load static kp %}
 {% block title %}Карта · Код прозрачности{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'vendor/ol/ol.css' %}">{% endblock %}
 {% block top %}{% include "_band.html" with img="img/band-map.jpg" kicker="Геометрия из таблиц" title="Карта" lede="Контуры участков из И8 и изменённые зоны ПЗЗ и генплана из И2. Чем плотнее заливка — тем выше приоритет. Клик по контуру открывает карточку." short=True %}{% endblock %}
 {% block content %}
 <section class="section">
   <div class="map-grid">
-    <div class="map" id="map" role="region" aria-label="Карта объектов"></div>
+    <div class="map" id="map" role="region" aria-label="Карта объектов"><div class="map-pop" id="map-pop" hidden></div></div>
     <aside class="map-list">
       <span class="eyebrow">Объекты с геометрией / {{ features|length }}</span>
       <ul class="list">{% for f in features %}<li><button type="button" class="map-item" data-feature="{{ forloop.counter0 }}"><span class="meta small"><span class="eyebrow">{% if f.kind == 'zone' %}Изменённая зона{% else %}{{ f.reference }}{% endif %}</span><span class="codes">{% for code in f.codes %}<span class="code">{{ code }}</span>{% endfor %}</span></span><span class="body-s">{{ f.title|truncatechars:70 }}</span><span class="state small">{% attention_level f.attention %}{{ f.attention_label }}</span></button></li>{% endfor %}</ul>
@@ -20,64 +20,100 @@
 {{ center|json_script:"center" }}
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script>
+<script src="{% static 'vendor/ol/ol.js' %}"></script>
 <script>
 (function () {
   const features = JSON.parse(document.getElementById("features").textContent);
   const center = JSON.parse(document.getElementById("center").textContent);
   const BLUE = "#0000e8";
   const density = { high: 0.62, normal: 0.36, low: 0.2, insufficient: 0.08, none: 0.06, not_run: 0.06 };
-  const map = L.map("map", { zoomControl: true, attributionControl: true }).setView(center, 8);
-  // 2GIS basemap: Russian place names and borders; greyed by CSS to stay monochrome.
-  const tiles = L.tileLayer("https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1", {
-    maxZoom: 18, subdomains: "0123", attribution: "Подложка © 2ГИС"
-  }).addTo(map);
-  // 2GIS sometimes drops a tile request: retry it on the next server instead of leaving a grey hole
-  tiles.on("tileerror", (event) => {
-    const tile = event.tile;
-    const tries = Number(tile.dataset.tries || 0);
-    if (tries >= 4) return;
-    tile.dataset.tries = tries + 1;
-    setTimeout(() => {
-      tile.src = tile.src.replace(/tile(\d)\./, (_, n) => "tile" + ((Number(n) + 1) % 4) + ".").replace(/&r=\d+|$/, "&r=" + (tries + 1));
-    }, 400 * (tries + 1));
+  const lonLat = (point) => ol.proj.fromLonLat([point[1], point[0]]);
+
+  // 2GIS basemap: Russian names and borders. A dropped tile is retried on the next server
+  // before it is handed to the map, so no grey holes are left.
+  const source = new ol.source.XYZ({
+    url: "https://tile{0-3}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1",
+    attributions: "Подложка © 2ГИС",
+    maxZoom: 18,
+    tileLoadFunction(tile, src) {
+      let tries = 0;
+      const probe = new Image();
+      probe.onload = () => { tile.getImage().src = probe.src; };
+      probe.onerror = () => {
+        if (tries++ >= 4) { tile.getImage().src = src; return; }
+        setTimeout(() => { probe.src = src.replace(/tile(\d)\./, (_, n) => "tile" + ((Number(n) + tries) % 4) + ".") + "&r=" + tries; }, 350 * tries);
+      };
+      probe.src = src;
+    },
   });
-  const layers = [];
-  const byId = {};
-  const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  features.forEach((f) => {
+  const shapes = new ol.source.Vector();
+  const olFeatures = features.map((f, i) => {
+    const ring = f.points.map(lonLat);
+    ring.push(ring[0]);
+    const feature = new ol.Feature({ geometry: new ol.geom.Polygon([ring]), index: i });
     const zone = f.kind === "zone";
-    const shape = L.polygon(f.points, {
-      color: BLUE, weight: zone ? 1.5 : 2, dashArray: zone ? "5 5" : null,
-      fillColor: BLUE, fillOpacity: zone ? 0.06 : (density[f.attention] ?? 0.1)
-    }).addTo(map);
-    const pin = L.marker(shape.getBounds().getCenter(), {
-      icon: L.divIcon({ className: "", html: `<span style="display:block;width:12px;height:12px;background:${f.attention === "high" || f.attention === "normal" ? BLUE : "#fff"};box-shadow:0 0 0 2px ${BLUE}"></span>`, iconSize: [12, 12], iconAnchor: [6, 6] })
-    }).addTo(map);
-    const html = `<b>${escape(f.title)}</b><br>${escape(f.reference)}<br>${escape(f.attention_label)}${f.codes.length ? " · " + f.codes.map(escape).join(", ") : ""}` +
-      (f.id ? `<br><a href="/cases/${f.id}/">Открыть карточку →</a>` : "");
-    shape.bindPopup(html); pin.bindPopup(html);
-    layers.push(shape);
-    if (f.id && !zone) byId[f.id] = shape;
+    feature.setStyle([
+      new ol.style.Style({
+        fill: new ol.style.Fill({ color: `rgba(0, 0, 232, ${zone ? 0.06 : (density[f.attention] ?? 0.1)})` }),
+        stroke: new ol.style.Stroke({ color: BLUE, width: zone ? 1.5 : 2, lineDash: zone ? [6, 6] : undefined }),
+      }),
+      new ol.style.Style({
+        geometry: (feat) => feat.getGeometry().getInteriorPoint(),
+        image: new ol.style.RegularShape({
+          points: 4, radius: 7, angle: Math.PI / 4,
+          fill: new ol.style.Fill({ color: f.attention === "high" || f.attention === "normal" ? BLUE : "#ffffff" }),
+          stroke: new ol.style.Stroke({ color: BLUE, width: 2 }),
+        }),
+      }),
+    ]);
+    shapes.addFeature(feature);
+    return feature;
   });
-  // open on the main cluster: objects far from the median point (another region) stay reachable from the list
-  if (layers.length) {
-    const centers = layers.map((layer) => layer.getBounds().getCenter());
+
+  const pop = document.getElementById("map-pop");
+  const overlay = new ol.Overlay({ element: pop, positioning: "bottom-center", offset: [0, -14], autoPan: { margin: 40 } });
+  const map = new ol.Map({
+    target: "map",
+    layers: [new ol.layer.Tile({ source, className: "base-tiles" }), new ol.layer.Vector({ source: shapes })],
+    overlays: [overlay],
+    view: new ol.View({ center: ol.proj.fromLonLat([center[1], center[0]]), zoom: 8 }),
+    controls: ol.control.defaults.defaults({ rotate: false, attributionOptions: { collapsible: false } }),
+  });
+
+  const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function show(feature) {
+    const f = features[feature.get("index")];
+    pop.innerHTML = `<span class="eyebrow">${escape(f.reference)}</span><b>${escape(f.title)}</b><span>${escape(f.attention_label)}${f.codes.length ? " / " + f.codes.map(escape).join(", ") : ""}</span>` +
+      (f.id ? `<a href="/cases/${f.id}/">Открыть карточку</a>` : "");
+    pop.hidden = false;
+    overlay.setPosition(feature.getGeometry().getInteriorPoint().getCoordinates());
+  }
+  map.on("singleclick", (event) => {
+    const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
+    if (feature) show(feature); else { pop.hidden = true; overlay.setPosition(undefined); }
+  });
+  map.on("pointermove", (event) => { map.getTargetElement().style.cursor = map.hasFeatureAtPixel(event.pixel) ? "pointer" : ""; });
+
+  // open on the main cluster; objects in other regions stay reachable from the list
+  if (olFeatures.length) {
+    const centers = olFeatures.map((feat) => ol.proj.toLonLat(ol.extent.getCenter(feat.getGeometry().getExtent())));
     const median = (values) => values.slice().sort((a, b) => a - b)[Math.floor(values.length / 2)];
-    const mid = L.latLng(median(centers.map((c) => c.lat)), median(centers.map((c) => c.lng)));
-    const near = layers.filter((layer, i) => centers[i].distanceTo(mid) < 250000);
-    map.fitBounds(L.featureGroup(near.length ? near : layers).getBounds().pad(0.08));
+    const mid = [median(centers.map((c) => c[0])), median(centers.map((c) => c[1]))];
+    const near = olFeatures.filter((feat, i) => ol.sphere.getDistance(centers[i], mid) < 250000);
+    const extent = ol.extent.createEmpty();
+    (near.length ? near : olFeatures).forEach((feat) => ol.extent.extend(extent, feat.getGeometry().getExtent()));
+    map.getView().fit(extent, { padding: [48, 48, 48, 48] });
   }
   document.querySelectorAll("[data-feature]").forEach((button) => {
     button.addEventListener("click", () => {
-      const layer = layers[Number(button.dataset.feature)];
-      map.fitBounds(layer.getBounds(), { maxZoom: 16 });
-      layer.openPopup();
+      const feature = olFeatures[Number(button.dataset.feature)];
+      map.getView().fit(feature.getGeometry().getExtent(), { maxZoom: 16, padding: [80, 80, 80, 80], duration: 400 });
+      setTimeout(() => show(feature), 420);
       document.getElementById("map").scrollIntoView({ block: "center" });
     });
   });
-  const target = byId[location.hash.slice(1)];
-  if (target) { map.fitBounds(target.getBounds(), { maxZoom: 17 }); target.openPopup(); }
+  const target = olFeatures.find((feat) => features[feat.get("index")].id === location.hash.slice(1) && features[feat.get("index")].kind !== "zone");
+  if (target) { map.getView().fit(target.getGeometry().getExtent(), { maxZoom: 16, padding: [80, 80, 80, 80] }); show(target); }
 })();
 </script>
 {% endblock %}

@@ -49,37 +49,31 @@
   {% endif %}
   {% endwith %}
 
+  {% if messages %}<div class="toasts" data-toasts>{% for message in messages %}<div class="toast{% if message.level_tag == 'error' %} toast-error{% endif %}" role="status"><span class="body-s">{{ message }}</span><button type="button" class="btn-plain" data-close aria-label="Закрыть">Закрыть</button></div>{% endfor %}</div>{% endif %}
   {% block top %}{% endblock %}
   <main class="paper">
     <div class="wrap">
-      {% if messages %}<div class="messages">{% for message in messages %}<div class="notice{% if message.level_tag == 'error' %} notice-strong{% endif %}" role="status">{{ message }}</div>{% endfor %}</div>{% endif %}
       {% block content %}{% endblock %}
     </div>
   </main>
   {% if user.is_authenticated %}
   <footer class="foot">
     <div class="wrap foot-in">
-      <div class="foot-col">
-        <span class="eyebrow">Рабочее место специалиста</span>
+      <div class="foot-top">
         <span class="foot-mark"><span class="mark" aria-hidden="true"></span>Код прозрачности</span>
-        <p class="body-s">Индикатор — повод для проверки, а не вывод о нарушении. Решение принимает сотрудник.</p>
-      </div>
-      <div class="foot-col">
-        <span class="eyebrow">Разделы</span>
         <nav class="foot-nav" aria-label="Разделы">
           <a href="{% url 'dashboard:overview' %}">Обзор</a>
           <a href="{% url 'dashboard:case_list' %}">Реестр</a>
           <a href="{% url 'dashboard:map' %}">Карта</a>
-          <a href="{% url 'dashboard:officials' %}">Должностные лица</a>
+          <a href="{% url 'dashboard:officials' %}">Лица</a>
           <a href="{% url 'dashboard:sources' %}">Источники</a>
           <a href="{% url 'dashboard:methodology' %}">Методика</a>
           {% if perms.cases.import_cases %}<a href="{% url 'imports:upload' %}">Загрузка</a>{% endif %}
         </nav>
       </div>
-      <div class="foot-col">
-        <span class="eyebrow">Данные</span>
-        <p class="body-s">ЕГРН, НСПД, ЕГРЮЛ, ГИС «Торги», акты Правительства Ростовской области — через таблицы исследования.</p>
-        <span class="eyebrow">Правила v1.0 / версия {{ app_version }} / {{ user.username }}, {{ user_role|lower }}</span>
+      <div class="foot-bottom">
+        <p class="body-s">Индикатор — повод для проверки, а не вывод о нарушении. Решение принимает сотрудник.</p>
+        <p class="body-s">Данные: ЕГРН, НСПД, ЕГРЮЛ, ГИС «Торги», акты Правительства Ростовской области — через таблицы исследования. Правила v1.0.</p>
       </div>
     </div>
   </footer>
@@ -207,6 +201,15 @@
       document.addEventListener("click", (event) => { if (event.target.isConnected && !box.contains(event.target)) open(false); });
       render();
     });
+  })();
+  </script>
+  <script>
+  (function () {
+    const box = document.querySelector("[data-toasts]");
+    if (!box) return;
+    const hide = () => box.setAttribute("data-hidden", "");
+    box.addEventListener("click", (event) => { if (event.target.closest("[data-close]")) hide(); });
+    setTimeout(hide, 7000);
   })();
   </script>
   {% block scripts %}{% endblock %}

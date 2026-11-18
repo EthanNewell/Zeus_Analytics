@@ -1,14 +1,14 @@
 {% extends "base.html" %}{% load kp %}
 {% block title %}{{ batch.file_name }} · Код прозрачности{% endblock %}
 {% block top %}
-<section class="case-head"><div class="wrap case-head-in" style="grid-template-columns:minmax(0,1fr)">
+<section class="case-head"><div class="wrap case-head-in wide">
   <div style="display:grid;gap:var(--s5)">
     <a class="eyebrow" href="{% url 'imports:upload' %}"><svg class="icon"><use href="#i-back"/></svg> Загрузка</a>
     <span class="eyebrow">Загрузка {{ batch.created_at|date:"d.m.Y H:i" }} / {{ batch.uploaded_by.username }}{% if indicator %} / {{ indicator.code_display }}{% endif %}</span>
-    <h1 class="display-l">{{ batch.file_name }}</h1>
+    <h1 class="display-l break">{{ batch.file_name }}</h1>
     <div class="stats">
-      <div class="stat"><span class="eyebrow">Строк принято</span><span class="num-xl">{{ batch.rows_total }}</span></div>
-      <div class="stat"><span class="eyebrow">Новых / обновлено</span><span class="num-xl">{{ batch.rows_created }}/{{ batch.rows_updated }}</span></div>
+      <div class="stat"><span class="eyebrow">Строк принято</span><span class="num-xl">{{ batch.rows_total }}</span><span class="small">записей в файле</span></div>
+      <div class="stat"><span class="eyebrow">Новых / обновлено</span><span class="num-xl">{{ batch.rows_created }}/{{ batch.rows_updated }}</span><span class="small">без дублей при повторе</span></div>
       <div class="stat"><span class="eyebrow">Реальных ячеек</span><span class="num-xl">{{ batch.real_cells }}</span><span class="org o-real small">по маркировке автора</span></div>
       <div class="stat"><span class="eyebrow">Синтетических</span><span class="num-xl">{{ batch.synthetic_cells }}</span><span class="org o-synth small">или без маркировки</span></div>
     </div>
@@ -19,12 +19,12 @@
 {% block content %}
 <section class="section">
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Паспорт набора</span><h2 class="h1">{% if indicator %}{{ indicator.short }}{% else %}Набор{% endif %}</h2></div>
-    <dl class="block-body kv" style="grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))">
-      <div><dt class="eyebrow">Лист</dt><dd>{{ batch.sheet }}</dd></div>
+    <div class="block-rail"><span class="eyebrow">Откуда набор</span><h2 class="h1">Паспорт набора</h2></div>
+    <dl class="block-body kv cols-3">
+      <div><dt class="eyebrow">Индикатор</dt><dd>{% if indicator %}{{ indicator.code_display }} / {{ indicator.short }}{% endif %}</dd></div>
       <div><dt class="eyebrow">Контрольная сумма SHA-256</dt><dd class="small">{{ batch.sha256|truncatechars:24 }}</dd></div>
       {% if batch.sources_note %}<div><dt class="eyebrow">Источники</dt><dd class="small">{{ batch.sources_note|linebreaksbr }}</dd></div>{% endif %}
-      {% if batch.notes %}<div style="grid-column:1/-1"><dt class="eyebrow">Примечания автора</dt><dd class="small">{{ batch.notes|linebreaksbr }}</dd></div>{% endif %}
+      {% if batch.notes %}<div style="grid-column:1/-1"><dt class="eyebrow">Примечания автора</dt><dd><ul class="list">{% for line in batch.notes.splitlines %}<li class="body-s">{{ line }}</li>{% endfor %}</ul></dd></div>{% endif %}
     </dl>
   </div>
   <div class="block">
