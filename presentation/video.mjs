@@ -23,8 +23,13 @@ const context = await browser.newContext({ viewport: size, recordVideo: { dir: o
 const page = await context.newPage();
 const wait = (ms) => page.waitForTimeout(ms);
 
-// Подпись — синяя плашка снизу, тем же шрифтом, что сайт.
+// Подпись — синяя плашка снизу, тем же шрифтом, что сайт. NOCAP=1 — чистые кадры для монтажа:
+// подписи не рисуются, а время каждого шага пишется в video/marks.json.
+const t0 = Date.now();
+const marks = [];
 async function caption(step, text) {
+  marks.push({ step, text, t: (Date.now() - t0) / 1000 });
+  if (process.env.NOCAP) return;
   await page.evaluate(([step, text]) => {
     let box = document.getElementById("__cap");
     if (!box) {
@@ -182,6 +187,8 @@ await wait(5000);
 
 await context.close();
 await browser.close();
+const { writeFileSync } = await import("node:fs");
+writeFileSync(resolve(out, "marks.json"), JSON.stringify(marks, null, 1));
 const file = readdirSync(out).find((name) => name.endsWith(".webm"));
 renameSync(resolve(out, file), resolve(out, "raw.webm"));
 console.log("готово: presentation/video/raw.webm");
