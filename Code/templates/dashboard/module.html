@@ -1,6 +1,0 @@
-{% extends "base.html" %}
-{% block title %}{{ title }} · Код прозрачности{% endblock %}
-{% block content %}
-<a class="back-link" href="{% url 'dashboard:case_list' %}">← Реестр случаев</a>
-<section class="panel module-panel"><p class="eyebrow">Подключение модуля</p><h1>{{ title }}</h1><p class="muted">{{ detail }}</p><p>Данные не были изменены.</p></section>
-{% endblock %}

@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Риски в кадастре — презентация</title>
+<!--
+  Презентация для сдачи на хакатон «Код прозрачности». Порядок слайдов — десять блоков
+  паспорта проекта (шаблон организаторов), язык — сайта: синий #0000e8 и белая «бумага»,
+  Science Gothic, гравюры и шрифты прямо из Code/static, кадры сервиса — из presentation/img.
+
+  Сетка одна на все слайды: поля 96 по бокам, шапка фиксированной высоты, под ней область,
+  которую тело занимает целиком (строки делят высоту поровну, кадры вписываются), подвал внизу.
+
+  Печать:  PLAYWRIGHT=… node presentation/build.mjs [--png]
+-->
+<style>
+@font-face { font-family: "Science Gothic"; src: url("../Code/static/fonts/science-gothic-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
+@font-face { font-family: "Science Gothic"; src: url("../Code/static/fonts/science-gothic-cyrillic-ext.woff2") format("woff2");
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
+@font-face { font-family: "Science Gothic"; src: url("../Code/static/fonts/science-gothic-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+  U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
+@font-face { font-family: "Science Gothic"; src: url("../Code/static/fonts/science-gothic-symbols.woff2") format("woff2");
+  unicode-range: U+2074, U+2080, U+2192, U+2244-2248, U+2264-2265; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
+
+:root { --ink: #ffffff; --ground: #0000e8; --fill: rgba(255,255,255,0.14); --hair: rgba(255,255,255,0.26); --gap: 32px; }
+.paper { --ink: #000000; --ground: #ffffff; --fill: #efefef; --hair: rgba(0,0,0,0.16); }
+.plate { --ink: #ffffff; --ground: #0000e8; --fill: rgba(255,255,255,0.14); --hair: rgba(255,255,255,0.3); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #0000e8; }
+body { font-family: "Science Gothic", Arial, sans-serif; font-weight: 250; font-stretch: 72%;
+  line-height: 1.6; -webkit-font-smoothing: antialiased; font-synthesis-weight: none; }
+
+@page { size: 1600px 900px; margin: 0; }
+.slide { position: relative; width: 1600px; height: 900px; overflow: hidden; background: var(--ground); color: var(--ink);
+  break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.slide:last-child { break-after: auto; }
+.foot { position: absolute; left: 96px; right: 96px; bottom: 40px; display: flex; justify-content: space-between;
+  font-weight: 400; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; opacity: .6; }
+
+/* ------------------------------------------------------------------ типографика */
+.eyebrow { font-weight: 400; font-size: 15px; letter-spacing: .2em; text-transform: uppercase; line-height: 1.2; margin: 0; }
+.h1 { font-weight: 200; font-stretch: 64%; font-size: 52px; line-height: .98; text-transform: uppercase; margin: 0; }
+.h2 { font-weight: 150; font-stretch: 70%; font-size: 30px; line-height: 1.16; margin: 0; }
+.lede { font-weight: 150; font-size: 25px; line-height: 1.5; margin: 0; }
+.body { font-weight: 250; font-size: 19px; line-height: 1.6; margin: 0; }
+.small { font-weight: 250; font-size: 16.5px; line-height: 1.55; margin: 0; }
+.dim { opacity: .72; }
+.code { font-weight: 400; font-size: .82em; letter-spacing: .08em; background: var(--fill); padding: .1em .45em; }
+.big { font-weight: 100; font-size: 120px; line-height: .9; font-variant-numeric: tabular-nums; }
+.fit { display: block; width: 100%; }
+.fit > span { display: inline-block; white-space: nowrap; font-weight: 200; font-stretch: 62%;
+  text-transform: uppercase; line-height: .92; letter-spacing: -.004em; }
+
+/* ------------------------------------------------------------------ сетка слайда */
+/* 80 сверху + шапка 132 + 44 + область 520 + 124 снизу (подвал) = 900. */
+.s-std .pad { position: absolute; inset: 80px 96px 124px; display: grid; grid-template-rows: 132px minmax(0, 1fr); gap: 44px; }
+.head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; align-items: end; }
+.head > div { display: grid; gap: 18px; align-content: end; }
+.head .body { align-self: end; }
+.area { min-height: 0; height: 100%; display: grid; gap: var(--gap); }
+
+.cols2 { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 64px; }
+.cols3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Панели: заливка без обводки; содержимое разнесено от верха до низа. */
+.panel { background: var(--fill); padding: 32px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-width: 0; min-height: 0; }
+.panel.plate { background: var(--ground); color: var(--ink); }
+.panel .top { display: grid; gap: 14px; }
+.panel figure { margin: 0; flex: 1; min-height: 0; overflow: hidden; }
+.panel figure img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.arrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.arrows li { display: grid; grid-template-columns: 28px minmax(0, 1fr); font-size: 19px; line-height: 1.45; }
+.arrows li::before { content: "→"; }
+
+/* Строки «подпись — значение»: делят высоту области поровну, текст по центру строки. */
+.rows { display: grid; grid-auto-rows: minmax(0, 1fr); height: 100%; min-height: 0; }
+.rows > div { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; align-items: center; border-top: 1px solid var(--hair); }
+.rows > div:last-child { border-bottom: 1px solid var(--hair); }
+.rows b { font-weight: 400; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; line-height: 1.4; }
+.rows span { font-size: 18px; line-height: 1.5; }
+.panel .rows > div { grid-template-columns: 210px minmax(0, 1fr); }
+.panel .rows span { font-size: 17px; }
+
+/* Таблица растягивается на всю область, строки — поровну. */
+table { width: 100%; height: 100%; border-collapse: collapse; font-size: 19px; }
+th, td { text-align: left; padding: 0 28px 0 0; border-bottom: 1px solid var(--hair); vertical-align: middle; line-height: 1.4; }
+th:last-child, td:last-child { padding-right: 0; }
+thead tr { height: 40px; }
+th { font-weight: 400; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; vertical-align: top; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.r, th.r { text-align: right; }
+td .code { margin-right: 12px; }
+tr.miss td { font-weight: 400; }
+
+/* Хронология. */
+.tl { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-rows: minmax(0, 1fr); height: 100%; }
+.tl li { display: grid; grid-template-columns: 240px minmax(0, 1fr) auto; gap: 32px; align-items: center;
+  border-top: 1px solid var(--hair); font-size: 25px; font-weight: 150; }
+.tl li:last-child { border-bottom: 1px solid var(--hair); }
+
+/* Кадр сервиса вписывается во всю область. */
+.frame { position: relative; min-height: 0; height: 100%; }
+.frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: left top; }
+
+/* Цифры. */
+.stat { display: grid; gap: 14px; align-content: space-between; background: var(--fill); padding: 28px 32px; }
+.stat .big { font-size: 64px; }
+
+/* Технологическая схема. */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.flow > div { background: var(--fill); padding: 24px; display: grid; gap: 18px; align-content: space-between; }
+.flow > div > div { display: grid; gap: 10px; }
+.flow > div.plate { background: #0000e8; color: #fff; }
+.flow b { font-weight: 150; font-stretch: 70%; font-size: 26px; line-height: 1.1; }
+.flow span { font-size: 15.5px; line-height: 1.45; }
+.markers { display: flex; flex-wrap: wrap; gap: 8px; }
+.markers .code { font-size: 14px; padding: 6px 10px; }
+
+/* Два ответа. */
+.cmp { display: grid; grid-template-rows: auto repeat(3, minmax(0, 1fr)); height: 100%; }
+.cmp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px; border-top: 1px solid var(--hair); }
+.cmp-row:last-child { border-bottom: 1px solid var(--hair); }
+.cmp-head { border-top: 0; padding: 0 0 28px; }
+.cmp-head > div { display: grid; gap: 14px; align-content: start; }
+.cmp-row:not(.cmp-head) > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; align-items: center; }
+.cmp-row b { font-weight: 400; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; }
+.cmp-row span { font-size: 19px; line-height: 1.45; }
+.verdict { font-weight: 100; font-stretch: 62%; font-size: 56px; line-height: 1; text-transform: uppercase; margin: 0; }
+
+/* ------------------------------------------------------------------ первый экран */
+.s-hero .pad { position: absolute; inset: 80px 96px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+.hero-copy { display: grid; gap: 32px; align-content: center; min-width: 0; }
+.hero-rail { display: flex; justify-content: space-between; gap: 24px; white-space: nowrap; }
+.hero-title { display: grid; gap: 4px; margin: 0; }
+.card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+.card > div { display: grid; gap: 6px; border-top: 1px solid var(--hair); padding: 14px 0; align-content: start; }
+.card span:last-child { font-size: 19px; line-height: 1.4; }
+.hero-plate { margin: 0; width: 100%; aspect-ratio: 1 / 1; overflow: hidden; }
+.hero-plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* ------------------------------------------------------------------ полоса-разворот */
+.s-band { display: grid; }
+.s-band > img { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: cover; display: block; }
+.s-band > .band-in { grid-area: 1 / 1; align-self: end; padding: 0 96px 80px; z-index: 2; }
+.band-plate { display: grid; gap: 22px; max-width: 1100px; background: var(--ground); padding: 40px; }
+.links { display: grid; }
+.links div { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 32px; align-items: baseline; border-top: 1px solid var(--hair); padding: 14px 0; }
+.links b { font-weight: 400; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; }
+.links span { font-size: 24px; font-weight: 150; }
+.team-in { display: grid; gap: var(--gap); }
+.team-head { display: grid; gap: 14px; justify-self: start; background: var(--ground); padding: 32px; }
+.team-in .person { background: var(--ground); min-height: 240px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; padding: 32px; }
+.team-in .person .h2 { font-size: 28px; }
+.team-in .person .who { display: grid; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- 01 · карточка проекта ------------------------------------------------------ -->
+<section class="slide s-hero">
+  <div class="pad">
+    <div class="hero-copy">
+      <div class="hero-rail eyebrow"><span>Хакатон «Код прозрачности» · 2026</span><span>Zeus Analytics</span></div>
+      <p class="h2">Проект «Риски в кадастре»</p>
+      <h1 class="hero-title">
+        <span class="fit"><span>Земельные решения</span></span>
+        <span class="fit"><span>по данным реестров</span></span>
+      </h1>
+      <p class="lede">Рабочее место специалиста по профилактике коррупции в земельных отношениях. Сопоставляет сделки с землёй, смену категории, правки ПЗЗ и связи с должностными лицами, показывает основания для проверки по каждому объекту.</p>
+      <div class="card">
+        <div style="grid-column: 1 / -1"><span class="eyebrow">Направление</span><span>Выявление и мониторинг коррупционных рисков в конкретных сферах: земельные отношения</span></div>
+        <div><span class="eyebrow">Организация</span><span>[полное наименование вуза]</span></div>
+        <div><span class="eyebrow">Контакт</span><span>[ФИО капитана, e-mail]</span></div>
+        <div style="grid-column: 1 / -1"><span class="eyebrow">Прототип</span><span>github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp</span></div>
+      </div>
+    </div>
+    <figure class="hero-plate"><img src="../Code/static/img/hero.jpg" alt="" /></figure>
+  </div>
+</section>
+
+<!-- 02 · проблема и аудитория -------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">02 / проблема и целевая аудитория</p><h2 class="h1">Данные в восьми источниках</h2></div>
+      <p class="body">Сведения об одном объекте хранятся в восьми источниках: НСПД, ЕГРН, кадастровая оценка, ЕГРЮЛ, ГИС «Торги», акты органов власти субъектов РФ, сайты муниципалитетов, протоколы комиссий. Основание для проверки даёт сопоставление дат и лиц.</p>
+    </div>
+    <div class="area cols3">
+      <article class="panel plate">
+        <div class="top"><p class="eyebrow">Масштаб</p>
+          <h3 class="h2">Около 120 000 гектаров незаконно отчуждённой земли изъято в доход государства</h3></div>
+        <p class="body">Итоги 2025 года: землю приобретали в обход торгов или по подложным документам. Общая статистика по всем сферам за 2025 год: более 43 тыс. коррупционных преступлений и более 150 тыс. нарушений антикоррупционного законодательства.</p>
+        <p class="small dim">Генпрокуратура РФ: выступление в Совете Федерации 15.04.2026 (Право.ру); итоги года («Коммерсантъ», 19.03.2026)</p>
+      </article>
+      <article class="panel">
+        <div class="top"><p class="eyebrow">Пользователь</p>
+          <h3 class="h2">Сотрудник подразделения по профилактике коррупционных и иных правонарушений</h3></div>
+        <p class="small">Специалист смотрит реестр и карточки, записывает результат проверки. Проверяющий также загружает таблицы и запускает анализ. Руководитель также выгружает результаты в CSV.</p>
+        <p class="small dim">Сценарий: объект с высоким приоритетом → основания → документы → решение сотрудника</p>
+      </article>
+      <article class="panel">
+        <p class="eyebrow">Эффект</p>
+        <ul class="arrows">
+          <li>Сведения из таблиц исследования, составленных по восьми источникам, собраны в карточке объекта</li>
+          <li>В реестре первыми стоят объекты с высоким приоритетом</li>
+          <li>К каждому сигналу приложены факты, ячейка источника и расчёт</li>
+          <li>Ход проверки сохраняется с автором и временем</li>
+        </ul>
+        <p class="small dim">Решение принимает сотрудник</p>
+      </article>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>02</span></div>
+</section>
+
+<!-- 03 · цель и результаты ------------------------------------------------------ -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">03 / цель и результаты</p><h2 class="h1">Цель</h2></div>
+      <p class="lede">Специалист получает список земельных решений по приоритету и основания для проверки по каждому объекту. Сейчас реестры сводят вручную.</p>
+    </div>
+    <div class="area">
+      <table>
+        <thead><tr><th style="width:64px">№</th><th>Результат</th><th>Показатель успеха</th><th>Как измеряется</th></tr></thead>
+        <tbody>
+          <tr><td class="n">01</td><td>Загрузка таблиц с происхождением каждой ячейки</td><td>7 из 7 таблиц исследования, 70 записей, повтор без дублей</td><td>Импорт набора demo_data, автотесты</td></tr>
+          <tr><td class="n">02</td><td>Правила реализованы по методике исследования</td><td>С разметкой автора исследования совпали 69 из 70 записей</td><td>Сверка с колонкой «соответствие индикатору»</td></tr>
+          <tr><td class="n">03</td><td>Правило И4 работает на реальных данных</td><td>13 земельных торгов torgi.gov.ru: сработало на 9 из 13</td><td>Загрузка набора real_data, автотест</td></tr>
+          <tr><td class="n">04</td><td>У каждого сигнала есть объяснение</td><td>100 % сигналов с объяснением, расчётом и недостающими сведениями</td><td>Автотесты, просмотр карточек</td></tr>
+          <tr><td class="n">05</td><td>Повторный анализ тех же данных даёт тот же результат</td><td>Те же статусы при повторном запуске; медиана анализа 16 мс на SQLite</td><td>Повторный запуск, журнал анализа</td></tr>
+          <tr><td class="n">06</td><td>Проверка объекта занимает меньше времени</td><td>Время проверки одного объекта; не измерено — хронометраж на этапе 1 пилота</td><td>Замер времени до и после</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>03</span></div>
+</section>
+
+<!-- 04 · решение --------------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение</p><h2 class="h1">Семь правил с объяснением</h2></div>
+      <p class="body">Система хранит каждое значение с ячейкой и источником, применяет семь правил исследования и составляет реестр объектов по приоритету. Новое в сервисе: он сопоставляет дату сделки с датой решения и ролью лица в этом решении и сам ищет ИНН этого лица среди ИНН покупателя и его учредителей.</p>
+    </div>
+    <div class="area" style="grid-template-rows: minmax(0, 1fr) 190px">
+      <table>
+        <thead><tr><th style="width:330px">Способ</th><th>Даты земельных решений</th><th>Комиссия и подписанты</th><th>Связь лица с покупателем</th><th>Источник каждого значения</th><th>Статус «недостаточно данных»</th><th>Геометрия контура</th></tr></thead>
+        <tbody>
+          <tr><td>ГИС «Посейдон»</td><td>нет в открытом описании</td><td>нет в открытом описании</td><td>частично</td><td>нет в открытом описании</td><td>нет в открытом описании</td><td>нет в открытом описании</td></tr>
+          <tr><td>СПАРК-Интерфакс,&nbsp;Контур.Фокус</td><td>—</td><td>—</td><td>частично</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>НСПД, кадастровая карта</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>да</td></tr>
+          <tr><td>ГИС «Торги», torgi.gov.ru</td><td>частично</td><td>частично</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Ручной порядок</td><td>вручную</td><td>вручную</td><td>вручную</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr class="miss"><td>«Риски в кадастре»</td><td>да</td><td>да</td><td>да (поиск ИНН; цепочки — по отметке)</td><td>да</td><td>да</td><td>да</td></tr>
+        </tbody>
+      </table>
+      <div class="rows">
+        <div><b>Что показывают</b><span>«Посейдон» — сведения о доходах и конфликте интересов служащих; сервисы проверки контрагентов — связи компаний; НСПД — участок и его границы; ГИС «Торги» — извещения и итоги торгов. Сравнение по открытым описаниям систем.</span></div>
+        <div><b>Состав сервиса</b><span>Загрузка Excel и CSV, реестр с пятью уровнями приоритета, карточка с основаниями и хронологией, карта контуров, запись проверки, роли специалиста, проверяющего и руководителя, выгрузка CSV.</span></div>
+        <div><b>Также направления</b><span>Повышение эффективности механизмов выявления конфликта интересов за счет средств автоматизации; новые подходы к автоматизации информационно-аналитического обеспечения деятельности сотрудников подразделений (органов) по профилактике коррупционных и иных правонарушений.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>04</span></div>
+</section>
+
+<!-- 04 · три механизма --------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение / что ищем</p><h2 class="h1">Три механизма риска</h2></div>
+      <p class="body">Индикаторы взяты из исследования участников команды. В прототипе реализованы семь; И5, И7 и И9 не входили в задание прототипа. Условие, порог, ограничения и версия каждого правила приведены на странице «Методика».</p>
+    </div>
+    <div class="area cols3">
+      <article class="panel">
+        <div class="top"><p class="eyebrow">#1 / И1, И3, И6</p><h3 class="h2">Сделка перед решением</h3>
+          <p class="small">Участок покупают незадолго до смены категории (И1), покупатель связан
+            с участником решения (И6), после решения участок продают с выгодой (И3).</p></div>
+        <figure><img src="../Code/static/img/m1.jpg" alt="" /></figure>
+      </article>
+      <article class="panel">
+        <div class="top"><p class="eyebrow">#2 / И2, И4, И10</p><h3 class="h2">Решение в пользу владельца</h3>
+          <p class="small">Зону ПЗЗ меняют ради участков одного владельца (И2), торги проходят с единственным
+            участником (И4), одно должностное лицо повторяется в разных эпизодах (И10).</p></div>
+        <figure><img src="../Code/static/img/m2.jpg" alt="" /></figure>
+      </article>
+      <article class="panel">
+        <div class="top"><p class="eyebrow">#3 / И8</p><h3 class="h2">Граница с изломом</h3>
+          <p class="small">Контур участка с узким выступом, вырезом или прирезанной полосой (И8). Коэффициент заполнения
+            считается по координатам.</p></div>
+        <figure><img src="../Code/static/img/m3.jpg" alt="" /></figure>
+      </article>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>05</span></div>
+</section>
+
+<!-- 04 · главный пример -------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение / главный пример</p><h2 class="h1">Почему объект в реестре</h2></div>
+      <p class="body">Демонстрационный пример: Аксайский район, участок 61:02:0600010:2843. Сработали три правила из четырёх. Участок купила фирма, учредителем которой был участник решения: сервис нашёл его ИНН среди прежних учредителей покупателя, отметка исследователя совпадает.</p>
+    </div>
+    <div class="area" style="grid-template-columns: minmax(0, 1fr) minmax(0, 2fr)">
+      <div class="area" style="grid-template-rows: repeat(3, minmax(0, 1fr))">
+        <div class="stat"><span class="big">75 дней</span><span class="eyebrow">И6, связанное лицо до процедуры: от покупки до начала процедуры</span></div>
+        <div class="stat"><span class="big">4 эпизода</span><span class="eyebrow">И10, повтор должностного лица: 4 из 5 эпизодов подтверждены таблицами</span></div>
+        <div class="stat"><span class="big">271 день</span><span class="eyebrow">И1, покупка до смены категории: от регистрации права, окно 12 месяцев</span></div>
+      </div>
+      <div class="area" style="grid-template-rows: 348px minmax(0, 1fr)">
+        <div class="frame"><img src="img/findings.png" alt="" /></div>
+        <div class="rows">
+          <div><b>Не сработало</b><span>И3 (выгода после смены категории): продажи после смены категории не было</span></div>
+          <div><b>Данные</b><span>демонстрационные: строки синтетические, построены по структуре реальных данных</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics / демонстрационные данные</span><span>06</span></div>
+</section>
+
+<!-- 04 · хронология ------------------------------------------------------------ -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение / хронология</p><h2 class="h1">События из трёх таблиц</h2></div>
+      <p class="body">Система собирает даты из трёх таблиц исследования в одну хронологию: И1 (покупка до смены категории), И6 (связанное лицо до процедуры), И3 (выгода после смены категории). У каждого события указаны его таблицы.</p>
+    </div>
+    <ol class="area tl">
+      <li><time class="eyebrow">14.03.2024</time><span>Присвоен кадастровый номер</span><span class="code">И1</span></li>
+      <li><time class="eyebrow">22.05.2025</time><span>Регистрация права покупателя</span><span class="code">И1, И6</span></li>
+      <li><time class="eyebrow">05.08.2025</time><span>Начало процедуры</span><span class="code">И6</span></li>
+      <li><time class="eyebrow">17.02.2026</time><span>Смена категории</span><span class="code">И1</span></li>
+      <li><time class="eyebrow">17.02.2026</time><span>Применяется новая кадастровая стоимость</span><span class="code">И3</span></li>
+      <li><time class="eyebrow">15.05.2026</time><span>Раздел участка</span><span class="code">И3</span></li>
+    </ol>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics / демонстрационные данные</span><span>07</span></div>
+</section>
+
+<!-- 04 · геометрия ------------------------------------------------------------- -->
+<section class="slide s-std">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение / геометрия</p><h2 class="h1">Узкий выступ участка к реке</h2></div>
+      <p class="body">Правило И8 (аномалия границ) считает по координатам контура, какую долю наименьшего описанного прямоугольника занимает участок. У участка 61:02:0120105:331 это 59 % при пороге 85 %. Данные демонстрационные.</p>
+    </div>
+    <div class="area cols2">
+      <div class="area" style="grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr))">
+        <div class="stat"><span class="big">0,593</span><span class="eyebrow">коэффициент заполнения</span></div>
+        <div class="stat"><span class="big">0,85</span><span class="eyebrow">порог правила И8</span></div>
+        <div class="stat"><span class="big">1 418 м²</span><span class="eyebrow">площадь по координатам</span></div>
+        <div class="stat"><span class="big">−0,4 %</span><span class="eyebrow">расхождение с таблицей</span></div>
+      </div>
+      <div class="frame"><img src="img/shape.png" alt="" /></div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics / демонстрационные данные</span><span>08</span></div>
+</section>
+
+<!-- 04 · карта ----------------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">04 / решение / карта</p><h2 class="h1">Контуры из таблиц на карте</h2></div>
+      <p class="body">На карте 19 объектов с контуром. Чем плотнее заливка, тем выше приоритет. Справа список тех же объектов с кодами индикаторов и уровнем приоритета. Клик по контуру открывает карточку.</p>
+    </div>
+    <div class="area" style="grid-template-columns: minmax(0, 1fr) minmax(0, 2fr)">
+      <div class="area" style="grid-template-rows: repeat(3, minmax(0, 1fr))">
+        <div class="stat"><span class="big">19</span><span class="eyebrow">объектов с контуром на карте</span></div>
+        <div class="stat"><span class="big">63</span><span class="eyebrow">объекта в реестре</span></div>
+        <div class="stat"><span class="big">5</span><span class="eyebrow">уровней приоритета</span></div>
+      </div>
+      <div class="area" style="grid-template-rows: 340px minmax(0, 1fr)">
+        <div class="frame"><img src="img/map.png" alt="" /></div>
+        <div class="rows">
+          <div><b>Что на карте</b><span>участки из таблицы И8 (аномалия границ), изменённые зоны ПЗЗ и генплана из таблицы И2 (точечная правка)</span></div>
+          <div><b>Данные</b><span>демонстрационные; подложка 2ГИС загружается из интернета, в закрытом контуре нужна своя подложка — требование пилота</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics / демонстрационные данные</span><span>09</span></div>
+</section>
+
+<!-- 05 · данные и аналитика ---------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">05 / данные и аналитика</p><h2 class="h1">Открытые реестры и синтетика</h2></div>
+      <p class="body">Набор исследования: автор отметил жёлтым значения из опубликованных документов и реестров — 50 ячеек из 990; синтетических 770, вычисленных 86, остальные 84 — «нет данных» и «—». Набор реальных торгов: 13 земельных лотов ГИС «Торги», все строки реальные.</p>
+    </div>
+    <div class="area" style="grid-template-rows: 172px minmax(0, 1fr)">
+      <div class="area cols4">
+        <div class="stat"><span class="big">8</span><span class="eyebrow">источников</span></div>
+        <div class="stat"><span class="big">70</span><span class="eyebrow">записей исследования · 50 объектов</span></div>
+        <div class="stat"><span class="big">2020–26</span><span class="eyebrow">период данных</span></div>
+        <div class="stat"><span class="big">13</span><span class="eyebrow">реальных земельных торгов · torgi.gov.ru</span></div>
+      </div>
+      <div class="rows">
+        <div><b>Источники</b><span>НСПД, ЕГРН, кадастровая оценка, ЕГРЮЛ, ГИС «Торги», акты органов власти субъектов РФ, сайты муниципалитетов, протоколы комиссий; таблицы исследования составлены вручную, связи лиц и часть дат — синтетика; торги выгружены с torgi.gov.ru 19.11.2026</span></div>
+        <div><b>Качество</b><span>при пропуске поля сигнал получает статус «недостаточно данных» и список недостающего; данные обновляются повторной загрузкой</span></div>
+        <div><b>Методы</b><span>детерминированные правила: сравнение дат, площадей и отметок таблицы, поиск совпадений ИНН, геометрия контура; цепочки юрлиц — по отметке исследователя; нейросети не используются</span></div>
+        <div><b>Объяснимость</b><span>у сигнала есть вопрос правила, объяснение, расчёт, недостающие сведения, «что учесть», версия правила и время запуска</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>10</span></div>
+</section>
+
+<!-- 05 · проверка качества ----------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">05 / данные / проверка результата</p><h2 class="h1">69 из 70 совпали с разметкой</h2></div>
+      <p class="body">Сверка показывает, что правила реализованы по методике исследования; точность выявления нарушений на реальных данных она не измеряет. Набор и ответы составил один автор, независимой разметки нет. Расхождение одно, в И6 (связанное лицо до процедуры): совпала только фамилия.</p>
+    </div>
+    <div class="area">
+      <table>
+        <thead><tr><th>Индикатор</th><th class="r">Записей</th><th class="r">Сработало</th><th class="r">Не сработало</th><th class="r">Недостаточно данных</th><th class="r">Совпало с разметкой</th></tr></thead>
+        <tbody>
+          <tr><td><span class="code">И1</span>Покупка до смены категории</td><td class="n r">10</td><td class="n r">6</td><td class="n r">4</td><td class="n r">0</td><td class="n r">10 из 10</td></tr>
+          <tr><td><span class="code">И2</span>Точечная правка ПЗЗ / генплана</td><td class="n r">10</td><td class="n r">6</td><td class="n r">3</td><td class="n r">1</td><td class="n r">10 из 10</td></tr>
+          <tr><td><span class="code">И3</span>Выгода после смены категории</td><td class="n r">10</td><td class="n r">3</td><td class="n r">6</td><td class="n r">1</td><td class="n r">10 из 10</td></tr>
+          <tr><td><span class="code">И4</span>Единственный участник торгов</td><td class="n r">10</td><td class="n r">6</td><td class="n r">4</td><td class="n r">0</td><td class="n r">10 из 10</td></tr>
+          <tr class="miss"><td><span class="code">И6</span>Связанное лицо до процедуры</td><td class="n r">10</td><td class="n r">2</td><td class="n r">6</td><td class="n r">2</td><td class="n r">9 из 10</td></tr>
+          <tr><td><span class="code">И8</span>Аномалия границ</td><td class="n r">10</td><td class="n r">4</td><td class="n r">6</td><td class="n r">0</td><td class="n r">10 из 10</td></tr>
+          <tr><td><span class="code">И10</span>Повтор должностного лица</td><td class="n r">10</td><td class="n r">4</td><td class="n r">6</td><td class="n r">0</td><td class="n r">10 из 10</td></tr>
+          <tr class="miss"><td>Всего по набору исследования; реальных ячеек 50 из 990</td><td class="n r">70</td><td class="n r">31</td><td class="n r">35</td><td class="n r">4</td><td class="n r">69 из 70</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>11</span></div>
+</section>
+
+<!-- 05 · реальные торги -------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">05 / данные / реальные торги</p><h2 class="h1">13 реальных торгов</h2></div>
+      <p class="body">13 земельных участков Ростовской области из открытых данных ГИС «Торги» (torgi.gov.ru), выгрузка 19.11.2026. Все строки реальные. Разметки исследователя у них нет, в сверку они не входят. Имён участников в открытых данных нет.</p>
+    </div>
+    <div class="area" style="grid-template-columns: minmax(0, 1fr) minmax(0, 2fr)">
+      <div class="area" style="grid-template-rows: repeat(3, minmax(0, 1fr))">
+        <div class="stat"><span class="big">13 лотов</span><span class="eyebrow">электронные аукционы по ЗК РФ: продажа и аренда участков</span></div>
+        <div class="stat"><span class="big">9 лотов</span><span class="eyebrow">И4 сработал: единственный участник торгов</span></div>
+        <div class="stat"><span class="big">4 лота</span><span class="eyebrow">И4 не сработал: цена выросла <span style="white-space:nowrap">на 9–576 %</span></span></div>
+      </div>
+      <div class="rows">
+        <div><b>Что взято</b><span>Батайск, Волгодонск, Веселовский, Заветинский, Орловский, Красносулинский и Чертковский районы; аукционы по ст.&nbsp;39.11–39.12 ЗК РФ, протоколы от 10–17 ноября 2026 года</span></div>
+        <div><b>Сработал</b><span>аукцион признан несостоявшимся: подана одна заявка (п.&nbsp;14 ст.&nbsp;39.12 ЗК РФ), договор заключается с единственным участником по начальной цене</span></div>
+        <div><b>Не сработал</b><span>аукцион состоялся, цена выросла: признак конкуренции</span></div>
+        <div><b>Пример лота</b><span>участок 61:11:0600007:653, Заветинский район, продажа, 545&nbsp;008&nbsp;м²: начальная цена 1&nbsp;733&nbsp;130&nbsp;₽, цена договора 1&nbsp;733&nbsp;130&nbsp;₽</span></div>
+        <div><b>Извещение</b><span>№ 22000009490000000020, лот 8: torgi.gov.ru/new/public/lots/lot/22000009490000000020_8</span></div>
+        <div><b>Набор исследования</b><span>два реальных примера: генплан Ростова-на-Дону (И2) — «недостаточно данных»; торги в Угличе (И4, помещение) — индикатор сработал</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics / реальные данные</span><span>12</span></div>
+</section>
+
+<!-- 06 · архитектура ----------------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">06 / архитектура и технологии</p><h2 class="h1">Порядок обработки данных</h2></div>
+      <p class="body">Один сервер приложения и одна база данных. Правила — чистые функции над сохранёнными фактами. Каждый запуск анализа и его результаты хранятся без перезаписи.</p>
+    </div>
+    <div class="area" style="grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)">
+      <div class="flow">
+        <div><span class="eyebrow">01</span><div><b>Источники</b><span>таблицы исследования, составленные вручную по восьми источникам, — Excel и CSV</span></div></div>
+        <div><span class="eyebrow">02</span><div><b>Загрузка</b><span>распознавание заголовков, проверка всего файла, повтор без дублей</span></div></div>
+        <div><span class="eyebrow">03</span><div><b>Факты</b><span>значение, ячейка, происхождение; связь по кадастровому номеру</span></div></div>
+        <div><span class="eyebrow">04</span><div><b>Анализ</b><span>7 правил с версией, геометрия, приоритет объекта</span></div></div>
+        <div class="plate"><span class="eyebrow">05</span><div><b>Результат</b><span>реестр, карточка, карта, CSV → решение сотрудника</span></div></div>
+      </div>
+      <div class="area cols3">
+        <article class="panel"><p class="eyebrow">Ключевые маркеры</p><span class="markers"><span class="code">КН</span><span class="code">ИНН</span><span class="code">дата права</span><span class="code">дата процедуры</span><span class="code">категория</span><span class="code">кадастровая стоимость</span><span class="code">контур</span><span class="code">лицо в решении</span></span></article>
+        <article class="panel"><p class="eyebrow">Стек</p><p class="small">Python 3.12 · Django 5.2 LTS · MySQL 8.4 · openpyxl · OpenLayers. Страницы формирует сервер, сборка фронтенда не нужна. Подложка карты 2ГИС загружается из интернета.</p></article>
+        <article class="panel"><p class="eyebrow">Детерминированность</p><p class="small">В правилах нет случайных величин, версии зависимостей закреплены, запуск хранится с версией правила. Повторный анализ тех же данных даёт тот же результат. GitHub Actions запускает 66 тестов на MySQL 8.4 на каждое изменение.</p></article>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>13</span></div>
+</section>
+
+<!-- 07 · безопасность, право и этика ------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">07 / безопасность, право и этика</p><h2 class="h1">Повод для проверки</h2></div>
+      <p class="body">Индикатор — повод для проверки. Прототип показывает основания и перечисляет недостающие данные. Выводов о нарушении он не делает.</p>
+    </div>
+    <div class="area rows">
+      <div><b>Правовое основание</b><span>И6 (связанное лицо до процедуры) и И10 (повтор должностного лица) — признаки возможной личной заинтересованности служащего: ст. 10–11 273-ФЗ, для муниципальных служащих — ст. 14.1 25-ФЗ. Проверяют служащего — члена комиссии или подписанта решения: федерального — по Указу Президента № 1065, муниципального — по акту субъекта РФ. 44-ФЗ к земельным торгам не применяется: их проводят по ЗК РФ, приватизацию — по 178-ФЗ.</span></div>
+      <div><b>Справка о доходах и ГИС «Посейдон»</b><span>ИНН служащего подразделение берёт из своих кадровых данных. Найденный участок сверяют со сведениями об имуществе в справке (Указ Президента от 23.06.2014 № 460, раздел 3), сделку — со сведениями о расходах (раздел 2; контроль расходов — 230-ФЗ). Связь с родственниками сервис сейчас не ищет: анкеты и справки — источник для пилота. С ГИС «Посейдон» сервис не интегрирован и её не заменяет; выгрузка CSV может стать основанием для проверки.</span></div>
+      <div><b>Персональные данные</b><span>Основание — п. 2 ч. 1 ст. 6 152-ФЗ. В прототипе данные синтетические, в публичных материалах — инициалы, ИНН заменены условными кодами. С 01.03.2023 ФИО правообладателей из ЕГРН третьим лицам не выдаются; органы власти получают их по запросу в рамках полномочий. ИНН учредителей — открытые сведения ЕГРЮЛ.</span></div>
+      <div><b>Информационная безопасность</b><span>В прототипе: вход по ролям, изменения только POST с защитой CSRF, таблицы до 2 МиБ и 500 строк, вложения к объекту до 5 МБ с проверкой типа, запись проверки с автором и временем. Для пилота: уровень защищённости ИСПДн по Постановлению Правительства № 1119, меры по Приказу ФСТЭК № 21, подложка карты в закрытом контуре.</span></div>
+      <div><b>Ограничения</b><span>Набор исследования — 70 записей, реальных ячеек 50 из 990; реальные торги — 13 лотов одного региона без разметки. Загрузка таблицами. Из двух срабатываний И6 одно — по отметке исследователя (связь через промежуточное юрлицо); участие лица в эпизодах (И10) — по записи исследователя. Пороги 12 месяцев, 80 % и 0,85 — допущения исследования, калибровка — в пилоте. Правило о ВРИ не реализовано: нет данных.</span></div>
+      <div><b>Ложные сигналы</b><span>Связь подтверждает совпадение ИНН, найденное сервисом или отмеченное исследователем; при совпадении одной фамилии сигнал получает статус «недостаточно данных». Решение принимает сотрудник. Запись о проверке хранится отдельно, факты и сигнал она не меняет.</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>14</span></div>
+</section>
+
+<!-- 08 · внедрение и эффект ---------------------------------------------------- -->
+<section class="slide s-std paper">
+  <div class="pad">
+    <div class="head">
+      <div><p class="eyebrow">08 / внедрение и эффект</p><h2 class="h1">Пилот в одном районе</h2></div>
+      <p class="body">Следующий шаг — реальные выгрузки одного района и сверка сигналов с ручной проверкой.
+        Этап начинается, когда выполнен критерий предыдущего.</p>
+    </div>
+    <div class="area" style="grid-template-rows: minmax(0, 1fr) 200px">
+      <div class="area cols3">
+        <article class="panel">
+          <div class="top"><p class="eyebrow">Этап 1</p><h3 class="h2">Подготовка пилота</h3>
+            <p class="small">Регламент, выгрузки ЕГРН, НСПД и ЕГРЮЛ, приложения к актам за три года, замер времени ручной проверки.</p></div>
+          <p class="small dim">Переход: данные загружены без ошибок. Риск: доступ к ведомственным выгрузкам.</p>
+        </article>
+        <article class="panel">
+          <div class="top"><p class="eyebrow">Этап 2</p><h3 class="h2">Пилот</h3>
+            <p class="small">Специалисты проверяют каждый сигнал и записывают решение в карточке.</p></div>
+          <p class="small dim">Переход: ≥ 70 % сигналов высокого приоритета подтверждены. Риск: калибровка порогов.</p>
+        </article>
+        <article class="panel plate">
+          <div class="top"><p class="eyebrow">Этап 3</p><h3 class="h2">Масштабирование</h3>
+            <p class="small">Регион, выгрузки по API, правило о ВРИ, перенос на PostgreSQL или отечественную СУБД.</p></div>
+          <p class="small dim">Переход: устойчивое качество в двух районах. Риск: интеграция с ведомственными системами.</p>
+        </article>
+      </div>
+      <div class="rows">
+        <div><b>Управленческий эффект</b><span>Сведения из таблиц исследования, составленных по восьми источникам, собраны в карточке объекта. Проверяются все земельные решения района. Проверку можно передать другому сотруднику: история сохраняется.</span></div>
+        <div><b>Экономический эффект</b><span>Высвобождаемые часы на объект × число земельных решений района в год. Оба числа подставляет ведомство; время на объект замеряют на этапе 1 пилота.</span></div>
+        <div><b>Социальный эффект</b><span>Земельное решение можно объяснить и проверить по записи с фактами, автором и временем. Это основание для доверия жителей к распределению земли.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Код прозрачности · 2026 / Zeus Analytics</span><span>15</span></div>
+</section>
+
+<!-- 09 · команда --------------------------------------------------------------- -->
+<section class="slide s-band">
+  <img src="../Code/static/img/band-officials.jpg" alt="" />
+  <div class="band-in team-in">
+    <div class="team-head"><p class="eyebrow">09 / команда</p><h2 class="h1">Zeus Analytics</h2></div>
+    <div class="area cols4">
+      <article class="person"><p class="eyebrow">Капитан</p><div class="who"><h3 class="h2">Иван [фамилия]</h3><p class="small">Постановка задачи, индикаторы и пороги, связь с направлением, защита.</p></div></article>
+      <article class="person"><p class="eyebrow">Архитектура</p><div class="who"><h3 class="h2">Николай Кожемякин</h3><p class="small">Каркас Django, роли и доступ, CI на MySQL, стенд и выпуск.</p></div></article>
+      <article class="person"><p class="eyebrow">Разработка</p><div class="who"><h3 class="h2">Оскар Асадуллин</h3><p class="small">Импорт, правила и сверка, реестр, карточка, карта, интерфейс, демо.</p></div></article>
+      <article class="person"><p class="eyebrow">Исследование</p><div class="who"><h3 class="h2">[ФИО]</h3><p class="small">Таблицы по семи индикаторам, реальные строки из открытых источников, разметка.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · приложения ------------------------------------------------------------ -->
+<section class="slide s-band">
+  <img src="../Code/static/img/band-cases.jpg" alt="" />
+  <div class="band-in">
+    <div class="band-plate">
+      <p class="eyebrow">10 / приложения / ссылки</p>
+      <div class="links">
+        <div><b>Демо</b><span>oskarasadullin.github.io/kod-prozrachnosti</span></div>
+        <div><b>Репозиторий</b><span>github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp</span></div>
+        <div><b>Пакет</b><span>паспорт проекта · презентация (PDF и PPTX) · ролик (mp4 с субтитрами) · ссылка и инструкция запуска</span></div>
+        <div><b>Приложения, PDF</b><span>глоссарий · индикаторы с порогами и их источником · описание набора данных · реальные торги · схема архитектуры · результаты тестирования · текст ролика</span></div>
+        <div><b>Запуск</b><span>Code/README.md — Docker или Python 3.12, данные в demo_data и real_data, сценарий Code/docs/demo.md</span></div>
+      </div>
+      <p class="small dim">Команда Zeus Analytics. Сотрудник проверяет документы и связь лиц и принимает решение.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  /* Поджатые строки: каждая строка во всю ширину блока, как FitLine на сайте. */
+  function fit() {
+    for (const box of document.querySelectorAll(".fit")) {
+      const span = box.firstElementChild;
+      const room = box.getBoundingClientRect().width;
+      if (!room) continue;
+      span.style.fontSize = "400px";
+      const w = span.getBoundingClientRect().width;
+      if (w) span.style.fontSize = Math.floor(400 * room / w) + "px";
+    }
+    document.documentElement.dataset.fitted = "1";
+  }
+  if (document.fonts) document.fonts.ready.then(fit); else addEventListener("load", fit);
+</script>
+</body>
+</html>

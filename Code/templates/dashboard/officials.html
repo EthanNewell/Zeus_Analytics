@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% load kp %}
+{% block title %}Должностные лица · Код прозрачности{% endblock %}
+{% block top %}{% include "_band.html" with img="img/band-officials.jpg" kicker="Индикатор И10" title="Должностные лица" lede="Должностные лица из таблицы И10 и эпизоды с их участием. Повтор лица — повод проверить его решения вместе. Все лица в наборе синтетические." short=True %}{% endblock %}
+{% block content %}
+<section class="section">
+  {% for person in people %}
+  <article class="person">
+    <div class="block-rail">
+      <h2 class="h2">{{ person.record.title }}</h2>
+      {% if person.outcome %}<span class="state">{% outcome_level person.outcome %}{% if person.outcome.status == 'triggered' %}<span class="tag tag-blue">Повторяется / {{ person.repeats }}</span>{% else %}<span class="tag">Один эпизод</span>{% endif %}</span>{% endif %}
+    </div>
+    <div class="block-body" style="gap:var(--s4)">
+      <ol class="episodes body-s">{% for episode in person.episodes %}<li>{{ episode }}</li>{% endfor %}</ol>
+      {% if person.cases %}<div class="codes">{% for case in person.cases %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div>{% endif %}
+    </div>
+  </article>
+  {% empty %}<p class="soft">Таблица И10 ещё не загружена.</p>{% endfor %}
+</section>
+{% endblock %}

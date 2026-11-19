@@ -12,7 +12,7 @@ from django.db import OperationalError
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from analysis.contracts import Priority, RuleResult, RuleStatus
+from accounts.roles import ROLES
 from cases.models import Case, Evidence, Origin, Review
 from cases.services import add_review
 from imports.contracts import ImportError, ImportResult
@@ -27,6 +27,8 @@ class ApplicationTests(TestCase):
         cls.user = User.objects.create_user("analyst", password="a-useful-test-password")
         cls.user.groups.add(Group.objects.get(name="Specialist"))
         cls.other = User.objects.create_user("outsider", password="another-test-password")
+        cls.head = User.objects.create_user("head", password="a-head-test-password")
+        cls.head.groups.add(Group.objects.get(name="Head"))
         cls.case = Case.objects.create(
             reference="TEST-01", title="Учебный участок", origin=Origin.SYNTHETIC
         )
@@ -83,7 +85,7 @@ class ApplicationTests(TestCase):
                     "next": "https://evil.example/",
                 },
             ),
-            reverse("dashboard:case_list"),
+            reverse("dashboard:overview"),
         )
 
     def test_wrong_password_and_inactive_user_are_rejected(self):
@@ -134,7 +136,9 @@ class ApplicationTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), b"private evidence")
         self.assertIn("attachment", response["Content-Disposition"])
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
-        response.close()
+        # Consuming streaming_content already closed the response with the test client's
+        # signal guard; a second close() would fire request_finished and drop the
+        # MySQL connection in the middle of the test transaction.
         self.user.groups.clear()
         self.user.user_permissions.add(
             Permission.objects.get(codename="view_case", content_type__app_label="cases")
@@ -153,11 +157,20 @@ class ApplicationTests(TestCase):
         self.assertIn("no-store", response["Cache-Control"])
         uuid.UUID(response["X-Request-ID"])
 
-    def test_unimplemented_modules_do_not_fake_success(self):
+    def test_specialist_cannot_import_or_run_analysis(self):
         self.client.force_login(self.user)
         before = Case.objects.count()
-        self.assertEqual(self.client.post(reverse("imports:upload")).status_code, 501)
-        self.assertEqual(self.client.post(reverse("analysis:run")).status_code, 501)
+        self.assertEqual(self.client.post(reverse("imports:upload")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("analysis:run")).status_code, 403)
+        self.assertEqual(Case.objects.count(), before)
+
+    def test_empty_upload_and_empty_analysis_do_not_fake_success(self):
+        self.client.force_login(self.head)
+        before = Case.objects.count()
+        response = self.client.post(reverse("imports:upload"))
+        self.assertContains(response, "Файл не загружен", status_code=400)
+        response = self.client.post(reverse("analysis:run"), follow=True)
+        self.assertContains(response, "Нет загруженных записей")
         self.assertEqual(Case.objects.count(), before)
 
     def test_health_is_public_and_readiness_does_not_leak_errors(self):
@@ -203,11 +216,19 @@ class ApplicationTests(TestCase):
         self.assertEqual({r.author_id for r in reviews}, {self.user.pk})
         self.case.refresh_from_db()
         self.assertEqual(self.case.title, "Учебный участок")
+        self.assertEqual(self.client.get(reverse("dashboard:case_export")).status_code, 403)
+        self.client.force_login(self.head)
         response = self.client.get(reverse("dashboard:case_export"))
-        row = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))[0]
+        row = list(
+            csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";")
+        )[0]
         self.assertEqual(
-            (row["origin"], row["is_demonstration"], row["analysis_status"]),
-            ("synthetic", "True", "not_run"),
+            (
+                row["Демонстрационные данные"],
+                row["Итог анализа"],
+                row["Результат проверки сотрудника"],
+            ),
+            ("да", "Анализ не запускался", "Предположение не подтвердилось"),
         )
 
     def test_invalid_review_does_not_write(self):
@@ -226,45 +247,35 @@ class ApplicationTests(TestCase):
             )
 
     def test_export_uses_filter_and_escapes_spreadsheet_formulas(self):
-        self.client.force_login(self.user)
+        self.client.force_login(self.head)
         self.case.title = '  =HYPERLINK("https://example.org")'
         self.case.save(update_fields=["title"])
         Case.objects.create(reference="OTHER", title="Другой случай")
         response = self.client.get(reverse("dashboard:case_export"), {"q": "TEST-01"})
-        rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
-        self.assertEqual(len(rows), 1)
-        self.assertTrue(rows[0]["title"].startswith("'"))
-
-    def test_bootstrap_and_seed_are_idempotent(self):
-        group = Group.objects.get(name="Specialist")
-        permissions = set(group.permissions.values_list("pk", flat=True))
-        call_command("bootstrap_roles", verbosity=0)
-        self.assertEqual(set(group.permissions.values_list("pk", flat=True)), permissions)
-        call_command("seed_demo", verbosity=0)
-        demo = Case.objects.get(reference="DEMO-001")
-        demo.title = "Не перезаписывать"
-        demo.save(update_fields=["title"])
-        call_command("seed_demo", verbosity=0)
-        self.assertEqual(Case.objects.filter(reference__startswith="DEMO-").count(), 3)
-        self.assertEqual(Case.objects.get(pk=demo.pk).title, "Не перезаписывать")
-        self.assertTrue(
-            all(
-                Case.objects.filter(reference__startswith="DEMO-").values_list(
-                    "is_demonstration", flat=True
-                )
-            )
+        rows = list(
+            csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")), delimiter=";")
         )
+        self.assertEqual(len(rows), 1)
+        self.assertTrue(rows[0]["Объект"].startswith("'"))
 
-    def test_contracts_reject_ambiguous_results(self):
+    def test_bootstrap_is_idempotent_and_roles_are_nested(self):
+        groups = {role.group: role for role in ROLES}
+        before = {
+            name: set(Group.objects.get(name=name).permissions.values_list("codename", flat=True))
+            for name in groups
+        }
+        call_command("bootstrap_roles", verbosity=0)
+        for name, role in groups.items():
+            current = set(
+                Group.objects.get(name=name).permissions.values_list("codename", flat=True)
+            )
+            self.assertEqual(current, before[name])
+            self.assertEqual(current, set(role.permissions))
+        self.assertLess(before["Specialist"], before["Controller"])
+        self.assertLess(before["Controller"], before["Head"])
+        self.assertNotIn("import_cases", before["Specialist"])
+        self.assertNotIn("export_cases", before["Controller"])
+
+    def test_import_contract_rejects_ambiguous_results(self):
         with self.assertRaises(ValueError):
             ImportResult(batch_id=uuid.uuid4(), errors=(ImportError(2, "date", "invalid", "Дата"),))
-        with self.assertRaises(ValueError):
-            RuleResult(
-                case_id=self.case.id,
-                analysis_run_id=uuid.uuid4(),
-                rule_code="R1.2",
-                rule_version="1.0",
-                status=RuleStatus.INSUFFICIENT_DATA,
-                priority=Priority.NORMAL,
-                explanation="Нет даты",
-            )

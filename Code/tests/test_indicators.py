@@ -1,0 +1,810 @@
+"""Control set for the indicator rules, the import and the full user path."""
+
+import io
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
+
+from analysis.contracts import Priority, RuleStatus
+from analysis.models import RuleOutcome
+from analysis.rules import RULES, AnalysisContext, expected_status
+from analysis.services import run_analysis, summarize
+from cases.facts import cadastral_numbers
+from cases.indicators import INDICATORS
+from cases.models import Attention, Case, Origin, Record
+from imports.models import ImportBatch
+from imports.services import import_table
+
+User = get_user_model()
+
+L_SHAPE = "46.553200 41.041800; 46.553200 41.042584; 46.553272 41.042584; 46.553272 41.041957; 46.553559 41.041957; 46.553559 41.041800"
+RECTANGLE = "47.267100 39.870200; 47.267147 39.870524; 47.267498 39.870414; 47.267451 39.870090"
+
+
+def facts(**values):
+    """Build rule input: None → «нет данных», "—" → event absent, else present."""
+    result = {}
+    for key, value in values.items():
+        if value is None:
+            result[key] = {
+                "value": None,
+                "state": "missing",
+                "origin": "",
+                "cell": "",
+                "label": key,
+            }
+        elif value == "—":
+            result[key] = {
+                "value": None,
+                "state": "absent",
+                "origin": "synthetic",
+                "cell": "",
+                "label": key,
+            }
+        else:
+            result[key] = {
+                "value": value,
+                "state": "present",
+                "origin": "synthetic",
+                "cell": "",
+                "label": key,
+            }
+    return result
+
+
+def evaluate(code, **values):
+    return RULES[code].evaluate(facts(**values))
+
+
+class RuleTests(TestCase):
+    def assertStatus(self, result, status, priority=None):
+        self.assertEqual(result.status, status, result.explanation)
+        if priority:
+            self.assertEqual(result.priority, priority)
+        self.assertTrue(result.explanation.strip())
+        if status == RuleStatus.INSUFFICIENT_DATA:
+            self.assertTrue(result.missing)
+
+    def test_i1_purchase_window(self):
+        self.assertStatus(
+            evaluate("I1", right_date="2025-05-22", category_change_date="2026-02-17"),
+            RuleStatus.TRIGGERED,
+            Priority.NORMAL,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2024-10-03", category_change_date="2026-03-18"),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2026-03-01", category_change_date="2026-02-17"),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date=None, category_change_date="2026-02-17"),
+            RuleStatus.INSUFFICIENT_DATA,
+        )
+
+    def test_i1_window_border_is_inclusive(self):
+        self.assertStatus(
+            evaluate("I1", right_date="2025-02-28", category_change_date="2026-02-28"),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I1", right_date="2025-02-28", category_change_date="2026-03-01"),
+            RuleStatus.NOT_TRIGGERED,
+        )
+
+    def test_i2_owner_share(self):
+        self.assertStatus(evaluate("I2", zone_area=4.2, owner_area=4.2), RuleStatus.TRIGGERED)
+        self.assertStatus(evaluate("I2", zone_area=12.5, owner_area=10.0), RuleStatus.TRIGGERED)
+        self.assertStatus(evaluate("I2", zone_area=38.4, owner_area=4.6), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(
+            evaluate("I2", zone_area=None, owner_area=None), RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_i3_is_context_and_needs_sale_after_change(self):
+        base = dict(
+            ks_before=151088,
+            ks_after=6384000,
+            category_change_date="2026-03-18",
+            ks_after_start="2026-03-18",
+        )
+        self.assertStatus(
+            evaluate("I3", resale_date="2026-09-10", **base), RuleStatus.TRIGGERED, Priority.LOW
+        )
+        self.assertStatus(evaluate("I3", resale_date="—", **base), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(evaluate("I3", resale_date=None, **base), RuleStatus.INSUFFICIENT_DATA)
+        revaluation = dict(base, ks_after_start="2026-01-01")
+        self.assertStatus(
+            evaluate("I3", resale_date="2026-06-09", **revaluation), RuleStatus.NOT_TRIGGERED
+        )
+
+    def test_i4_single_participant_or_bypass(self):
+        self.assertStatus(
+            evaluate("I4", participants=1, start_price=520000, final_price=520000),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate(
+                "I4", participants="—", bypass="Второе заявление проигнорировано", final_price=18450
+            ),
+            RuleStatus.TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I4", participants=5, bypass="—", start_price=640000, final_price=1488000),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        self.assertStatus(
+            evaluate("I4", participants=None, bypass=None), RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_i6_link_must_be_documented(self):
+        dates = dict(
+            purchase_date="2025-05-22",
+            procedure_start="2025-08-05",
+            official="Ветров А.Н., ИНН 610214942629",
+        )
+        self.assertStatus(
+            evaluate("I6", inn_match="Да — ИНН совпал", surname_match="Да", **dates),
+            RuleStatus.TRIGGERED,
+            Priority.HIGH,
+        )
+        surname = evaluate(
+            "I6", inn_match="Нет — общих организаций нет", surname_match="Да — Кравченко", **dates
+        )
+        self.assertStatus(surname, RuleStatus.INSUFFICIENT_DATA)
+        self.assertIn("фамилия", surname.explanation)
+        self.assertStatus(
+            evaluate("I6", inn_match="Нет", surname_match="Нет", **dates), RuleStatus.NOT_TRIGGERED
+        )
+        late = dict(dates, purchase_date="2026-02-04", procedure_start="2025-08-18")
+        self.assertStatus(
+            evaluate("I6", inn_match="Да", surname_match="Да", **late), RuleStatus.NOT_TRIGGERED
+        )
+        self.assertStatus(
+            evaluate("I6", purchase_date="2026-02-12", procedure_start=None),
+            RuleStatus.INSUFFICIENT_DATA,
+        )
+
+    def test_i8_fill_is_computed_from_coordinates(self):
+        anomaly = evaluate("I8", coords=L_SHAPE, area=864)
+        self.assertStatus(anomaly, RuleStatus.TRIGGERED)
+        fill = dict(anomaly.metrics)["Коэффициент заполнения"]
+        self.assertEqual(fill, "0,361")
+        self.assertStatus(evaluate("I8", coords=RECTANGLE, area=1000), RuleStatus.NOT_TRIGGERED)
+        self.assertStatus(evaluate("I8", coords=None), RuleStatus.INSUFFICIENT_DATA)
+
+    def test_i10_repeated_official(self):
+        self.assertStatus(
+            evaluate("I10", person="Ветров А.Н.", repeats=5), RuleStatus.TRIGGERED, Priority.HIGH
+        )
+        self.assertStatus(
+            evaluate("I10", person="Широков П.А.", repeats=1), RuleStatus.NOT_TRIGGERED
+        )
+        self.assertStatus(
+            evaluate("I10", person="Иванов", repeats=None), RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_i6_service_finds_the_inn_link_itself(self):
+        base = dict(purchase_date="2025-05-22", procedure_start="2025-08-05")
+        found = evaluate(
+            "I6",
+            official="В. А. Н., ИНН П-011, начальник отдела",
+            founders="Учредитель: С. Е. А., ИНН П-010. Прежний учредитель: В. А. Н., ИНН П-011",
+            inn_match=None,
+            **base,
+        )
+        self.assertStatus(found, RuleStatus.TRIGGERED, Priority.HIGH)
+        self.assertIn("сервис нашёл", found.explanation)
+        self.assertIn(("Совпадение ИНН, найденное сервисом", "да"), found.metrics)
+        disagree = evaluate(
+            "I6",
+            official="Д. Л., ИНН 610214942629",
+            buyer="Д. Л., ИНН 610214942629",
+            inn_match="Нет",
+            **base,
+        )
+        self.assertStatus(disagree, RuleStatus.TRIGGERED)
+        self.assertIn("расхождение", disagree.explanation)
+        chain = evaluate(
+            "I6",
+            official="З. Н. В., ИНН П-023",
+            founders="Учредитель: ООО «Альфа-Холдинг», ИНН П-021",
+            inn_match="Да — ИНН П-023: учредитель единственного учредителя покупателя",
+            **base,
+        )
+        self.assertStatus(chain, RuleStatus.TRIGGERED)
+        self.assertIn("Прямого совпадения ИНН в загруженных данных нет", chain.explanation)
+        self.assertStatus(
+            evaluate(
+                "I6",
+                official="М. Т. В., ИНН П-030",
+                founders="Учредитель: И. С. Ю., ИНН П-031",
+                inn_match="Нет",
+                surname_match="Нет",
+                **base,
+            ),
+            RuleStatus.NOT_TRIGGERED,
+        )
+
+    def test_i10_counts_episodes_confirmed_by_other_tables(self):
+        comment = (
+            "1) Покупка связанным лицом — 61:02:0600010:2843;\n"
+            "2) Точечная правка ПЗЗ — 61:02:0120102:1543, :1544;\n"
+            "3) Обход условий публичной земли — 61:02:0600012:1388"
+        )
+        known = AnalysisContext(
+            known_objects=frozenset({"61:02:0600010:2843", "61:02:0120102:1544"})
+        )
+        result = RULES["I10"].evaluate(facts(person="В. А. Н.", repeats=3, comment=comment), known)
+        self.assertStatus(result, RuleStatus.TRIGGERED, Priority.HIGH)
+        self.assertIn(("Эпизодов подтверждено таблицами", "2"), result.metrics)
+        self.assertIn("сверить перечень", result.explanation)
+        one = AnalysisContext(known_objects=frozenset({"61:02:0600010:2843"}))
+        self.assertStatus(
+            RULES["I10"].evaluate(facts(person="В. А. Н.", repeats=3, comment=comment), one),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        # без таблиц других индикаторов подтверждать нечем — опора на число из таблицы
+        self.assertStatus(
+            RULES["I10"].evaluate(
+                facts(person="В. А. Н.", repeats=3, comment=comment), AnalysisContext()
+            ),
+            RuleStatus.TRIGGERED,
+        )
+
+    def test_author_marks_map_to_statuses(self):
+        self.assertEqual(expected_status("Да"), "triggered")
+        self.assertEqual(expected_status("1 — аномалия"), "triggered")
+        self.assertEqual(expected_status("0 — норма"), "not_triggered")
+        self.assertEqual(expected_status("Требует проверки"), "insufficient_data")
+        self.assertEqual(expected_status(""), "")
+
+    def test_every_indicator_has_one_rule(self):
+        self.assertEqual(set(RULES), set(INDICATORS))
+
+
+class Outcome:
+    def __init__(self, code, status, priority="normal"):
+        self.rule_code, self.status, self.priority = code, status, priority
+
+
+class SummaryTests(TestCase):
+    def test_case_attention(self):
+        cases = [
+            ([Outcome("I3", "triggered", "low")], Attention.LOW),
+            ([Outcome("I1", "triggered")], Attention.NORMAL),
+            ([Outcome("I1", "triggered"), Outcome("I2", "triggered")], Attention.HIGH),
+            ([Outcome("I6", "triggered", "high")], Attention.HIGH),
+            ([Outcome("I3", "triggered", "low"), Outcome("I1", "not_triggered")], Attention.LOW),
+            ([Outcome("I8", "insufficient_data", "low")], Attention.INSUFFICIENT),
+            ([Outcome("I8", "not_triggered", "low")], Attention.NONE),
+        ]
+        for outcomes, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(summarize(outcomes)[0], expected)
+
+    def test_cadastral_numbers_expand_shorthand_and_ranges(self):
+        self.assertEqual(
+            cadastral_numbers(
+                "правка — 61:02:0120102:1543, :1544; участок 61:01:0600005:3352 – :3354"
+            ),
+            [
+                "61:02:0120102:1543",
+                "61:02:0120102:1544",
+                "61:01:0600005:3352",
+                "61:01:0600005:3353",
+                "61:01:0600005:3354",
+            ],
+        )
+
+
+def i8_workbook(rows, notes=()):
+    """An И8 table the way the research team prepares it: yellow = real, formulas = calculated."""
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Аномалия границ"
+    sheet.append([column.header for column in INDICATORS["I8"].columns])
+    for index, (number, coords, area) in enumerate(rows, start=2):
+        sheet.append(
+            [
+                index - 1,
+                number,
+                "форма",
+                coords,
+                area,
+                area,
+                f"=E{index}/F{index}",
+                f'=IF(G{index}>=0.85,"0 — норма","1 — аномалия")',
+            ]
+        )
+    sheet["B2"].fill = PatternFill("solid", fgColor="FFFF00")
+    for offset, note in enumerate(notes):
+        sheet.cell(row=len(rows) + 3 + offset, column=1, value=note)
+    buffer = io.BytesIO()
+    book.save(buffer)
+    return buffer.getvalue()
+
+
+def i1_csv(rows):
+    headers = [column.header for column in INDICATORS["I1"].columns]
+    lines = [";".join(headers)]
+    for number, bought, changed in rows:
+        values = {
+            "number": "1",
+            "object_kind": "Земельный участок",
+            "cadastral": number,
+            "right_date": bought,
+            "category_change_date": changed,
+            "category_before": "Земли с/х назначения",
+            "category_after": "Земли населённых пунктов",
+            "holder": "ООО «Тест»",
+            "mark": "Да",
+        }
+        lines.append(
+            ";".join(values.get(column.key, "нет данных") for column in INDICATORS["I1"].columns)
+        )
+    return "\n".join(lines).encode("utf-8")
+
+
+class ImportTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.controller = User.objects.create_user(
+            "controller", password="a-controller-test-password"
+        )
+        cls.controller.groups.add(Group.objects.get(name="Controller"))
+        cls.specialist = User.objects.create_user(
+            "specialist", password="a-specialist-test-password"
+        )
+        cls.specialist.groups.add(Group.objects.get(name="Specialist"))
+
+    def upload(self, name, content, actor=None):
+        return import_table(
+            actor=actor or self.controller, uploaded_file=SimpleUploadedFile(name, content)
+        )
+
+    def test_real_torgi_lots_are_real_and_single_bidder_triggers(self):
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parent.parent / "real_data"
+        table = next(path.glob("Реальные_торги_И4_*.xlsx"))
+        self.assertFalse(self.upload(table.name, table.read_bytes()).errors)
+        run_analysis(actor=self.controller)
+        records = Record.objects.filter(indicator="I4")
+        self.assertEqual(records.count(), 13)
+        self.assertFalse(any(record.is_demonstration for record in records))
+        outcomes = RuleOutcome.objects.filter(record__in=records)
+        triggered = outcomes.filter(status=RuleStatus.TRIGGERED).count()
+        self.assertEqual(triggered, 9)
+        # у реальных строк нет разметки исследователя: в сверку они не входят
+        self.assertFalse(outcomes.exclude(expected_status="").exists())
+
+    def test_xlsx_keeps_provenance_geometry_and_notes(self):
+        result = self.upload(
+            "И8.xlsx",
+            i8_workbook(
+                [("31:19:0504002:36", RECTANGLE, 1000), ("61:39:0600012:744", L_SHAPE, 864)],
+                notes=["Источники координат: НСПД, выписка ЕГРН.", "Порог 0,85 — допущение."],
+            ),
+        )
+        self.assertFalse(result.errors)
+        record = Record.objects.get(source_key="31:19:0504002:36")
+        self.assertEqual(record.facts["cadastral"]["origin"], Origin.AUTHOR_MARKED_REAL)
+        self.assertEqual(record.facts["cadastral"]["cell"], "B2")
+        self.assertEqual(record.facts["coords"]["origin"], Origin.SYNTHETIC)
+        self.assertEqual(record.facts["fill"]["origin"], Origin.CALCULATED)
+        case = Case.objects.get(reference="61:39:0600012:744")
+        self.assertEqual(len(case.geometry), 6)
+        self.assertEqual(case.region, "Ростовская обл.")
+        batch = ImportBatch.objects.get()
+        self.assertIn("НСПД", batch.sources_note)
+        self.assertIn("Порог", batch.notes)
+        self.assertEqual(batch.real_cells, 1)
+
+    def test_bad_row_rejects_whole_file(self):
+        result = self.upload(
+            "И1.csv",
+            i1_csv(
+                [
+                    ("61:02:0600010:2843", "22.05.2025", "17.02.2026"),
+                    ("61:25:0600301:4127", "вчера", "18.03.2026"),
+                ]
+            ),
+        )
+        self.assertEqual(
+            [(error.row, error.code) for error in result.errors], [(3, "invalid_value")]
+        )
+        self.assertFalse(Record.objects.exists())
+        self.assertFalse(Case.objects.exists())
+        self.assertFalse(ImportBatch.objects.exists())
+
+    def test_reimport_updates_instead_of_duplicating(self):
+        content = i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026")])
+        self.upload("И1.csv", content)
+        self.upload("И1.csv", content)
+        self.assertEqual(Record.objects.count(), 1)
+        self.assertEqual(Case.objects.count(), 1)
+        self.assertEqual(ImportBatch.objects.first().rows_updated, 1)
+        self.assertEqual(Record.objects.get().facts["right_date"]["origin"], Origin.UNKNOWN)
+
+    def test_duplicate_keys_and_unknown_tables_are_rejected(self):
+        duplicate = i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026")] * 2)
+        self.assertEqual(self.upload("И1.csv", duplicate).errors[0].code, "duplicate")
+        self.assertEqual(self.upload("x.csv", b"a;b;c\n1;2;3").errors[0].code, "unknown_table")
+        self.assertEqual(self.upload("x.pdf", b"%PDF").errors[0].code, "format")
+        self.assertEqual(self.upload("x.xlsx", b"not a zip").errors[0].code, "unreadable")
+        self.assertFalse(Record.objects.exists())
+
+    def test_import_requires_permission(self):
+        from django.core.exceptions import PermissionDenied
+
+        with self.assertRaises(PermissionDenied):
+            self.upload(
+                "И1.csv",
+                i1_csv([("61:02:0600010:2843", "22.05.2025", "17.02.2026")]),
+                actor=self.specialist,
+            )
+
+    def test_analysis_stores_outcomes_and_case_attention(self):
+        self.upload(
+            "И1.csv",
+            i1_csv(
+                [
+                    ("61:02:0600010:2843", "22.05.2025", "17.02.2026"),
+                    ("61:25:0600301:4127", "03.10.2024", "18.03.2026"),
+                ]
+            ),
+        )
+        run = run_analysis(actor=self.controller)
+        self.assertEqual((run.records_count, run.triggered_count), (2, 1))
+        self.assertEqual((run.compared_count, run.agreed_count), (2, 1))
+        self.assertEqual(
+            Case.objects.get(reference="61:02:0600010:2843").attention, Attention.NORMAL
+        )
+        self.assertEqual(Case.objects.get(reference="61:25:0600301:4127").attention, Attention.NONE)
+        first = RuleOutcome.objects.get(record__source_key="61:02:0600010:2843")
+        self.assertEqual(first.used_fields, ["right_date", "category_change_date"])
+        run_analysis(actor=self.controller)
+        self.assertEqual(RuleOutcome.objects.count(), 4, "each run keeps its own immutable results")
+
+
+class UserPathTests(TestCase):
+    """Login → upload → analysis → registry → card → review → export, through the views."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.head = User.objects.create_user("head", password="a-head-test-password")
+        cls.head.groups.add(Group.objects.get(name="Head"))
+
+    def test_full_path(self):
+        self.client.force_login(self.head)
+        response = self.client.post(
+            reverse("imports:upload"),
+            {
+                "file": SimpleUploadedFile(
+                    "И8.xlsx", i8_workbook([("61:39:0600012:744", L_SHAPE, 864)])
+                )
+            },
+        )
+        batch = ImportBatch.objects.get()
+        self.assertRedirects(response, reverse("imports:batch", args=[batch.id]))
+        self.assertContains(self.client.get(response.url), "61:39:0600012:744")
+        response = self.client.post(
+            reverse("analysis:run"), {"next": reverse("dashboard:case_list")}, follow=True
+        )
+        self.assertContains(response, "Анализ выполнен")
+        self.assertContains(response, "Требует проверки")
+        case = Case.objects.get(reference="61:39:0600012:744")
+        detail = self.client.get(reverse("dashboard:case_detail", args=[case.id]))
+        self.assertContains(detail, "описанного прямоугольника")
+        self.assertContains(detail, "outline-plate")
+        self.client.post(
+            reverse("dashboard:review_create", args=[case.id]),
+            {"outcome": "confirmed", "comment": "Сверено с выпиской ЕГРН"},
+        )
+        export = self.client.get(reverse("dashboard:case_export")).content.decode("utf-8-sig")
+        self.assertIn("Основания для дальнейшей проверки подтверждены", export)
+        self.assertIn("И8: Контур заполняет", export)
+        for name in ["overview", "map", "officials", "methodology"]:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(reverse(f"dashboard:{name}")).status_code, 200)
+        filtered = self.client.get(
+            reverse("dashboard:case_list"), {"attention": "normal", "indicator": "I8"}
+        )
+        self.assertContains(filtered, "61:39:0600012:744")
+        self.assertNotContains(
+            self.client.get(reverse("dashboard:case_list"), {"attention": "high"}),
+            "61:39:0600012:744",
+        )
+
+
+class EmptyAndRoleTests(TestCase):
+    """Every page works before the first import, and each role sees only its actions."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.users = {}
+        for group in ["Specialist", "Controller", "Head"]:
+            user = User.objects.create_user(group.lower(), password=f"a-{group}-test-password")
+            user.groups.add(Group.objects.get(name=group))
+            cls.users[group] = user
+
+    def test_pages_render_on_empty_database(self):
+        self.client.force_login(self.users["Head"])
+        for name in ["overview", "case_list", "map", "officials", "methodology"]:
+            with self.subTest(page=name):
+                response = self.client.get(reverse(f"dashboard:{name}"))
+                self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            self.client.get(reverse("dashboard:overview")), "Анализ ещё не запускался"
+        )
+        self.assertEqual(self.client.get(reverse("imports:upload")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("dashboard:case_export")).status_code, 200)
+
+    def test_menu_and_actions_follow_the_role(self):
+        upload, export, run = (
+            reverse("imports:upload"),
+            reverse("dashboard:case_export"),
+            reverse("analysis:run"),
+        )
+        expectations = {
+            "Specialist": (False, False, False),
+            "Controller": (True, False, True),
+            "Head": (True, True, True),
+        }
+        for group, (can_upload, can_export, can_run) in expectations.items():
+            with self.subTest(role=group):
+                self.client.force_login(self.users[group])
+                page = self.client.get(reverse("dashboard:overview")).content.decode()
+                self.assertEqual(f'href="{upload}"' in page, can_upload)
+                self.assertEqual(f'action="{run}"' in page, can_run)
+                listing = self.client.get(reverse("dashboard:case_list")).content.decode()
+                self.assertEqual(export in listing, can_export)
+                self.assertEqual(self.client.get(export).status_code, 200 if can_export else 403)
+
+
+class ReviewFindingsTests(TestCase):
+    """Regressions found by the code review of 19.11.2026."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.head = User.objects.create_user("head", password="a-head-test-password")
+        cls.head.groups.add(Group.objects.get(name="Head"))
+
+    def test_words_starting_with_da_are_not_yes(self):
+        dates = dict(
+            purchase_date="2025-05-22", procedure_start="2025-08-05", official="Иванов И.И."
+        )
+        result = evaluate("I6", inn_match="Данных в ЕГРЮЛ нет", surname_match="Нет", **dates)
+        self.assertNotEqual(result.status, RuleStatus.TRIGGERED)
+
+    def test_negative_bypass_answer_is_not_a_sign(self):
+        for answer in ["Нет", "Не выявлено", "не установлены"]:
+            with self.subTest(answer=answer):
+                result = evaluate(
+                    "I4", participants=3, bypass=answer, start_price=100, final_price=100
+                )
+                self.assertEqual(result.status, RuleStatus.NOT_TRIGGERED)
+
+    def test_degenerate_contour_is_rejected_and_never_crashes_analysis(self):
+        from cases.facts import parse_points
+
+        for text in ["47 39; 47 39; 47 39", "47 39; 47.1 39.1; 47.2 39.2"]:
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                parse_points(text)
+        self.assertEqual(
+            evaluate("I8", coords="47 39; 47 39; 47 39").status, RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_cadastral_ranges_are_strict_and_in_reading_order(self):
+        self.assertEqual(
+            cadastral_numbers("61:01:0600005:40 – 61:01:0600006:20"),
+            ["61:01:0600005:40", "61:01:0600006:20"],
+        )
+        self.assertEqual(
+            cadastral_numbers("участок 61:01:0600005:5 — 12.03.2023"), ["61:01:0600005:5"]
+        )
+        self.assertEqual(
+            cadastral_numbers("а 61:02:0120102:1543, б 61:01:0600005:1 – :2")[0],
+            "61:02:0120102:1543",
+        )
+
+    def test_csv_delimiter_comes_from_the_header(self):
+        headers = [column.header for column in INDICATORS["I8"].columns]
+        many_points = "; ".join(f"47.{i:04d} 39.{(i * 7) % 10000:04d}" for i in range(40))
+        row = ["1", "61:02:0120105:999", "форма, с запятой", RECTANGLE, "1000", "1000", "", ""]
+        self.assertGreater(many_points.count(";"), 30)
+        content = (
+            ",".join(f'"{h}"' for h in headers) + "\n" + ",".join(f'"{value}"' for value in row)
+        ).encode()
+        result = import_table(actor=self.head, uploaded_file=SimpleUploadedFile("И8.csv", content))
+        self.assertFalse(result.errors, result.errors)
+
+    def test_cp1251_csv_keeps_the_research_mark(self):
+        headers = [column.header for column in INDICATORS["I1"].columns]
+        values = {
+            "number": "1",
+            "cadastral": "61:02:0600010:2843",
+            "right_date": "22.05.2025",
+            "category_change_date": "17.02.2026",
+            "mark": "Да",
+        }
+        line = ";".join(values.get(column.key, "нет данных") for column in INDICATORS["I1"].columns)
+        content = (";".join(headers).replace("≤", "?") + "\n" + line).encode("cp1251")
+        self.assertFalse(
+            import_table(
+                actor=self.head, uploaded_file=SimpleUploadedFile("И1.csv", content)
+            ).errors
+        )
+        self.assertEqual(Record.objects.get().author_mark, "Да")
+
+    def test_long_descriptions_fit_the_fields(self):
+        long_object = (
+            "Земельный участок, " + "очень длинное местоположение, " * 30 + "КН 61:02:0600010:2843"
+        )
+        headers = [column.header for column in INDICATORS["I4"].columns]
+        values = {
+            "number": "1",
+            "object": long_object,
+            "participants": "1",
+            "start_price": "100",
+            "final_price": "100",
+            "mark": "Да",
+        }
+        content = (
+            ";".join(headers)
+            + "\n"
+            + ";".join(f'"{values.get(c.key, "—")}"' for c in INDICATORS["I4"].columns)
+        ).encode()
+        self.assertFalse(
+            import_table(
+                actor=self.head, uploaded_file=SimpleUploadedFile("И4.csv", content)
+            ).errors
+        )
+        self.assertLessEqual(len(Case.objects.get().address), 500)
+
+    def test_unlinked_case_loses_its_stale_verdict(self):
+        headers = [column.header for column in INDICATORS["I10"].columns]
+
+        def upload(comment):
+            row = ["1", "Иванов Иван Иванович", "2", f'"{comment}"', "Да"]
+            content = (";".join(headers) + "\n" + ";".join(row)).encode()
+            self.assertFalse(
+                import_table(
+                    actor=self.head, uploaded_file=SimpleUploadedFile("И10.csv", content)
+                ).errors
+            )
+
+        upload("правка — 61:02:0120102:10, :11")
+        run_analysis(actor=self.head)
+        self.assertEqual(Case.objects.get(reference="61:02:0120102:11").attention, Attention.HIGH)
+        upload("правка — 61:02:0120102:10")
+        run_analysis(actor=self.head)
+        self.assertEqual(Case.objects.get(reference="61:02:0120102:11").attention, Attention.NONE)
+
+    def test_bad_case_ids_do_not_crash(self):
+        self.client.force_login(self.head)
+        response = self.client.post(reverse("analysis:run"), {"case_ids": "junk"}, follow=True)
+        self.assertContains(response, "Неверный идентификатор")
+
+    def test_export_time_is_local_and_queries_do_not_grow(self):
+        from cases.models import Review
+
+        case = Case.objects.create(reference="X-1", title="Объект")
+        Review.objects.create(case=case, author=self.head, outcome="confirmed", comment="ок")
+        self.client.force_login(self.head)
+        local = timezone.localtime(Review.objects.get().created_at).strftime("%d.%m.%Y %H:%M")
+        self.assertIn(
+            local, self.client.get(reverse("dashboard:case_export")).content.decode("utf-8-sig")
+        )
+        for index in range(10):
+            other = Case.objects.create(reference=f"Y-{index}", title="Объект")
+            Review.objects.create(case=other, author=self.head, outcome="confirmed", comment="ок")
+        with self.assertNumQueries(8):  # constant: no query per row
+            self.client.get(reverse("dashboard:case_export"))
+
+
+class EvidenceAndSourcesTests(TestCase):
+    """Documents and links attached by employees; the sources page."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("bootstrap_roles", verbosity=0)
+        cls.specialist = User.objects.create_user(
+            "specialist", password="a-specialist-test-password"
+        )
+        cls.specialist.groups.add(Group.objects.get(name="Specialist"))
+        cls.case = Case.objects.create(reference="61:02:0600010:2843", title="Участок")
+
+    def setUp(self):
+        self.client.force_login(self.specialist)
+        self.url = reverse("dashboard:evidence_create", args=[self.case.id])
+
+    def test_link_and_file_are_attached_with_author(self):
+        from cases.models import Evidence
+
+        response = self.client.post(
+            self.url,
+            {"title": "Выписка ЕГРН", "url": "https://rosreestr.gov.ru/x", "origin": "unknown"},
+        )
+        self.assertRedirects(
+            response,
+            reverse("dashboard:case_detail", args=[self.case.id]) + "#documents",
+            fetch_redirect_response=False,
+        )
+        pdf = SimpleUploadedFile("vypiska.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+        self.client.post(
+            self.url, {"title": "Протокол комиссии", "file": pdf, "origin": "author_marked_real"}
+        )
+        self.assertEqual(Evidence.objects.count(), 2)
+        self.assertEqual({e.added_by_id for e in Evidence.objects.all()}, {self.specialist.pk})
+        detail = self.client.get(reverse("dashboard:case_detail", args=[self.case.id]))
+        self.assertContains(detail, "https://rosreestr.gov.ru/x")
+        self.assertContains(detail, "Протокол комиссии")
+        file_evidence = Evidence.objects.get(title="Протокол комиссии")
+        download = self.client.get(reverse("dashboard:evidence_download", args=[file_evidence.id]))
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 test")
+        self.assertIn("vypiska.pdf", download["Content-Disposition"])
+
+    def test_bad_attachments_are_rejected(self):
+        from cases.models import Evidence
+
+        cases = [
+            {"title": "Пусто"},
+            {"title": "Скрипт", "file": SimpleUploadedFile("x.exe", b"MZ")},
+            {"title": "Ссылка", "url": "javascript:alert(1)"},
+        ]
+        for data in cases:
+            with self.subTest(data=data["title"]):
+                self.assertEqual(
+                    self.client.post(self.url, {**data, "origin": "unknown"}).status_code, 400
+                )
+        self.assertFalse(Evidence.objects.exists())
+
+    def test_guest_and_outsider_cannot_attach(self):
+        self.client.logout()
+        self.assertEqual(
+            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 302
+        )
+        User.objects.create_user("outsider", password="an-outsider-password")
+        self.client.login(username="outsider", password="an-outsider-password")
+        self.assertEqual(
+            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 403
+        )
+
+    def test_sources_page_links_indicators_from_passports(self):
+        from cases.sources import sources_with_usage
+
+        class Batch:
+            def __init__(self, indicator, note):
+                self.indicator, self.sources_note, self.notes = indicator, note, ""
+
+        rows = {
+            row["source"].key: row["codes"]
+            for row in sources_with_usage(
+                [
+                    Batch("I4", "Источники данных: ГИС «Торги» (torgi.gov.ru), НСПД, Росреестр."),
+                    Batch("I6", "ЕГРЮЛ/ЕГРИП (ФНС), НСПД"),
+                ]
+            )
+        }
+        self.assertEqual(rows["torgi"], ["I4"])
+        self.assertEqual(rows["nspd"], ["I4", "I6"])
+        self.assertEqual(rows["egrul"], ["I6"])
+        self.assertEqual(self.client.get(reverse("dashboard:sources")).status_code, 200)
+
+    def test_every_indicator_states_its_tz_rule(self):
+        self.assertTrue(all(indicator.tz_rule for indicator in INDICATORS.values()))
+        self.assertContains(self.client.get(reverse("dashboard:methodology")), "Р1.6")

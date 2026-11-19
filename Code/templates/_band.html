@@ -1,0 +1,10 @@
+{% load static %}<section class="band{% if short %} band-short{% endif %}">
+  <img class="band-bg" src="{% static img %}" alt="" aria-hidden="true" width="1500" height="844" fetchpriority="high">
+  <div class="wrap band-in">
+    <div class="band-plate">
+      <span class="eyebrow">{{ kicker }}</span>
+      <h1 class="display-l">{{ title }}</h1>
+      {% if lede %}<p class="lede">{{ lede }}</p>{% endif %}
+    </div>
+  </div>
+</section>
