@@ -1,0 +1,78 @@
+{
+  "bpm": 100,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "sections": [
+    {
+      "id": "title",
+      "bars": 4,
+      "music": "intro"
+    },
+    {
+      "id": "problem",
+      "bars": 4,
+      "music": "build"
+    },
+    {
+      "id": "mechanisms",
+      "bars": 4,
+      "music": "rise"
+    },
+    {
+      "id": "login",
+      "bars": 3,
+      "music": "drop"
+    },
+    {
+      "id": "data",
+      "bars": 5,
+      "music": "drop"
+    },
+    {
+      "id": "registry",
+      "bars": 4,
+      "music": "drop"
+    },
+    {
+      "id": "card",
+      "bars": 9,
+      "music": "drop"
+    },
+    {
+      "id": "timeline",
+      "bars": 4,
+      "music": "break"
+    },
+    {
+      "id": "review",
+      "bars": 6,
+      "music": "drop"
+    },
+    {
+      "id": "geometry",
+      "bars": 4,
+      "music": "drop"
+    },
+    {
+      "id": "map",
+      "bars": 3,
+      "music": "drop"
+    },
+    {
+      "id": "quality",
+      "bars": 4,
+      "music": "peak"
+    },
+    {
+      "id": "principles",
+      "bars": 4,
+      "music": "half"
+    },
+    {
+      "id": "outro",
+      "bars": 4,
+      "music": "outro"
+    }
+  ]
+}

@@ -1,0 +1,216 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0000e8">
+  <title>{% block title %}Код прозрачности{% endblock %}</title>
+  <link rel="preload" href="{% static 'fonts/science-gothic-cyrillic.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7"/></symbol>
+  </svg>
+  {% with name=request.resolver_match.url_name %}
+  <header class="hdr" data-hdr>
+    <div class="hdr-in">
+      <a class="hdr-logo" href="{% if user.is_authenticated %}{% url 'dashboard:overview' %}{% else %}{% url 'accounts:login' %}{% endif %}"><span class="mark hdr-mark" aria-hidden="true"></span><span>Код прозрачности</span></a>
+      {% if user.is_authenticated %}
+      <div class="hdr-user">
+        <button class="hdr-burger" type="button" aria-expanded="false" aria-controls="sheet" data-burger>Разделы <span class="hdr-burger-box"><i></i><i></i><i></i></span></button>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+  {% if user.is_authenticated %}
+  <div class="sheet" id="sheet" data-sheet>
+    <nav class="sheet-nav" aria-label="Разделы">
+      <a class="sheet-link" href="{% url 'dashboard:overview' %}" {% if name == 'overview' %}aria-current="page"{% endif %}>Обзор</a>
+      <a class="sheet-link" href="{% url 'dashboard:case_list' %}" {% if name == 'case_list' or name == 'case_detail' %}aria-current="page"{% endif %}>Реестр</a>
+      <a class="sheet-link" href="{% url 'dashboard:map' %}" {% if name == 'map' %}aria-current="page"{% endif %}>Карта</a>
+      <a class="sheet-link" href="{% url 'dashboard:officials' %}" {% if name == 'officials' %}aria-current="page"{% endif %}>Должностные лица</a>
+      <a class="sheet-link" href="{% url 'dashboard:sources' %}" {% if name == 'sources' %}aria-current="page"{% endif %}>Источники</a>
+      <a class="sheet-link" href="{% url 'dashboard:methodology' %}" {% if name == 'methodology' %}aria-current="page"{% endif %}>Методика</a>
+      {% if perms.cases.import_cases %}<a class="sheet-link" href="{% url 'imports:upload' %}" {% if name == 'upload' or name == 'batch' %}aria-current="page"{% endif %}>Загрузка</a>{% endif %}
+      <div class="sheet-foot eyebrow">
+        <span>{{ user.username }} / {{ user_role }}</span>
+        {% if user.is_staff %}<a class="btn-plain" href="{% url 'admin:index' %}">Управление</a>{% endif %}
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn-plain" type="submit">Выйти</button></form>
+      </div>
+    </nav>
+    <figure class="sheet-plate"><img src="{% static 'img/band-map.jpg' %}" alt="" loading="lazy"></figure>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% if messages %}<div class="toasts" data-toasts>{% for message in messages %}<div class="toast{% if message.level_tag == 'error' %} toast-error{% endif %}" role="status"><span class="body-s">{{ message }}</span><button type="button" class="btn-plain" data-close aria-label="Закрыть">Закрыть</button></div>{% endfor %}</div>{% endif %}
+  {% block top %}{% endblock %}
+  <main class="paper">
+    <div class="wrap">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+  {% if user.is_authenticated %}
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <a class="foot-mark" href="{% url 'dashboard:overview' %}"><span class="mark" aria-hidden="true"></span>Код прозрачности</a>
+      <div class="foot-meta body-s">
+        <span>ЕГРН / НСПД / ЕГРЮЛ / ГИС «Торги»</span>
+        <span>правила 1.0</span>
+        <span>{% if last_run %}анализ {{ last_run.started_at|date:"d.m.Y H:i" }}{% else %}анализ не запускался{% endif %}</span>
+        <span class="nowrap" data-clock>{% now "H:i" %} МСК</span>
+      </div>
+    </div>
+  </footer>
+  {% endif %}
+  <script>
+  // every page opens at its top after a link or a reload; only an #anchor opens at the anchor
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  if (!location.hash) window.scrollTo(0, 0);
+  </script>
+  <script>
+  // Each line of a .fit heading is scaled to the full width of its block, so a heading
+  // lies as one rectangle (like FitLine on ЭВА-РИСК) instead of a ragged staircase.
+  (function () {
+    function fit() {
+      document.querySelectorAll(".fit").forEach((box) => {
+        const width = box.getBoundingClientRect().width;
+        box.querySelectorAll(".fit-line").forEach((line) => {
+          // measure the glyphs themselves: a grid item always stretches to its column
+          line.style.fontSize = "100px";
+          const range = document.createRange();
+          range.selectNodeContents(line);
+          const natural = range.getBoundingClientRect().width || 1;
+          line.style.fontSize = Math.min((width / natural) * 100 * 0.995, box.dataset.max || 999) + "px";
+        });
+        box.classList.add("fitted");
+      });
+    }
+    fit();
+    if (document.fonts) document.fonts.ready.then(fit);
+    let pending;
+    window.addEventListener("resize", () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(fit); });
+  })();
+  (function () {
+    const hdr = document.querySelector("[data-hdr]");
+    const burger = document.querySelector("[data-burger]");
+    const sheet = document.querySelector("[data-sheet]");
+    let open = false;
+    function paint() {
+      if (open) { hdr.removeAttribute("data-solid"); hdr.removeAttribute("data-hidden"); return; }
+      const y = hdr.offsetHeight + 1;
+      const below = document.elementFromPoint(window.innerWidth / 2, y);
+      const onPaper = below && below.closest(".paper");
+      hdr.toggleAttribute("data-solid", !!onPaper);
+      hdr.toggleAttribute("data-hidden", !onPaper && window.scrollY > 40);
+    }
+    let ticking = false;
+    window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { paint(); ticking = false; }); } }, { passive: true });
+    window.addEventListener("resize", paint);
+    paint();
+    if (burger && sheet) {
+      burger.addEventListener("click", () => {
+        open = !open;
+        sheet.toggleAttribute("data-open", open);
+        burger.setAttribute("aria-expanded", String(open));
+        document.documentElement.style.overflow = open ? "hidden" : "";
+        paint();
+      });
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape" && open) burger.click(); });
+    }
+  })();
+  </script>
+  <script>
+  // One dropdown for every list: the native select stays in the form (hidden) and is driven
+  // by a button and a listbox in the site's own style. Keyboard: Enter/Space, arrows, Esc.
+  (function () {
+    const chev = '<svg class="icon chev" aria-hidden="true"><use href="#i-chev"/></svg>';
+    document.querySelectorAll("select.input").forEach((select, n) => {
+      const box = document.createElement("div");
+      box.className = "dd";
+      select.parentNode.insertBefore(box, select);
+      box.appendChild(select);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "input dd-btn";
+      button.setAttribute("aria-haspopup", "listbox");
+      button.setAttribute("aria-expanded", "false");
+      if (select.getAttribute("aria-label")) button.setAttribute("aria-label", select.getAttribute("aria-label"));
+      if (select.id) { button.id = select.id; select.removeAttribute("id"); }
+      const list = document.createElement("ul");
+      list.className = "dd-list";
+      list.setAttribute("role", "listbox");
+      list.id = "dd-list-" + n;
+      button.setAttribute("aria-controls", list.id);
+      [...select.options].forEach((option, i) => {
+        const item = document.createElement("li");
+        item.setAttribute("role", "option");
+        item.textContent = option.textContent;
+        item.dataset.index = i;
+        list.appendChild(item);
+      });
+      box.append(button, list);
+      let active = select.selectedIndex;
+      const items = [...list.children];
+      button.innerHTML = "<span></span>" + chev;  // built once: re-rendering inside a click detached its target
+      const label = button.firstChild;
+      function render() {
+        label.textContent = select.options[select.selectedIndex]?.textContent || "";
+        items.forEach((item, i) => {
+          item.setAttribute("aria-selected", String(i === select.selectedIndex));
+          item.toggleAttribute("data-active", i === active);
+        });
+      }
+      function open(state) {
+        box.toggleAttribute("data-open", state);
+        button.setAttribute("aria-expanded", String(state));
+        if (state) { active = select.selectedIndex; render(); items[active]?.scrollIntoView({ block: "nearest" }); }
+      }
+      function choose(i) {
+        select.selectedIndex = i;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        open(false); render(); button.focus();
+      }
+      button.addEventListener("click", () => open(!box.hasAttribute("data-open")));
+      list.addEventListener("click", (event) => { const item = event.target.closest("li"); if (item) choose(Number(item.dataset.index)); });
+      button.addEventListener("keydown", (event) => {
+        const isOpen = box.hasAttribute("data-open");
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          if (!isOpen) return open(true);
+          active = Math.max(0, Math.min(items.length - 1, active + (event.key === "ArrowDown" ? 1 : -1)));
+          render(); items[active].scrollIntoView({ block: "nearest" });
+        } else if ((event.key === "Enter" || event.key === " ") && isOpen) { event.preventDefault(); choose(active); }
+        else if (event.key === "Escape" && isOpen) { event.preventDefault(); open(false); }
+      });
+      document.addEventListener("click", (event) => { if (event.target.isConnected && !box.contains(event.target)) open(false); });
+      render();
+    });
+  })();
+  </script>
+  <script>
+  (function () {
+    const clock = document.querySelector("[data-clock]");
+    if (!clock) return;
+    const tick = () => { clock.textContent = new Date().toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow" }) + " МСК"; };
+    tick(); setInterval(tick, 1000);
+  })();
+  </script>
+  <script>
+  (function () {
+    const box = document.querySelector("[data-toasts]");
+    if (!box) return;
+    const hide = () => box.setAttribute("data-hidden", "");
+    box.addEventListener("click", (event) => { if (event.target.closest("[data-close]")) hide(); });
+    setTimeout(hide, 7000);
+  })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
