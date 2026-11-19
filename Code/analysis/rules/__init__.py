@@ -4,12 +4,14 @@ A rule reads only input facts (never the calculated columns of the source table)
 returns a status, a priority, an explanation, the facts it used and what is missing.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from cases.facts import (
     ABSENT,
     PRESENT,
     add_months,
+    cadastral_numbers,
     fact_date,
     fact_state,
     fact_value,
@@ -24,8 +26,33 @@ from cases.indicators import INDICATORS
 from ..contracts import Priority, RuleStatus
 
 FILL_THRESHOLD = 0.85
+# ИНН (10 или 12 цифр) или его условный код в обезличенном наборе («П-014»)
+INN_RE = re.compile(r"ИНН\s*(\d{10}(?:\d{2})?|П-\d{3})\b")
+EPISODE_RE = re.compile(r"(?:^|\n|;)\s*\d+\)\s*")
 SHARE_THRESHOLD = 0.80
 WINDOW_MONTHS = 12
+
+
+@dataclass(frozen=True)
+class AnalysisContext:
+    """What a rule may know beyond its own row: objects present in the other loaded tables."""
+
+    known_objects: frozenset = frozenset()
+
+
+def plural(n, one, few, many):
+    """«1 эпизод», «2 эпизода», «5 эпизодов»."""
+    n = int(n)
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{n} {one}"
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return f"{n} {few}"
+    return f"{n} {many}"
+
+
+def inns(text):
+    """ИНН and their pseudonymous codes mentioned in a text, in reading order, without repeats."""
+    return list(dict.fromkeys(INN_RE.findall(str(text or ""))))
 
 
 @dataclass
@@ -68,7 +95,7 @@ def _insufficient(code, missing, used, what):
     )
 
 
-def rule_i1(facts):
+def rule_i1(facts, context=None):
     used = ["right_date", "category_change_date"]
     missing = _missing("I1", facts, used)
     if missing:
@@ -102,7 +129,7 @@ def rule_i1(facts):
     )
 
 
-def rule_i2(facts):
+def rule_i2(facts, context=None):
     used = ["zone_area", "owner_area"]
     missing = _missing("I2", facts, used)
     if missing:
@@ -138,7 +165,7 @@ def rule_i2(facts):
     )
 
 
-def rule_i3(facts):
+def rule_i3(facts, context=None):
     used = ["ks_before", "ks_after", "category_change_date", "ks_after_start", "resale_date"]
     missing = _missing("I3", facts, used[:4])
     if missing or fact_state(facts, "resale_date") not in (PRESENT, ABSENT):
@@ -188,7 +215,7 @@ def rule_i3(facts):
     )
 
 
-def rule_i4(facts):
+def rule_i4(facts, context=None):
     used = ["participants", "bypass", "start_price", "final_price"]
     participants = fact_value(facts, "participants")
     bypass = fact_value(facts, "bypass")
@@ -227,7 +254,7 @@ def rule_i4(facts):
     )
 
 
-def rule_i6(facts):
+def rule_i6(facts, context=None):
     used = ["purchase_date", "procedure_start", "official", "inn_match", "surname_match"]
     missing = _missing("I6", facts, ["purchase_date", "procedure_start"])
     if missing:
@@ -243,16 +270,41 @@ def rule_i6(facts):
             used,
             metrics=metrics,
         )
-    if fact_state(facts, "inn_match") != PRESENT:
-        return _insufficient(
-            "I6", [_label("I6", "inn_match")], used, "связь покупателя с должностным лицом"
-        )
     official = (fact_value(facts, "official") or "").split(",")[0]
-    if text_starts_yes(fact_value(facts, "inn_match")):
+    # Сервис сам ищет ИНН участника решения среди ИНН покупателя, его учредителей и руководителя
+    common = [
+        inn
+        for inn in inns(fact_value(facts, "official"))
+        if inn in inns(fact_value(facts, "buyer")) + inns(fact_value(facts, "founders"))
+    ]
+    mark = fact_value(facts, "inn_match")
+    marked = fact_state(facts, "inn_match") == PRESENT
+    metrics.append(("Совпадение ИНН, найденное сервисом", "да" if common else "нет"))
+    if common:
+        check = (
+            " Отметка исследователя совпадает."
+            if marked and text_starts_yes(mark)
+            else " В таблице исследования отмечено иное — расхождение нужно проверить."
+            if marked
+            else ""
+        )
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.HIGH,
-            f"Участок куплен {d(bought)}, за {days} дн. до начала процедуры ({d(started)}). В решении участвовал {official}, в таблице исследования отмечена связь с покупателем по ИНН в ЕГРЮЛ: {fact_value(facts, 'inn_match').split('—', 1)[-1].strip()}",
+            f"Участок куплен {d(bought)}, за {days} дн. до начала процедуры ({d(started)}). ИНН участника решения {official} ({common[0]}) сервис нашёл среди ИНН покупателя и его учредителей по ЕГРЮЛ.{check}",
+            used + ["buyer", "founders", "procedure"],
+            metrics=metrics,
+        )
+    if not marked:
+        return _insufficient(
+            "I6", [_label("I6", "inn_match")], used, "связь покупателя с должностным лицом"
+        )
+    if text_starts_yes(mark):
+        detail = mark.split("—", 1)[-1].strip()
+        return Evaluation(
+            RuleStatus.TRIGGERED,
+            Priority.HIGH,
+            f"Участок куплен {d(bought)}, за {days} дн. до начала процедуры ({d(started)}). В решении участвовал {official.rstrip('.')}. Прямого совпадения ИНН в загруженных данных нет; связь отмечена исследователем по ЕГРЮЛ: {detail}. Для проверки нужна выписка ЕГРЮЛ по промежуточной организации.",
             used + ["buyer", "founders", "procedure"],
             metrics=metrics,
         )
@@ -268,13 +320,13 @@ def rule_i6(facts):
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"Покупка за {days} дн. до процедуры, но связь покупателя с участником решения ({official}) не выявлена.",
+        f"Покупка за {days} дн. до процедуры, но связь покупателя с участником решения ({official}) не выявлена: общих ИНН нет.",
         used,
         metrics=metrics,
     )
 
 
-def rule_i8(facts):
+def rule_i8(facts, context=None):
     used = ["coords"]
     if fact_state(facts, "coords") != PRESENT:
         return _insufficient("I8", [_label("I8", "coords")], used, "форму границ")
@@ -323,25 +375,68 @@ def rule_i8(facts):
     )
 
 
-def rule_i10(facts):
+def episodes(comment):
+    """Episodes listed by the researcher («1) … — КН; 2) …»): (text, cadastral numbers) each, no repeats."""
+    parts = [part.strip(" ;\n") for part in EPISODE_RE.split(str(comment or ""))]
+    found = {}
+    for part in parts:
+        numbers = tuple(cadastral_numbers(part))
+        if numbers:
+            found.setdefault((part.split("—")[0].strip().lower(), numbers), part)
+    return [(text, numbers) for (_, numbers), text in found.items()]
+
+
+def rule_i10(facts, context=None):
     used = ["repeats", "comment"]
-    repeats = fact_value(facts, "repeats")
-    if not isinstance(repeats, int | float):
-        return _insufficient("I10", [_label("I10", "repeats")], used, "повторяемость лица")
     person = fact_value(facts, "person")
-    metrics = [("Эпизодов с участием лица", number(repeats))]
-    if repeats > 1:
+    stated = fact_value(facts, "repeats")
+    listed = episodes(fact_value(facts, "comment"))
+    # подтверждать эпизоды можно, только если загружены таблицы других индикаторов
+    if context is not None and context.known_objects and listed:
+        confirmed = [item for item in listed if set(item[1]) & context.known_objects]
+        count = len(confirmed)
+        metrics = [("Эпизодов подтверждено таблицами", number(count))]
+        if isinstance(stated, int | float):
+            metrics.append(("Эпизодов по таблице исследования", number(stated)))
+        check = (
+            f" В таблице исследования — {number(stated)}: сверить перечень эпизодов."
+            if isinstance(stated, int | float) and stated != count
+            else ""
+        )
+        basis = (
+            f"Исследователь перечислил {plural(len(listed), 'эпизод', 'эпизода', 'эпизодов')};"
+            f" объекты {number(count)} из {number(len(listed))} есть в загруженных таблицах других индикаторов."
+        )
+        if count > 1:
+            return Evaluation(
+                RuleStatus.TRIGGERED,
+                Priority.HIGH,
+                f"{person}: повтор в {plural(count, 'эпизоде', 'эпизодах', 'эпизодах')}. {basis}{check}",
+                used + ["person"],
+                metrics=metrics,
+            )
+        return Evaluation(
+            RuleStatus.NOT_TRIGGERED,
+            Priority.LOW,
+            f"{person}: повтора нет. {basis}{check}",
+            used,
+            metrics=metrics,
+        )
+    if not isinstance(stated, int | float):
+        return _insufficient("I10", [_label("I10", "repeats")], used, "повторяемость лица")
+    metrics = [("Эпизодов по таблице исследования", number(stated))]
+    if stated > 1:
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.HIGH,
-            f"{person} встречается в {number(repeats)} эпизодах других индикаторов.",
+            f"{person} встречается в {number(stated)} эпизодах других индикаторов (по таблице исследования).",
             used + ["person"],
             metrics=metrics,
         )
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"{person} встречается в одном эпизоде. Повтора нет.",
+        f"{person} встречается в одном эпизоде (по таблице исследования). Повтора нет.",
         used,
         metrics=metrics,
     )
@@ -361,9 +456,9 @@ RULES = {
         Rule("I2", "1.0", rule_i2),
         Rule("I3", "1.0", rule_i3),
         Rule("I4", "1.0", rule_i4),
-        Rule("I6", "1.0", rule_i6),
+        Rule("I6", "1.1", rule_i6),
         Rule("I8", "1.0", rule_i8),
-        Rule("I10", "1.0", rule_i10),
+        Rule("I10", "1.1", rule_i10),
     ]
 }
 

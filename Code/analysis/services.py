@@ -9,7 +9,7 @@ from cases.models import ATTENTION_ORDER, Attention, Case, Record
 
 from .contracts import Priority, RuleStatus
 from .models import AnalysisRun, RuleOutcome
-from .rules import RULES, expected_status
+from .rules import RULES, AnalysisContext, expected_status
 
 
 class AnalysisNotConfigured(Exception):
@@ -37,6 +37,19 @@ def run_analysis(*, actor, case_ids=None):
         raise AnalysisNotConfigured(
             "Нет загруженных записей: сначала загрузите таблицы индикаторов."
         )
+    # объекты, которые есть в таблицах других индикаторов: по ним И10 подтверждает эпизоды
+    if case_ids:
+        known = Case.objects.filter(records__indicator__in=[c for c in RULES if c != "I10"])
+        known = set(known.exclude(cadastral_number="").values_list("cadastral_number", flat=True))
+    else:
+        known = {
+            case.cadastral_number
+            for record in records
+            if record.indicator != "I10"
+            for case in record.cases.all()
+            if case.cadastral_number
+        }
+    context = AnalysisContext(known_objects=frozenset(known))
     run = AnalysisRun.objects.create(
         started_by=actor, rules={code: rule.version for code, rule in RULES.items()}
     )
@@ -45,7 +58,7 @@ def run_analysis(*, actor, case_ids=None):
         rule = RULES.get(record.indicator)
         if rule is None:
             continue
-        result = rule.evaluate(record.facts)
+        result = rule.evaluate(record.facts, context)
         expected = expected_status(record.author_mark)
         used_demo = any(
             record.facts.get(key, {}).get("origin") in ("synthetic", "unknown")

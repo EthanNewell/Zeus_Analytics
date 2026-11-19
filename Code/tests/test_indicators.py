@@ -14,7 +14,7 @@ from openpyxl.styles import PatternFill
 
 from analysis.contracts import Priority, RuleStatus
 from analysis.models import RuleOutcome
-from analysis.rules import RULES, expected_status
+from analysis.rules import RULES, AnalysisContext, expected_status
 from analysis.services import run_analysis, summarize
 from cases.facts import cadastral_numbers
 from cases.indicators import INDICATORS
@@ -190,6 +190,74 @@ class RuleTests(TestCase):
         )
         self.assertStatus(
             evaluate("I10", person="Иванов", repeats=None), RuleStatus.INSUFFICIENT_DATA
+        )
+
+    def test_i6_service_finds_the_inn_link_itself(self):
+        base = dict(purchase_date="2025-05-22", procedure_start="2025-08-05")
+        found = evaluate(
+            "I6",
+            official="В. А. Н., ИНН П-011, начальник отдела",
+            founders="Учредитель: С. Е. А., ИНН П-010. Прежний учредитель: В. А. Н., ИНН П-011",
+            inn_match=None,
+            **base,
+        )
+        self.assertStatus(found, RuleStatus.TRIGGERED, Priority.HIGH)
+        self.assertIn("сервис нашёл", found.explanation)
+        self.assertIn(("Совпадение ИНН, найденное сервисом", "да"), found.metrics)
+        disagree = evaluate(
+            "I6",
+            official="Д. Л., ИНН 610214942629",
+            buyer="Д. Л., ИНН 610214942629",
+            inn_match="Нет",
+            **base,
+        )
+        self.assertStatus(disagree, RuleStatus.TRIGGERED)
+        self.assertIn("расхождение", disagree.explanation)
+        chain = evaluate(
+            "I6",
+            official="З. Н. В., ИНН П-023",
+            founders="Учредитель: ООО «Альфа-Холдинг», ИНН П-021",
+            inn_match="Да — ИНН П-023: учредитель единственного учредителя покупателя",
+            **base,
+        )
+        self.assertStatus(chain, RuleStatus.TRIGGERED)
+        self.assertIn("Прямого совпадения ИНН в загруженных данных нет", chain.explanation)
+        self.assertStatus(
+            evaluate(
+                "I6",
+                official="М. Т. В., ИНН П-030",
+                founders="Учредитель: И. С. Ю., ИНН П-031",
+                inn_match="Нет",
+                surname_match="Нет",
+                **base,
+            ),
+            RuleStatus.NOT_TRIGGERED,
+        )
+
+    def test_i10_counts_episodes_confirmed_by_other_tables(self):
+        comment = (
+            "1) Покупка связанным лицом — 61:02:0600010:2843;\n"
+            "2) Точечная правка ПЗЗ — 61:02:0120102:1543, :1544;\n"
+            "3) Обход условий публичной земли — 61:02:0600012:1388"
+        )
+        known = AnalysisContext(
+            known_objects=frozenset({"61:02:0600010:2843", "61:02:0120102:1544"})
+        )
+        result = RULES["I10"].evaluate(facts(person="В. А. Н.", repeats=3, comment=comment), known)
+        self.assertStatus(result, RuleStatus.TRIGGERED, Priority.HIGH)
+        self.assertIn(("Эпизодов подтверждено таблицами", "2"), result.metrics)
+        self.assertIn("сверить перечень", result.explanation)
+        one = AnalysisContext(known_objects=frozenset({"61:02:0600010:2843"}))
+        self.assertStatus(
+            RULES["I10"].evaluate(facts(person="В. А. Н.", repeats=3, comment=comment), one),
+            RuleStatus.NOT_TRIGGERED,
+        )
+        # без таблиц других индикаторов подтверждать нечем — опора на число из таблицы
+        self.assertStatus(
+            RULES["I10"].evaluate(
+                facts(person="В. А. Н.", repeats=3, comment=comment), AnalysisContext()
+            ),
+            RuleStatus.TRIGGERED,
         )
 
     def test_author_marks_map_to_statuses(self):
