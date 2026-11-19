@@ -225,7 +225,7 @@ def rule_i4(facts, context=None):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.NORMAL,
-            f"Торги с единственным участником: имущество передано по начальной цене {money(fact_value(facts, 'final_price') or 0)}.",
+            f"Торги с единственным участником: цена договора равна начальной — {money(fact_value(facts, 'final_price') or 0)}.",
             used + ["counterparty", "method"],
         )
     if bypass:

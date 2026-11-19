@@ -372,6 +372,22 @@ class ImportTests(TestCase):
             actor=actor or self.controller, uploaded_file=SimpleUploadedFile(name, content)
         )
 
+    def test_real_torgi_lots_are_real_and_single_bidder_triggers(self):
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parent.parent / "real_data"
+        table = next(path.glob("Реальные_торги_И4_*.xlsx"))
+        self.assertFalse(self.upload(table.name, table.read_bytes()).errors)
+        run_analysis(actor=self.controller)
+        records = Record.objects.filter(indicator="I4")
+        self.assertEqual(records.count(), 13)
+        self.assertFalse(any(record.is_demonstration for record in records))
+        outcomes = RuleOutcome.objects.filter(record__in=records)
+        triggered = outcomes.filter(status=RuleStatus.TRIGGERED).count()
+        self.assertEqual(triggered, 9)
+        # у реальных строк нет разметки исследователя: в сверку они не входят
+        self.assertFalse(outcomes.exclude(expected_status="").exists())
+
     def test_xlsx_keeps_provenance_geometry_and_notes(self):
         result = self.upload(
             "И8.xlsx",
