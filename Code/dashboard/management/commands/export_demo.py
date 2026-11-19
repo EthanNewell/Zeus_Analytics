@@ -2,7 +2,11 @@
 
 Crawls every page reachable from the overview as a signed-in head of department and writes
 them as plain files under OUTDIR, links rewritten for the site prefix (e.g. /repo-name/).
-Forms do nothing in the demo: a script explains that only viewing is available.
+The registry filters and search work in the demo: for every filter value the server itself
+lists the matching objects, the registry page keeps those lists and the search fields of each
+object, and a small script intersects them in the browser. The site is crawled as a read-only
+user of the copy, so the forms that write (upload, analysis run, staff review, documents) are
+not rendered at all, exactly as the service shows them to such a user.
 
 Run it on a COPY of the database: real people's names in the research rows are masked in
 place before crawling, so a public demo never shows a living person next to a risk label.
@@ -10,6 +14,7 @@ place before crawling, so a public demo never shows a living person next to a ri
     SQLITE_PATH=/tmp/demo.sqlite3 python manage.py export_demo out --prefix /kod-prozrachnosti/
 """
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -17,10 +22,11 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client, override_settings
 
-from cases.models import Origin, Record
+from cases.models import Case, Origin, Record
 
 PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:ич|вна|чна|тична|оглы|кызы)"  # «-ич» ловит и «Ильич», «Кузьмич»
 NAME_RE = re.compile(rf"\b([А-ЯЁ])[а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+([А-ЯЁ])[а-яё]+\s+({PATRONYMIC})")
@@ -28,17 +34,58 @@ INN_RE = re.compile(r"(ИНН\s*)\d{10,12}")
 SKIP = ("/admin", "/accounts/logout", "/health", "/evidence/", "/analysis/", "/static/")
 ATTR_RE = re.compile(r'''(\s(?:href|src|action)=")([^"#]*)(#[^"]*)?"''')
 
-DEMO_SCRIPT = """
+# Демо обходит сайт от имени читателя без прав записи: формы загрузки, анализа, проверки и
+# документов сервис сам не показывает. Остаётся форма «Выйти» — в статичной копии она не нужна.
+POST_FORM_RE = re.compile(r'<form\b[^>]*method="post"[^>]*>.*?</form>', re.S | re.I)
+READER = "демо-просмотр"
+READER_PERMISSIONS = ("view_case", "view_evidence", "view_review", "export_cases")
+ROW_RE = re.compile(r'<tr class="row">.*?</tr>', re.S)
+CASE_ID_RE = re.compile(r"/cases/([0-9a-f-]{36})/")
+
+FILTER_SCRIPT = """
 <script>
 (function () {
-  function note() {
-    let box = document.querySelector("[data-toasts]");
-    if (!box) { box = document.createElement("div"); box.className = "toasts"; box.dataset.toasts = ""; document.body.appendChild(box); }
-    box.innerHTML = '<div class="toast" role="status"><span class="body-s">Демо-версия: здесь только просмотр. Загрузка, анализ, проверка и фильтры работают в полной версии.</span></div>';
-    box.removeAttribute("data-hidden");
-    clearTimeout(window.__demoNote); window.__demoNote = setTimeout(() => box.setAttribute("data-hidden", ""), 4500);
+  const data = JSON.parse(document.getElementById("demo-index").textContent);
+  const form = document.querySelector("form.filters");
+  const body = document.querySelector("table.tbl tbody");
+  const found = [...document.querySelectorAll("h2")].find((h) => h.textContent.startsWith("Найдено"));
+  const pager = document.querySelector("nav.pager");
+  const tabs = [...document.querySelectorAll("nav.seg a")];
+  if (!form || !body) return;
+  const state = Object.fromEntries(new URLSearchParams(location.search));
+  const hidden = form.querySelector('input[name="attention"]');
+  if (hidden && !state.attention) state.attention = hidden.value;
+  function apply(push) {
+    let ids = data.order;
+    for (const [name, sets] of Object.entries(data.sets)) {
+      const value = state[name];
+      if (value) ids = ids.filter((id) => (sets[value] || []).includes(id));
+    }
+    const q = (state.q || "").trim().toLowerCase();
+    if (q) ids = ids.filter((id) => data.text[id].includes(q));
+    body.innerHTML = ids.length ? ids.map((id) => data.rows[id]).join("")
+      : '<tr><td colspan="6" class="empty">Ничего не найдено. Измените фильтры.</td></tr>';
+    if (found) found.textContent = "Найдено: " + ids.length;
+    if (pager) pager.hidden = true;
+    tabs.forEach((a) => {
+      const value = new URL(a.href, location.href).searchParams.get("attention") || a.dataset.attention || "";
+      a.toggleAttribute("aria-current", value === (state.attention || ""));
+      if (a.hasAttribute("aria-current")) a.setAttribute("aria-current", "true");
+    });
+    for (const field of form.elements) if (field.name && field.name in state) field.value = state[field.name];
+    if (push) history.replaceState(null, "", "?" + new URLSearchParams(Object.entries(state).filter(([, v]) => v)));
   }
-  document.addEventListener("submit", (event) => { event.preventDefault(); note(); }, true);
+  tabs.forEach((a) => a.addEventListener("click", (event) => {
+    event.preventDefault();
+    state.attention = a.dataset.attention || "";
+    apply(true);
+  }));
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    for (const field of form.elements) if (field.name && field.name !== "attention") state[field.name] = field.value;
+    apply(true);
+  });
+  if (Object.values(state).some(Boolean)) apply(false);
 })();
 </script>
 """
@@ -81,14 +128,97 @@ class Command(BaseCommand):
             },
         ):
             client = Client()
-            client.force_login(actor)
+            client.force_login(self.reader())
             pages = self.crawl(client, out, prefix)
+            self.add_registry_filters(client, out)
         shutil.copytree(Path(settings.BASE_DIR) / "static", out / "static")
         (out / ".nojekyll").write_text("")
         (out / "404.html").write_text(
             f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url={prefix}">'
         )
         self.stdout.write(self.style.SUCCESS(f"{pages} pages → {out}"))
+
+    @staticmethod
+    def reader():
+        """Read-only user of the database copy: views everything, writes nothing."""
+        user, _ = get_user_model().objects.get_or_create(username=READER)
+        user.user_permissions.set(
+            Permission.objects.filter(
+                content_type__app_label="cases", codename__in=READER_PERMISSIONS
+            )
+        )
+        return user
+
+    @staticmethod
+    def case_ids(html):
+        return list(dict.fromkeys(CASE_ID_RE.findall(html)))
+
+    def listed(self, client, params):
+        """Ids of the cases the server lists for these filters, over all pages, in its order."""
+        ids, page = [], 1
+        while True:
+            html = client.get("/cases/", {**params, "page": page}).content.decode()
+            body = html.split("<tbody>", 1)[-1].split("</tbody>", 1)[0]
+            ids += self.case_ids(body)
+            if f"page={page + 1}" not in html:
+                return ids
+            page += 1
+
+    def add_registry_filters(self, client, out):
+        """Registry filters for the static demo: the server's answer for every filter value."""
+        first = client.get("/cases/").content.decode()
+        options = {}
+        for name, select in re.findall(
+            r'<select[^>]*name="(\w+)"[^>]*>(.*?)</select>', first, re.S
+        ):
+            values = re.findall(r'<option(?: value="([^"]*)")?[^>]*>([^<]*)</option>', select)
+            options[name] = [
+                value if value or not text.strip() else text.strip() for value, text in values
+            ]
+            options[name] = [
+                value for value in options[name] if value and not value.startswith(("Все", "Любой"))
+            ]
+        options["attention"] = sorted(set(re.findall(r"[?&]attention=(\w+)", first)))
+        sets = {
+            name: {v: self.listed(client, {name: v}) for v in values}
+            for name, values in options.items()
+        }
+        order = self.listed(client, {})
+        rows = {}
+        for file in (out / "cases").glob("**/index.html"):
+            if file.parent.name == "cases" or "page-" in str(file.parent.name):
+                for row in ROW_RE.findall(file.read_text()):
+                    case_id = CASE_ID_RE.search(row)
+                    if case_id:
+                        rows.setdefault(case_id.group(1), row)
+        text = {}
+        for case in Case.objects.prefetch_related("records"):
+            fields = [case.reference, case.title, case.cadastral_number, case.address]
+            fields += [record.title for record in case.records.all()]
+            text[str(case.pk)] = " ".join(filter(None, fields)).lower()
+        missing = [case_id for case_id in order if case_id not in rows]
+        if missing:
+            raise CommandError(f"registry rows not exported: {missing[:3]}")
+        index = json.dumps(
+            {
+                "order": order,
+                "rows": rows,
+                "sets": sets,
+                "text": {i: text.get(i, "") for i in order},
+            },
+            ensure_ascii=False,
+        ).replace("</", "<\\/")
+        payload = f'<script id="demo-index" type="application/json">{index}</script>{FILTER_SCRIPT}'
+        for file in [out / "cases" / "index.html", *(out / "cases" / "q").glob("*/index.html")]:
+            html = file.read_text()
+            html = re.sub(r'<a href="([^"]*)" data-lbl', self.tab_mark, html)
+            file.write_text(html.replace("</body>", payload + "</body>", 1))
+
+    @staticmethod
+    def tab_mark(match):
+        """Вкладка итога анализа помнит своё значение: скрипт фильтров переключает её на месте."""
+        value = re.search(r"attention-(\w+)", match.group(1))
+        return f'<a href="{match.group(1)}" data-attention="{value.group(1) if value else ""}" data-lbl'
 
     def mask_real_people(self):
         changed = 0
@@ -167,9 +297,9 @@ class Command(BaseCommand):
                 return f'{attr}{prefix}{path}{anchor}"'
 
             html = ATTR_RE.sub(rewrite, html)
+            html = POST_FORM_RE.sub("", html)
             # the map builds card links in JS
             html = html.replace('href="/cases/${f.id}/"', f'href="{prefix}cases/${{f.id}}/"')
             html = html.replace("</head>", '<meta name="robots" content="noindex">\n</head>', 1)
-            html = html.replace("</body>", DEMO_SCRIPT + "</body>", 1)
             file.write_text(html)
         return len([p for p in out.rglob("index.html")])

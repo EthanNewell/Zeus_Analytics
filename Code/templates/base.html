@@ -39,7 +39,7 @@
       <a class="sheet-link" href="{% url 'dashboard:methodology' %}" {% if name == 'methodology' %}aria-current="page"{% endif %}>Методика</a>
       {% if perms.cases.import_cases %}<a class="sheet-link" href="{% url 'imports:upload' %}" {% if name == 'upload' or name == 'batch' %}aria-current="page"{% endif %}>Загрузка</a>{% endif %}
       <div class="sheet-foot eyebrow">
-        <span>{{ user.username }} / {{ user_role }}</span>
+        <span>{{ user.username }}{% if user_role %} / {{ user_role }}{% endif %}</span>
         {% if user.is_staff %}<a class="btn-plain" href="{% url 'admin:index' %}">Управление</a>{% endif %}
         <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn-plain" type="submit">Выйти</button></form>
       </div>
