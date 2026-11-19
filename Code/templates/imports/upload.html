@@ -30,7 +30,7 @@
           <td data-label="Индикатор"><span class="code">И{{ batch.indicator|slice:"1:" }}</span></td>
           <td class="r" data-label="Строк">{{ batch.rows_total }}</td>
           <td class="r hide-s">{{ batch.rows_created }} / {{ batch.rows_updated }}</td>
-          <td class="hide-s small">{{ batch.uploaded_by.username }}</td>
+          <td class="hide-s small" data-label="Загрузил">{{ batch.uploaded_by.username }}</td>
           <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
         </tr>{% empty %}<tr><td colspan="6" class="empty">Загрузок пока не было.</td></tr>{% endfor %}</tbody>
       </table>
