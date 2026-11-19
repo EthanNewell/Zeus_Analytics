@@ -22,7 +22,7 @@ from django.test import Client, override_settings
 
 from cases.models import Origin, Record
 
-PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:вич|вна|чна|тична|оглы|кызы)"
+PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:ич|вна|чна|тична|оглы|кызы)"  # «-ич» ловит и «Ильич», «Кузьмич»
 NAME_RE = re.compile(rf"\b([А-ЯЁ])[а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+([А-ЯЁ])[а-яё]+\s+({PATRONYMIC})")
 INN_RE = re.compile(r"(ИНН\s*)\d{10,12}")
 SKIP = ("/admin", "/accounts/logout", "/health", "/evidence/", "/analysis/", "/static/")

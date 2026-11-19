@@ -252,7 +252,7 @@ def rule_i6(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.HIGH,
-            f"Участок куплен {d(bought)}, за {days} дн. до начала процедуры ({d(started)}). В решении участвовал {official}, связь с покупателем подтверждена по ИНН в ЕГРЮЛ: {fact_value(facts, 'inn_match').split('—', 1)[-1].strip()}",
+            f"Участок куплен {d(bought)}, за {days} дн. до начала процедуры ({d(started)}). В решении участвовал {official}, в таблице исследования отмечена связь с покупателем по ИНН в ЕГРЮЛ: {fact_value(facts, 'inn_match').split('—', 1)[-1].strip()}",
             used + ["buyer", "founders", "procedure"],
             metrics=metrics,
         )

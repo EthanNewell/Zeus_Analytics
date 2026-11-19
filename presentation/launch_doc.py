@@ -6,13 +6,13 @@
 from pathlib import Path
 
 import docx
-from docx.enum.text import WD_BREAK
 from docx.shared import Pt, RGBColor
 
 HERE = Path(__file__).parent
 OUT = HERE / "Ссылка_и_инструкция_запуска.docx"
 REPO = "https://github.com/EthanNewell/Zeus_Analytics"
 DEMO = "https://oskarasadullin.github.io/kod-prozrachnosti/"
+CI_RUN = "https://github.com/EthanNewell/Zeus_Analytics/actions/runs/44443834548"
 
 VERSIONS = [
     ("Python", "3.12"),
@@ -21,7 +21,8 @@ VERSIONS = [
     ("Docker Engine / Desktop", "с Docker Compose v2 (флаг --wait)"),
     ("Python-зависимости", "закреплены в Code/requirements.txt (Django, openpyxl, whitenoise, gunicorn и др.), "
      "драйвер MySQL — в requirements-mysql.txt, проверки — в requirements-dev.txt"),
-    ("Браузер", "любой современный; карта — OpenLayers 10.11 в составе репозитория, подложка 2ГИС"),
+    ("Браузер", "любой современный; карта — OpenLayers 10.11 в составе репозитория, подложка 2ГИС загружается "
+     "из интернета"),
 ]
 
 DOCKER = [
@@ -49,15 +50,15 @@ LOCAL = [
 ]
 
 CHECKS = [
-    "python manage.py test --settings=config.settings.test    # 63 теста",
-    "curl http://localhost:8000/health/ready/                 # 200 — база и миграции в порядке",
+    "python manage.py test --settings=config.settings.test",
+    "curl http://localhost:8000/health/ready/",
 ]
 
 SCENARIO = [
     "Войдите под head (пароль напечатала команда demo_users).",
     "«Загрузка» — история загрузок семи таблиц, паспорт набора, реальные и синтетические ячейки.",
     "«Обзор» → «Запустить анализ»; итог: 70 записей, 31 сигнал, совпадение с разметкой 69 из 70.",
-    "«Реестр» → фильтр «Высокий» → объект 61:02:0600010:2843 (Аксайский район): основания И6, И10, И1, "
+    "«Реестр» → фильтр «Высокий» → объект 61:02:0600010:2843 (Аксайский район, демонстрационный пример): основания И6, И10, И1, "
     "хронология, исходные факты; внизу страницы запишите проверку сотрудника.",
     "Объект 61:02:0120105:331 — контур с узким выступом (И8), кнопка «Показать на карте».",
     "«Методика» — условия и пороги правил, сверка с разметкой исследования.",
@@ -72,12 +73,11 @@ def mono(paragraph, text):
 
 
 def code_block(d, lines):
-    p = d.add_paragraph()
-    p.paragraph_format.space_after = Pt(8)
+    """One paragraph per command, so each stays on its own line in any text export."""
     for i, line in enumerate(lines):
-        run = mono(p, line)
-        if i < len(lines) - 1:
-            run.add_break(WD_BREAK.LINE)
+        p = d.add_paragraph()
+        p.paragraph_format.space_after = Pt(8 if i == len(lines) - 1 else 0)
+        mono(p, line)
 
 
 def main():
@@ -87,14 +87,15 @@ def main():
     style.font.size = Pt(10.5)
 
     d.add_heading("Код прозрачности — ссылка на прототип и инструкция запуска", level=1)
-    d.add_paragraph("Проект «Риски в кадастре: рабочее место специалиста по профилактике коррупции». "
-                    "Команда Zeus Analytics. Направление 02.")
+    d.add_paragraph("Проект «Риски в кадастре» — рабочее место специалиста по профилактике коррупции "
+                    "в земельных отношениях. Команда Zeus Analytics. "
+                    "Репозиторий и демо принадлежат одной команде, код — в ветке oskar/mvp.")
 
     d.add_heading("Ссылки", level=2)
     table = d.add_table(rows=0, cols=2)
     table.style = "Table Grid"
     for label, value in [
-        ("Репозиторий (открытый)", REPO),
+        ("Репозиторий (открытый), код в ветке oskar/mvp", REPO + "/tree/oskar/mvp"),
         ("Ветка с кодом", "oskar/mvp — команды ниже клонируют эту ветку"),
         ("Инструкция в репозитории", "Code/README.md"),
         ("Сценарий показа", "Code/docs/demo.md"),
@@ -125,9 +126,15 @@ def main():
 
     d.add_heading("Проверка", level=2)
     code_block(d, CHECKS)
-    d.add_paragraph("Ожидаемый результат загрузки: «Analysis: 70 records, 31 triggered, agreement with research "
-                    "marks 69/70». Повторный запуск анализа даёт те же статусы. Оба способа запуска проверены "
-                    "на чистом клоне 19.11.2026.")
+    d.add_paragraph("Первая команда запускает 63 теста. Вторая возвращает код 200, когда база и миграции "
+                    "в порядке. GitHub Actions на каждое изменение запроса на слияние запускает все 63 теста "
+                    "на MySQL 8.4; последний запуск успешен: " + CI_RUN + ". "
+                    "Команда load_tables в конце печатает строку на английском:")
+    code_block(d, ["Analysis: 70 records, 31 triggered, agreement with research marks 69/70"])
+    d.add_paragraph("Она означает: проанализировано 70 записей, правила сработали на 31, с разметкой "
+                    "исследования совпали 69 из 70. Повторный запуск анализа даёт те же статусы. 19.11.2026 "
+                    "на чистом клоне пройдены оба способа запуска (Docker + MySQL и Python 3.12 + SQLite): "
+                    "сверка 69 из 70, страница готовности отвечает 200.")
 
     d.add_heading("Основной сценарий за 5 минут", level=2)
     for step in SCENARIO:
@@ -135,8 +142,12 @@ def main():
 
     d.add_heading("Данные", level=2)
     d.add_paragraph("Code/demo_data — семь таблиц исследования команды (И1, И2, И3, И4, И6, И8, И10), 70 записей. "
-                    "Реальные поля из открытых источников (НСПД, ЕГРН, ЕГРЮЛ, ГИС «Торги», акты Ростовской "
-                    "области) отмечены автором жёлтым, остальное — синтетика. Репозиторий открытый, поэтому ФИО "
+                    "Реальные ячейки есть в семи строках; подробно разобраны два реальных примера: генплан Ростова-на-Дону (И2) и торги в Угличе (И4). Остальные строки "
+                    "синтетические. Таблицы составлены вручную по восьми источникам: НСПД, ЕГРН, кадастровая "
+                    "оценка, ЕГРЮЛ, ГИС «Торги», акты органов власти субъектов РФ, сайты муниципалитетов, "
+                    "протоколы комиссий. Связь по ИНН — отметка исследователя в таблице (колонка «Совпадение "
+                    "ИНН в ЕГРЮЛ»); автоматическое сопоставление по выгрузке ЕГРЮЛ — задача пилота. "
+                    "Таблица исследования — до 2 МиБ и 500 строк; вложение к объекту — до 5 МБ. Репозиторий открытый, поэтому ФИО "
                     "сокращены до инициалов, ИНН скрыты. Результат анализа от этого не меняется.")
 
     from docx.shared import Cm

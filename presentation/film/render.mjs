@@ -1,5 +1,6 @@
 /**
- * Рендер фильма: film.html → кадры 1920 × 1080, 30 к/с → mp4 со звуком music.wav.
+ * Рендер фильма: film.html → кадры 1920 × 1080, 30 к/с → mp4 со звуком music.wav и дорожкой
+ * субтитров (титры сцен из window.SUBTITLES — их читают плееры и автоматическая проверка).
  *
  *   PLAYWRIGHT=… node presentation/film/render.mjs                 # весь фильм
  *   PLAYWRIGHT=… node presentation/film/render.mjs --stills 3,12.5 # отдельные кадры в stills/
@@ -9,7 +10,7 @@
  */
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -55,13 +56,18 @@ await Promise.all(pages.map(async (page, w) => {
     if (!stills && done % 300 === 0) console.log(`${done} / ${times.length}`);
   }
 }));
+const subs = await pages[0].evaluate(() => window.SUBTITLES);
 await browser.close();
 
 if (!stills) {
+  const ts = (x) => { const ms = Math.round(x * 1000); const p = (n, w = 2) => String(n).padStart(w, "0");
+    return `${p(Math.floor(ms / 3600000))}:${p(Math.floor(ms / 60000) % 60)}:${p(Math.floor(ms / 1000) % 60)},${p(ms % 1000, 3)}`; };
+  const srt = resolve(here, "subs.srt");
+  writeFileSync(srt, subs.map((s, i) => `${i + 1}\n${ts(s.from)} --> ${ts(s.to)}\n${s.text}\n`).join("\n"));
   const mp4 = resolve(here, "..", "video", "kod-prozrachnosti-film.mp4");
   mkdirSync(dirname(mp4), { recursive: true });
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(fps), "-i", resolve(outDir, "%05d.jpg"),
-    "-i", resolve(here, "music.wav"), "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p",
-    "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", mp4]);
+    "-i", resolve(here, "music.wav"), "-i", srt, "-map", "0:v", "-map", "1:a", "-map", "2:s", "-c:v", "libx264", "-preset", "slow", "-crf", "20", "-pix_fmt", "yuv420p",
+    "-c:a", "aac", "-b:a", "256k", "-c:s", "mov_text", "-metadata:s:s:0", "language=rus", "-shortest", "-movflags", "+faststart", mp4]);
   console.log("готово: presentation/video/kod-prozrachnosti-film.mp4");
 } else console.log(`кадры: ${outDir}`);

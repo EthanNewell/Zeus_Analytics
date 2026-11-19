@@ -1,7 +1,8 @@
 /**
  * Кадры сервиса для презентации: снимает блоки страниц статичного демо (имена реальных людей
  * там уже скрыты) в presentation/img. Демо собирается командой export_demo и раздаётся любым
- * статичным сервером:  BASE=http://localhost:8790/kod-prozrachnosti/ node presentation/shots.mjs
+ * статичным сервером:  BASE=http://localhost:8790/kod-prozrachnosti/ AKSAI=<id> TAIL=<id> node presentation/shots.mjs
+ * id карточек: manage.py shell -c "from cases.models import Case; print(Case.objects.get(cadastral_number='61:02:0600010:2843').pk)"
  */
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -9,8 +10,10 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 const base = process.env.BASE || "https://oskarasadullin.github.io/kod-prozrachnosti/";
-const AKSAI = "cases/b64101b0-6ae5-45ee-91e3-acb7182f95e2/";
-const TAIL = "cases/ef36696f-26a7-4083-bac9-263ad0ac4c45/";
+// Адреса карточек: AKSAI — участок 61:02:0600010:2843, TAIL — 61:02:0120105:331 (id объекта в базе демо).
+const AKSAI = `cases/${process.env.AKSAI}/`;
+const TAIL = `cases/${process.env.TAIL}/`;
+if (!process.env.AKSAI || !process.env.TAIL) throw new Error("задайте AKSAI и TAIL — id карточек в базе демо");
 
 const shots = [
   // [файл, страница, селектор, ширина окна]

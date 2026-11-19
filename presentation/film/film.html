@@ -100,6 +100,7 @@ function caption(scene, { ey, ti, tx }) {
   list.forEach((v) => cap.querySelector(".r").appendChild(el(`<div class="tx">${v.html || `<div class="mask"><p class="txt">${v.text}</p></div>`}</div>`)));
   scene.appendChild(cap);
   scene._tx = list;
+  scene._cap = { ey, ti };
 }
 function captionAt(scene, t) {
   const [ey, ti] = $$(scene, ".cap .l .mask > *");
@@ -173,7 +174,7 @@ const SC = {};
 SC.title = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "Хакатон «Код прозрачности» · 2026", ti: "Zeus Analytics", tx: "Рабочее место специалиста по профилактике коррупции в земельных отношениях" });
+    caption(s, { ey: "Хакатон «Код прозрачности» · 2026", ti: "Риски в кадастре", tx: "Рабочее место специалиста по профилактике коррупции в земельных отношениях" });
     s.querySelector(".body").innerHTML = `
       <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Земельные решения</h1></div>
         <div class="mask"><h1 class="h big">по данным реестров</h1></div></div>
@@ -208,7 +209,7 @@ SC.problem = {
   kind: "blue",
   build(s) {
     caption(s, { ey: "01 / проблема", ti: "Восемь источников", tx: "Сведения об одном объекте хранятся в восьми источниках. Основание для проверки даёт сопоставление дат и лиц." });
-    const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты региона", "Сайты муниципалитетов", "Протоколы комиссий"];
+    const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты субъектов РФ", "Сайты муниципалитетов", "Протоколы комиссий"];
     s.querySelector(".body").innerHTML = `
       <div class="L"><div class="num cnt" style="font-size:520px;position:absolute;left:-14px;top:0">0</div>
         <div style="position:absolute;left:0;bottom:0"><div class="mask"><p class="txt lab" style="font-size:40px">источников на один объект</p></div></div></div>
@@ -288,10 +289,10 @@ SC.login = {
 SC.data = {
   kind: "grey",
   build(s) {
-    const st = [["70", "записей"], ["50", "объектов"], ["31", "сигнал"], ["17 мс", "весь анализ"]];
+    const st = [["70", "записей"], ["50", "объектов"], ["31", "сигнал"], ["16 мс", "медиана анализа"]];
     caption(s, { ey: "04 / данные", ti: "Загрузка таблиц", tx: [
-      { at: 0, text: "Семь таблиц исследования, Excel или CSV. Повторная загрузка не дублирует записи: 0 новых из 10." },
-      { at: TW + BAR * 3, html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
+      { at: 0, text: "Семь таблиц исследования, составленных вручную. Повторная загрузка не дублирует записи: 0 новых из 10." },
+      { at: TW + BAR * 3, sub: "70 записей, 50 объектов, 31 сигнал; медиана анализа — 16 мс.", html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
         `<div style="display:grid;gap:12px"><div class="mask"><div class="num stat" data-v="${v}" style="font-size:72px">0</div></div><div class="mask"><p class="eyebrow">${l}</p></div></div>`).join("")}</div>` }] });
     s._p = panel(s);
   },
@@ -330,7 +331,7 @@ SC.card = {
   build(s) {
     caption(s, { ey: "06 / карточка", ti: "Почему объект в реестре", tx: [
       { at: 0, text: "Аксайский район, 61:02:0600010:2843. Сработали три правила из четырёх, у каждого свой расчёт." },
-      { at: TW + BAR * 1.5, text: "И6. Участок куплен за 75 дней до начала процедуры; участник решения был учредителем покупателя." },
+      { at: TW + BAR * 1.5, text: "И6. Покупка за 75 дней до процедуры. Связь по ИНН — отметка исследователя в таблице." },
       { at: TW + BAR * 3.5, text: "И10. То же должностное лицо участвует ещё в пяти эпизодах других правил." },
       { at: TW + BAR * 5, text: "И1. Категорию земли сменили через 271 день после регистрации права." },
       { at: TW + BAR * 6.75, text: "Хронология собрана из трёх таблиц исследования." }] });
@@ -352,13 +353,13 @@ SC.timeline = {
   kind: "blue",
   build(s) {
     caption(s, { ey: "07 / хронология", ti: "События из трёх таблиц", tx: "Участок куплен за 75 дней до начала процедуры. Категорию сменили через 271 день после регистрации права." });
-    const ev = [["14.03.2024", "Присвоен кадастровый номер", "И1", ""], ["22.05.2025", "Регистрация права", "И1", ""],
-      ["22.05.2025", "Право покупателя", "И6", ""], ["05.08.2025", "Начало процедуры", "И6", "+75 дн."],
+    const ev = [["14.03.2024", "Присвоен кадастровый номер", "И1", ""], ["22.05.2025", "Регистрация права покупателя", "И1, И6", ""],
+      ["05.08.2025", "Начало процедуры", "И6", "+75 дн."],
       ["17.02.2026", "Смена категории", "И1", "+271 дн."], ["17.02.2026", "Новая кадастровая стоимость", "И3", ""], ["15.05.2026", "Раздел участка", "И3", ""]];
     const d0 = Date.parse("2024-01-01"), d1 = Date.parse("2026-07-01");
     const X = (d) => { const [dd, mm, yy] = d.split("."); return (Date.parse(`${yy}-${mm}-${dd}`) - d0) / (d1 - d0) * 848; };
     s._X = X;
-    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:64px repeat(7,1fr)">
+    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:64px repeat(6,1fr)">
       <div style="grid-template-columns:848px 848px;column-gap:64px;align-items:start"><span class="eyebrow" style="opacity:.6">дата / событие / правило</span>
         <span style="position:relative;height:22px">${["2024", "2025", "2026"].map((y) => `<span class="eyebrow yr" style="position:absolute;left:${X("01.01." + y)}px;top:0">${y}</span>`).join("")}</span></div>
       ${ev.map(([d, txt, code, gap]) => `<div class="ev" style="grid-template-columns:848px 848px;column-gap:64px">
@@ -486,8 +487,8 @@ SC.quality = {
       <div class="R"><div class="num total" style="font-size:400px;position:absolute;left:-12px;top:0">0</div>
         <div style="position:absolute;left:0;top:350px"><div class="mask"><p class="txt" style="font-size:34px">из 70 записей совпали</p></div></div>
         <div style="position:absolute;left:0;right:0;bottom:0;display:grid;gap:16px">
-          <div class="mask"><p class="txt f1">F1 0,98 · точность 1,00 · полнота 0,97</p></div>
-          <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение в И6: совпала только фамилия. Связь — ИНН или документ.</p></div></div></div>`;
+          <div class="mask"><p class="txt f1">Сработало 31 · не сработало 35 · недостаточно данных 4</p></div>
+          <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение в И6: совпала только фамилия. Независимой разметки нет.</p></div></div></div>`;
   },
   frame(s, t) {
     captionAt(s, t);
@@ -535,7 +536,7 @@ SC.principles = {
 SC.outro = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "Код прозрачности · 2026", ti: "Zeus Analytics", tx: [{ at: 0, html: `<div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics</p></div><div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>` }] });
+    caption(s, { ey: "Код прозрачности · 2026", ti: "Zeus Analytics", tx: [{ at: 0, sub: "Код github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp, демо oskarasadullin.github.io/kod-prozrachnosti.", html: `<div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp</p></div><div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>` }] });
     s.querySelector(".body").innerHTML = `
       <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Индикатор —</h1></div>
         <div class="mask"><h1 class="h big">повод для проверки</h1></div></div>
@@ -601,6 +602,17 @@ async function render(t) {
 }
 window.render = render;
 window.FILM_END = END;
+
+// Субтитры: заголовок и текст подписи каждой сцены с их временем — дорожка в mp4 (render.mjs).
+const plain = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.innerText.replace(/\s+/g, " ").trim(); };
+window.SUBTITLES = TL.sections.flatMap((sec, i) => {
+  const s = document.getElementById(sec.id), end = i + 1 < starts.length ? begin(i + 1) : END + 4;
+  return s._tx.map((v, k) => {
+    const from = begin(i) + Math.max(v.at, TW + 0.3), next = s._tx[k + 1];
+    const text = v.sub || v.text || plain(v.html);
+    return { from, to: next ? begin(i) + Math.max(next.at, TW + 0.3) : end, text: `${s._cap.ti}. ${text}` };
+  });
+});
 </script>
 </body>
 </html>
