@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static kp %}
 {% block title %}Карта · Код прозрачности{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'vendor/ol/ol.css' %}">{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-map.jpg" kicker="Геометрия из таблиц" title="Карта" lede="Контуры участков из И8 и изменённые зоны ПЗЗ и генплана из И2. Чем плотнее заливка — тем выше приоритет. Клик по контуру открывает карточку." short=True %}{% endblock %}
+{% block top %}{% include "_band.html" with img="img/band-map.jpg" kicker="Геометрия из таблиц" title="Карта" lede="Контуры участков из И8 и изменённые зоны ПЗЗ и генплана из И2. Чем плотнее заливка, тем выше приоритет. Нажатие на контур открывает карточку." short=True %}{% endblock %}
 {% block content %}
 <section class="section">
   <div class="map-grid">

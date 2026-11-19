@@ -5,8 +5,8 @@
 <section class="login">
   <div class="login-copy">
     <div class="hero-rail eyebrow"><span>Земельные отношения</span><span>Профилактика коррупции</span></div>
-    <h1 class="display-xl fit"><span class="sr-only">Риски в кадастре видны по фактам</span><span class="fit-line" aria-hidden="true">Риски в кадастре</span><span class="fit-line" aria-hidden="true">видны по фактам</span></h1>
-    <p class="lede j">Рабочее место специалиста: система сопоставляет сделки, смену категорий, правки ПЗЗ и связи с должностными лицами, объясняет каждый сигнал и хранит ход проверки.</p>
+    <h1 class="display-xl fit"><span class="sr-only">Земельные решения по данным реестров</span><span class="fit-line" aria-hidden="true">Земельные решения</span><span class="fit-line" aria-hidden="true">по данным реестров</span></h1>
+    <p class="lede j">Сервис сопоставляет сделки с землёй, смену категории, правки ПЗЗ и связи с должностными лицами, показывает основания для проверки по каждому объекту.</p>
     <form method="post" action="{% url 'accounts:login' %}" class="login-form">
       {% csrf_token %}
       {% if form.non_field_errors %}<div class="notice notice-strong small">Неверный логин или пароль.</div>{% endif %}

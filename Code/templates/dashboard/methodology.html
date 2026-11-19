@@ -1,33 +1,33 @@
 {% extends "base.html" %}{% load kp %}
 {% block title %}Методика · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-method.jpg" kicker="Как работает система" title="Методика" lede="Каждый индикатор — отдельное правило с версией. Правило берёт только исходные факты и само пересчитывает всё, что в таблице было формулой. Результат — один из четырёх статусов, объяснение и список недостающих сведений." short=True %}{% endblock %}
+{% block top %}{% include "_band.html" with img="img/band-method.jpg" kicker="Как работает сервис" title="Методика" lede="Каждый индикатор — отдельное правило с версией. Правило берёт исходные факты и заново считает значения, которые в таблице заданы формулой. Результат правила: один из четырёх статусов, объяснение и список недостающих сведений." short=True %}{% endblock %}
 {% block content %}
 <section class="section">
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Статусы правила</span><h2 class="h1">Четыре ответа, без «процента коррупции»</h2></div>
+    <div class="block-rail"><span class="eyebrow">Статусы правила</span><h2 class="h1">Четыре ответа правила</h2></div>
     <div class="block-body">
       <ul class="list">
-        <li><span class="state">{% attention_level 'normal' %}<span class="tag tag-blue">Сработал</span></span><span class="body-s">Сочетание обстоятельств найдено — повод для проверки.</span></li>
-        <li><span class="state">{% attention_level 'none' %}<span class="tag">Не сработал</span></span><span class="body-s">Только для проверенных правил и имеющихся сведений.</span></li>
-        <li><span class="state">{% attention_level 'insufficient' %}<span class="tag">Недостаточно данных</span></span><span class="body-s">Вывод невозможен. Это не «риска нет».</span></li>
+        <li><span class="state">{% attention_level 'normal' %}<span class="tag tag-blue">Сработал</span></span><span class="body-s">Условие правила выполнено. Индикатор — повод для проверки.</span></li>
+        <li><span class="state">{% attention_level 'none' %}<span class="tag">Не сработал</span></span><span class="body-s">Условие правила не выполнено на имеющихся сведениях.</span></li>
+        <li><span class="state">{% attention_level 'insufficient' %}<span class="tag">Недостаточно данных</span></span><span class="body-s">Сведений для вывода не хватает. Нет данных — значит, не проверено.</span></li>
         <li><span class="state">{% attention_level 'not_run' %}<span class="tag">Не применим</span></span><span class="body-s">Правило не относится к объекту.</span></li>
       </ul>
     </div>
   </div>
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Итог по объекту</span><h2 class="h1">Приоритет проверки</h2></div>
+    <div class="block-rail"><span class="eyebrow">Итог по объекту</span><h2 class="h1">Приоритет проверки</h2><p class="small soft">Объекты разложены по пяти уровням приоритета; вероятность коррупции сервис не считает.</p></div>
     <div class="block-body">
       <ul class="list">
         <li><span class="state">{% attention_level 'high' %}<span class="eyebrow">Высокий приоритет</span></span><span class="body-s">Подтверждённая связь с должностным лицом (И6), повтор лица (И10) или два основных индикатора сразу.</span></li>
         <li><span class="state">{% attention_level 'normal' %}<span class="eyebrow">Требует проверки</span></span><span class="body-s">Сработал один основной индикатор.</span></li>
-        <li><span class="state">{% attention_level 'low' %}<span class="eyebrow">Контекстный признак</span></span><span class="body-s">Только И3: показывает механизм выгоды, сам приоритет не поднимает.</span></li>
-        <li><span class="state">{% attention_level 'insufficient' %}<span class="eyebrow">Недостаточно данных</span></span><span class="body-s">Ничего не сработало, но где-то не хватило сведений.</span></li>
+        <li><span class="state">{% attention_level 'low' %}<span class="eyebrow">Контекстный признак</span></span><span class="body-s">Сработал только И3. Он показывает, как могла быть получена выгода; приоритет не повышает.</span></li>
+        <li><span class="state">{% attention_level 'insufficient' %}<span class="eyebrow">Недостаточно данных</span></span><span class="body-s">Ни одно правило не сработало, хотя бы одному не хватило сведений.</span></li>
         <li><span class="state">{% attention_level 'none' %}<span class="eyebrow">Сигналов нет</span></span><span class="body-s">Ни одно правило не сработало на имеющихся данных.</span></li>
       </ul>
     </div>
   </div>
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Происхождение</span><h2 class="h1">Текстура вместо цвета</h2></div>
+    <div class="block-rail"><span class="eyebrow">Происхождение</span><h2 class="h1">Метки происхождения</h2></div>
     <div class="block-body"><div class="legend body-s"><span class="org o-real">реальное по маркировке автора (жёлтая ячейка)</span><span class="org o-synth">синтетическое</span><span class="org o-calc">расчёт в исходной таблице</span><span class="org o-unknown">происхождение уточнить (CSV без разметки)</span><span class="org o-missing">нет данных</span></div></div>
   </div>
 </section>
@@ -45,13 +45,13 @@
 </section>
 <section class="section" id="tz">
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Правила ТЗ</span><h2 class="h1">Соответствие Р1.2, Р1.6, Р1.8</h2><p class="small soft">Полностью — в docs/indicator-mapping.md</p></div>
+    <div class="block-rail"><span class="eyebrow">Правила ТЗ</span><h2 class="h1">Соответствие Р1.2, Р1.6, Р1.8</h2><p class="small soft">Полная таблица: docs/indicator-mapping.md</p></div>
     <div class="block-body tbl-wrap"><table class="tbl">
       <thead><tr><th>Правило ТЗ</th><th>Чем покрыто</th><th>Статус</th></tr></thead>
       <tbody>
         <tr><td>Р1.6 — приобретение связанным лицом до начала процедуры</td><td data-label="Покрыто"><div class="codes"><span class="code">И6</span><span class="code">И1</span><span class="code">И10</span></div></td><td data-label="Статус" class="small">Реализовано как И6; одна фамилия — «недостаточно данных»</td></tr>
-        <tr><td>Р1.8 — последующая реализация выгоды, контекст</td><td data-label="Покрыто"><div class="codes"><span class="code">И3</span></div></td><td data-label="Статус" class="small">Реализовано как И3; приоритет не поднимает</td></tr>
-        <tr><td>Р1.2 — новый ВРИ не соответствует регламенту</td><td data-label="Покрыто"><span class="soft">—</span></td><td data-label="Статус" class="small">Нет данных: в таблицах нет истории ВРИ и редакций ПЗЗ. И2 — другой кандидат</td></tr>
+        <tr><td>Р1.8 — последующая реализация выгоды, контекст</td><td data-label="Покрыто"><div class="codes"><span class="code">И3</span></div></td><td data-label="Статус" class="small">Реализовано как И3; приоритет не повышает</td></tr>
+        <tr><td>Р1.2 — новый ВРИ не соответствует регламенту</td><td data-label="Покрыто"><span class="soft">—</span></td><td data-label="Статус" class="small">Нет данных: в таблицах нет истории ВРИ и редакций ПЗЗ. И2 проверяет другое условие</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -60,7 +60,7 @@
   <div class="block">
     <div class="block-rail"><span class="eyebrow">Контрольный набор</span><h2 class="h1">Сверка с разметкой исследования</h2>{% if run %}<span class="num-xl">{{ run.agreed_count }}/{{ run.compared_count }}</span>{% endif %}</div>
     <div class="block-body">
-      <p class="body-s j">В каждой таблице исследования есть колонка с ответом автора. Правила системы считают ответ заново по исходным фактам, и мы сравниваем. Это показывает работу правил на тестовых примерах, а не качество выявления коррупции на реальных данных.{% if run and run.agreed_count != run.compared_count %} Расхождения намеренные: совпадение одной фамилии система не считает доказанной связью и требует документов — временная близость событий и совпадение фамилий не заменяют подтверждения связи участников.{% endif %}</p>
+      <p class="body-s j">В каждой таблице исследования есть колонка с ответом автора. Правила считают ответ заново по исходным фактам, сервис сравнивает оба ответа. Сверка показывает работу правил на тестовых примерах. Качество выявления коррупции на реальных данных она не измеряет.{% if run and run.agreed_count != run.compared_count %} Расхождения заложены в правило: при совпадении одной фамилии сервис отвечает «недостаточно данных», пока связь не подтверждена документами.{% endif %}</p>
       <div class="tbl-wrap"><table class="tbl quality">
         <thead><tr><th>Индикатор</th><th>Совпадение</th><th class="r">Совпало</th></tr></thead>
         <tbody>{% for row in rows %}<tr>
@@ -68,7 +68,7 @@
           <td style="vertical-align:middle">{% if row.compared %}<div class="bar"><span class="b-trig" style="width:{{ row.agreed|percent:row.compared }}%"></span></div>{% endif %}</td>
           <td class="r nowrap" data-label="Совпало">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
         </tr>
-        {% for outcome in row.mismatches %}<tr class="mismatch-row"><td colspan="3"><div class="notice small"><span class="eyebrow">Расхождение / {{ outcome.record.title|truncatechars:60 }}</span><p style="margin-top:var(--s2)">У автора — «{{ outcome.record.author_mark }}», у правила — {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p></div></td></tr>{% endfor %}
+        {% for outcome in row.mismatches %}<tr class="mismatch-row"><td colspan="3"><div class="notice small"><span class="eyebrow">Расхождение / {{ outcome.record.title|truncatechars:60 }}</span><p style="margin-top:var(--s2)">Ответ автора: «{{ outcome.record.author_mark }}». Ответ правила: {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p></div></td></tr>{% endfor %}
         {% endfor %}</tbody>
       </table></div>
     </div>

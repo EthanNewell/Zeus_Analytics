@@ -13,7 +13,7 @@
         {% if case.region %}<span class="eyebrow">{{ case.region }}</span>{% endif %}
         {% if case.area_sq_m %}<span class="eyebrow">{{ case.area_sq_m|floatformat:"0g" }} м²</span>{% endif %}
       </div>
-      {% if case.is_demonstration %}<p class="small" style="max-width:60ch">Демонстрационные данные: часть сведений синтетическая. Сигналы показывают работу правил и не являются выявленными нарушениями.</p>{% endif %}
+      {% if case.is_demonstration %}<p class="small" style="max-width:60ch">Данные демонстрационные: часть сведений синтетическая. Сработавшие индикаторы показывают работу правил, нарушений они не устанавливают.</p>{% endif %}
     </div>
     <aside class="head-side">
       {% if outline %}
@@ -39,7 +39,7 @@
 {% block content %}
 <section class="section">
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Анализ</span><h2 class="h1">Почему объект в реестре</h2><p class="small soft">Каждый индикатор — отдельное правило: статус, объяснение, расчёт и чего не хватает.</p></div>
+    <div class="block-rail"><span class="eyebrow">Анализ</span><h2 class="h1">Почему объект в реестре</h2><p class="small soft">По каждому индикатору: статус, объяснение, расчёт и недостающие сведения.</p></div>
     <div class="block-body">
       {% for item in story.findings %}{% with outcome=item.outcome indicator=item.indicator %}
       <article class="finding">
@@ -52,7 +52,7 @@
         <p class="body-s j">{{ outcome.explanation }}</p>
         {% if outcome.metrics %}<div class="metrics">{% for label, value in outcome.metrics %}<div class="metric"><span class="eyebrow">{{ label }}</span><b>{{ value }}</b></div>{% endfor %}</div>{% endif %}
         {% if outcome.missing_fields %}<div class="notice small"><span class="eyebrow">Чего не хватает</span><ul style="margin:var(--s2) 0 0;padding-left:1.1rem">{% for field in outcome.missing_fields %}<li>{{ field }}</li>{% endfor %}</ul></div>{% endif %}
-        {% if not outcome.agrees %}<p class="small">В разметке исследования здесь «{{ item.record.author_mark }}». Правило намеренно строже — <a class="code" href="{% url 'dashboard:methodology' %}#quality">почему</a></p>{% endif %}
+        {% if not outcome.agrees %}<p class="small">В разметке исследования здесь «{{ item.record.author_mark }}». Ответ правила отличается: <a class="code" href="{% url 'dashboard:methodology' %}#quality">причина</a></p>{% endif %}
         <p class="small soft j">Что учесть: {{ indicator.limitations }}</p>
         <span class="eyebrow soft">Правило {{ indicator.code_display }} v{{ outcome.rule_version }} / запуск {{ outcome.run.started_at|date:"d.m.Y H:i" }}{% if outcome.is_demonstration %} / демонстрационные данные{% endif %}</span>
         {% endif %}
@@ -97,7 +97,7 @@
               <div><label class="field-label eyebrow" for="{{ evidence_form.source_reference.id_for_label }}">Источник и реквизиты</label>{{ evidence_form.source_reference }}</div>
               <div><label class="field-label eyebrow" for="{{ evidence_form.origin.id_for_label }}">Происхождение</label>{{ evidence_form.origin }}</div>
             </div>
-            <div class="file-pick"><input id="doc-file" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt"><label class="btn" for="doc-file" data-lbl="Выбрать файл">Выбрать файл</label><span class="file-name small" id="doc-file-name">PDF, изображение, DOCX, XLSX или TXT до 5 МБ — либо только ссылка</span></div>
+            <div class="file-pick"><input id="doc-file" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt"><label class="btn" for="doc-file" data-lbl="Выбрать файл">Выбрать файл</label><span class="file-name small" id="doc-file-name">PDF, изображение, DOCX, XLSX или TXT до 5 МБ. Можно только ссылку</span></div>
             <button class="btn btn-primary" type="submit" data-lbl="Добавить к объекту">Добавить к объекту</button>
           </form>
         </details>
@@ -107,7 +107,7 @@
   </div>
 
   <div class="block" id="review">
-    <div class="block-rail"><span class="eyebrow">Решение человека</span><h2 class="h1">Проверка сотрудника</h2><p class="small soft">Хранится отдельно: не меняет исходные факты и сигнал системы.</p></div>
+    <div class="block-rail"><span class="eyebrow">Проверка</span><h2 class="h1">Решение сотрудника</h2><p class="small soft">Запись хранится отдельно и не меняет исходные факты и итог анализа.</p></div>
     <div class="block-body">
       {% if perms.cases.add_review %}
       <form method="post" action="{% url 'dashboard:review_create' case.id %}" style="display:grid;gap:var(--s4)">{% csrf_token %}
@@ -124,7 +124,7 @@
   </div>
 
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Первоисточник</span><h2 class="h1">Исходные факты</h2><p class="small soft">Каждое поле — с ячейкой файла и происхождением. Жирным — то, на что опирается правило.</p></div>
+    <div class="block-rail"><span class="eyebrow">Первоисточник</span><h2 class="h1">Исходные факты</h2><p class="small soft">У каждого значения есть источник: ячейка файла и происхождение. Жирным выделены поля, которые использует правило.</p></div>
     <div class="block-body" style="gap:0">
       {% for table in story.fact_tables %}
       <details class="facts" {% if forloop.first %}open{% endif %}>

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Загрузка · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-upload.jpg" kicker="Импорт данных" title="Загрузка таблиц" lede="Таблицы индикаторов в том виде, как их готовит исследование: Excel или CSV. Тип таблицы определяется по заголовкам, жёлтая заливка сохраняется как «реальное по маркировке автора»." short=True %}{% endblock %}
+{% block top %}{% include "_band.html" with img="img/band-upload.jpg" kicker="Импорт данных" title="Загрузка таблиц" lede="Загрузите таблицы индикаторов в формате Excel или CSV. Сервис определяет тип таблицы по заголовкам и сохраняет жёлтую заливку как «реальное по маркировке автора»." short=True %}{% endblock %}
 {% block content %}
 <section class="section">
   <div class="block">
-    <div class="block-rail"><span class="eyebrow">Новый файл</span><h2 class="h1">Загрузить и проверить</h2><p class="small soft">Файл проверяется целиком до записи: при любой ошибке ничего не сохраняется. Повторная загрузка обновляет записи, а не дублирует их.</p></div>
+    <div class="block-rail"><span class="eyebrow">Новый файл</span><h2 class="h1">Загрузить и проверить</h2><p class="small soft">Сервис проверяет файл целиком до записи: при любой ошибке ничего не сохраняет. Повторная загрузка обновляет записи без дублей.</p></div>
     <div class="block-body">
       {% if errors %}
       <div class="notice notice-strong" role="alert"><span class="eyebrow">Файл не загружен, данные не изменены</span>

@@ -75,7 +75,10 @@ class Command(BaseCommand):
         with override_settings(
             DEBUG=False,
             ALLOWED_HOSTS=["testserver"],
-            STORAGES={**settings.STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}},
+            STORAGES={
+                **settings.STORAGES,
+                "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+            },
         ):
             client = Client()
             client.force_login(actor)
@@ -92,7 +95,9 @@ class Command(BaseCommand):
         for record in Record.objects.all():
             facts = record.facts
             for fact in facts.values():
-                if fact.get("origin") == Origin.AUTHOR_MARKED_REAL and isinstance(fact.get("value"), str):
+                if fact.get("origin") == Origin.AUTHOR_MARKED_REAL and isinstance(
+                    fact.get("value"), str
+                ):
                     masked = mask(fact["value"])
                     if masked != fact["value"]:
                         fact["value"] = masked
@@ -141,13 +146,19 @@ class Command(BaseCommand):
 
             def rewrite(match, current=url):
                 attr, link, anchor = match.group(1), match.group(2), match.group(3) or ""
-                if not link or link.startswith(("http:", "https:", "mailto:", "data:", "javascript:")):
+                if not link or link.startswith(
+                    ("http:", "https:", "mailto:", "data:", "javascript:")
+                ):
                     return match.group(0)
                 absolute = self.canonical(urljoin(current, link))
                 if absolute.startswith("/static/"):
                     return f'{attr}{prefix}{absolute.lstrip("/")}{anchor}"'
                 if any(absolute.startswith(skip) for skip in SKIP):
-                    return f'{attr}#{anchor.lstrip("#")}"' if attr.strip().startswith("href") else match.group(0)
+                    return (
+                        f'{attr}#{anchor.lstrip("#")}"'
+                        if attr.strip().startswith("href")
+                        else match.group(0)
+                    )
                 # one filter at a time (plus a page number): combinations of filters would explode
                 params = [k for k, v in parse_qsl(urlsplit(absolute).query) if v and k != "page"]
                 if len(params) <= 1 and absolute not in seen:

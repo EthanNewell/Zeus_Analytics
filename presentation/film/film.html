@@ -175,8 +175,8 @@ SC.title = {
   build(s) {
     caption(s, { ey: "Хакатон «Код прозрачности» · 2026", ti: "Zeus Analytics", tx: "Рабочее место специалиста по профилактике коррупции в земельных отношениях" });
     s.querySelector(".body").innerHTML = `
-      <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Риски в кадастре</h1></div>
-        <div class="mask"><h1 class="h big">видны по фактам</h1></div></div>
+      <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Земельные решения</h1></div>
+        <div class="mask"><h1 class="h big">по данным реестров</h1></div></div>
       <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/hero.jpg" style="position:absolute;left:0;width:100%;object-fit:cover" alt="" /></div>`;
   },
   layout(s) { fitPair(s, 0); },
@@ -207,7 +207,7 @@ function fitPair(s) {
 SC.problem = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "01 / проблема", ti: "Факты разбросаны", tx: "По отдельности каждый факт законен. Повод для проверки — в сочетании дат и лиц." });
+    caption(s, { ey: "01 / проблема", ti: "Восемь источников", tx: "Сведения об одном объекте хранятся в восьми источниках. Основание для проверки даёт сопоставление дат и лиц." });
     const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты региона", "Сайты муниципалитетов", "Протоколы комиссий"];
     s.querySelector(".body").innerHTML = `
       <div class="L"><div class="num cnt" style="font-size:520px;position:absolute;left:-14px;top:0">0</div>
@@ -215,7 +215,7 @@ SC.problem = {
       <div class="R"><div class="rows" style="grid-template-rows:repeat(8,1fr)">${names.map((n, i) =>
         `<div style="grid-template-columns:80px 1fr"><span class="eyebrow" style="opacity:.6">${String(i + 1).padStart(2, "0")}</span><span class="txt" style="font-size:32px">${n}</span></div>`).join("")}</div>
         <div class="one" style="position:absolute;left:0;right:0;bottom:0;background:#fff;color:var(--blue);display:grid;align-content:end;padding:40px">
-          <p class="eyebrow">Код прозрачности</p><p class="h" style="font-size:96px;margin-top:16px">один экран</p></div></div>`;
+          <p class="eyebrow">Код прозрачности</p><p class="h" style="font-size:96px;margin-top:16px">карточка объекта</p></div></div>`;
   },
   frame(s, t) {
     captionAt(s, t);
@@ -241,8 +241,8 @@ SC.problem = {
 SC.mechanisms = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "02 / что ищем", ti: "Три механизма риска", tx: "Семь правил исследования сведены к трём схемам. Каждое правило — отдельный сигнал со своим расчётом." });
-    const items = [["m1", "#1 / И1, И3, И6", "Сделка перед решением"], ["m2", "#2 / И2, И4, И10", "Решение под владельца"], ["m3", "#3 / И8", "Граница с изломом"]];
+    caption(s, { ey: "02 / что ищем", ti: "Три механизма риска", tx: "Семь правил исследования объединены в три механизма. У каждого правила свой сигнал и свой расчёт." });
+    const items = [["m1", "#1 / И1, И3, И6", "Сделка перед решением"], ["m2", "#2 / И2, И4, И10", "Решение в пользу владельца"], ["m3", "#3 / И8", "Граница с изломом"]];
     s.querySelector(".body").innerHTML = `<div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px">${items.map(([img, ey, ti]) => `
       <figure class="m" style="position:relative;display:grid;grid-template-rows:1fr 150px">
         <div style="overflow:hidden;position:relative"><img src="../../Code/static/img/${img}.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="" /></div>
@@ -265,7 +265,7 @@ SC.mechanisms = {
 SC.login = {
   kind: "grey",
   build(s) {
-    caption(s, { ey: "03 / вход", ti: "Доступ по ролям", tx: "Специалист, проверяющий и руководитель видят своё. Учётные записи выдаёт администратор." });
+    caption(s, { ey: "03 / вход", ti: "Доступ по ролям", tx: "У специалиста, проверяющего и руководителя разные права. Учётные записи выдаёт администратор." });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -289,7 +289,7 @@ SC.data = {
   kind: "grey",
   build(s) {
     const st = [["70", "записей"], ["50", "объектов"], ["31", "сигнал"], ["17 мс", "весь анализ"]];
-    caption(s, { ey: "04 / данные", ti: "Таблицы как есть", tx: [
+    caption(s, { ey: "04 / данные", ti: "Загрузка таблиц", tx: [
       { at: 0, text: "Семь таблиц исследования, Excel или CSV. Повторная загрузка не дублирует записи: 0 новых из 10." },
       { at: TW + BAR * 3, html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
         `<div style="display:grid;gap:12px"><div class="mask"><div class="num stat" data-v="${v}" style="font-size:72px">0</div></div><div class="mask"><p class="eyebrow">${l}</p></div></div>`).join("")}</div>` }] });
@@ -314,7 +314,7 @@ SC.data = {
 SC.registry = {
   kind: "grey",
   build(s) {
-    caption(s, { ey: "05 / реестр", ti: "Сначала главное", tx: "Восемь объектов с высоким приоритетом. Пять уровней приоритета — процента коррупции нет намеренно." });
+    caption(s, { ey: "05 / реестр", ti: "Реестр по приоритету", tx: "Восемь объектов с высоким приоритетом. Объекты разложены по пяти уровням приоритета; вероятность коррупции сервис не считает." });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -329,11 +329,11 @@ SC.card = {
   kind: "grey",
   build(s) {
     caption(s, { ey: "06 / карточка", ti: "Почему объект в реестре", tx: [
-      { at: 0, text: "Аксайский район, 61:02:0600010:2843. Три правила из четырёх сработали, каждое — со своим расчётом." },
+      { at: 0, text: "Аксайский район, 61:02:0600010:2843. Сработали три правила из четырёх, у каждого свой расчёт." },
       { at: TW + BAR * 1.5, text: "И6. Участок куплен за 75 дней до начала процедуры; участник решения был учредителем покупателя." },
-      { at: TW + BAR * 3.5, text: "И10. То же должностное лицо — ещё в пяти эпизодах других правил." },
+      { at: TW + BAR * 3.5, text: "И10. То же должностное лицо участвует ещё в пяти эпизодах других правил." },
       { at: TW + BAR * 5, text: "И1. Категорию земли сменили через 271 день после регистрации права." },
-      { at: TW + BAR * 6.75, text: "Хронологию система собрала сама — из трёх разных таблиц исследования." }] });
+      { at: TW + BAR * 6.75, text: "Хронология собрана из трёх таблиц исследования." }] });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -351,7 +351,7 @@ SC.card = {
 SC.timeline = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "07 / хронология", ti: "События из трёх таблиц", tx: "Покупка — за 75 дней до начала процедуры. Смена категории — через 271 день после регистрации права." });
+    caption(s, { ey: "07 / хронология", ti: "События из трёх таблиц", tx: "Участок куплен за 75 дней до начала процедуры. Категорию сменили через 271 день после регистрации права." });
     const ev = [["14.03.2024", "Присвоен кадастровый номер", "И1", ""], ["22.05.2025", "Регистрация права", "И1", ""],
       ["22.05.2025", "Право покупателя", "И6", ""], ["05.08.2025", "Начало процедуры", "И6", "+75 дн."],
       ["17.02.2026", "Смена категории", "И1", "+271 дн."], ["17.02.2026", "Новая кадастровая стоимость", "И3", ""], ["15.05.2026", "Раздел участка", "И3", ""]];
@@ -389,7 +389,7 @@ SC.timeline = {
 SC.review = {
   kind: "grey",
   build(s) {
-    caption(s, { ey: "08 / решение человека", ti: "Решает сотрудник", tx: [
+    caption(s, { ey: "08 / проверка", ti: "Вывод сотрудника", tx: [
       { at: 0, text: "Сотрудник отмечает вывод и пишет, какие документы открыл и что проверил." },
       { at: TW + BAR * 4, text: "Запись хранится с автором и временем. Факты и сигнал системы не меняются." }] });
     s._p = panel(s);
@@ -418,7 +418,7 @@ SC.review = {
 SC.geometry = {
   kind: "blue",
   build(s) {
-    caption(s, { ey: "09 / геометрия", ti: "Граница с изломом", tx: "Участок 61:02:0120105:331. Контур посчитан по координатам: участок занимает лишь 59 % описанного прямоугольника." });
+    caption(s, { ey: "09 / геометрия", ti: "Граница с изломом", tx: "Участок 61:02:0120105:331. По координатам контура он занимает 59 % описанного прямоугольника." });
     s.querySelector(".body").innerHTML = `
       <div class="L"><div class="num fill" style="font-size:300px;position:absolute;left:-8px;top:0">0,000</div>
         <div style="position:absolute;left:0;top:280px"><div class="mask"><p class="txt" style="font-size:34px">коэффициент заполнения</p></div></div>
@@ -487,7 +487,7 @@ SC.quality = {
         <div style="position:absolute;left:0;top:350px"><div class="mask"><p class="txt" style="font-size:34px">из 70 записей совпали</p></div></div>
         <div style="position:absolute;left:0;right:0;bottom:0;display:grid;gap:16px">
           <div class="mask"><p class="txt f1">F1 0,98 · точность 1,00 · полнота 0,97</p></div>
-          <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение намеренное: совпала только фамилия — это гипотеза, а не связь.</p></div></div></div>`;
+          <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение в И6: совпала только фамилия. Связь — ИНН или документ.</p></div></div></div>`;
   },
   frame(s, t) {
     captionAt(s, t);
@@ -511,7 +511,7 @@ SC.principles = {
   kind: "grey",
   build(s) {
     caption(s, { ey: "12 / принципы", ti: "Как читать сигнал", tx: "Система показывает основания для проверки и не делает выводов о нарушении." });
-    const items = ["Сигнал, а не обвинение", "«Нет данных» — не «нет риска»", "У каждого значения — первоисточник", "Решение принимает человек"];
+    const items = ["Индикатор — повод для проверки", "Нет данных — значит, не проверено", "У каждого значения есть источник", "Решение принимает сотрудник"];
     s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:repeat(4,1fr)">${items.map((x, i) => `
       <div style="grid-template-columns:120px 1fr"><span class="eyebrow">${String(i + 1).padStart(2, "0")}</span><div class="mask"><p class="h pr" style="white-space:nowrap">${x}</p></div></div>`).join("")}</div>`;
   },
@@ -538,7 +538,7 @@ SC.outro = {
     caption(s, { ey: "Код прозрачности · 2026", ti: "Zeus Analytics", tx: [{ at: 0, html: `<div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics</p></div><div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>` }] });
     s.querySelector(".body").innerHTML = `
       <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Индикатор —</h1></div>
-        <div class="mask"><h1 class="h big">повод проверить</h1></div></div>
+        <div class="mask"><h1 class="h big">повод для проверки</h1></div></div>
       <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/band-cases.jpg" style="position:absolute;left:0;width:100%;height:auto" alt="" /></div>`;
   },
   layout(s) { fitPair(s); },

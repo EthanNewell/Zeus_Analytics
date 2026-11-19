@@ -35,7 +35,7 @@ def run_analysis(*, actor, case_ids=None):
     records = list(records)
     if not records:
         raise AnalysisNotConfigured(
-            "Нет загруженных записей: сначала импортируйте таблицы индикаторов."
+            "Нет загруженных записей: сначала загрузите таблицы индикаторов."
         )
     run = AnalysisRun.objects.create(
         started_by=actor, rules={code: rule.version for code, rule in RULES.items()}

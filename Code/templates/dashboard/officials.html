@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load kp %}
 {% block title %}Должностные лица · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-officials.jpg" kicker="Индикатор И10" title="Должностные лица" lede="Кто повторяется в эпизодах других индикаторов. Повтор — повод посмотреть на решения лица вместе, а не вывод о вине. Все лица в наборе синтетические." short=True %}{% endblock %}
+{% block top %}{% include "_band.html" with img="img/band-officials.jpg" kicker="Индикатор И10" title="Должностные лица" lede="Должностные лица из таблицы И10 и эпизоды с их участием. Повтор лица — повод проверить его решения вместе. Все лица в наборе синтетические." short=True %}{% endblock %}
 {% block content %}
 <section class="section">
   {% for person in people %}

@@ -62,7 +62,7 @@ def _insufficient(code, missing, used, what):
     return Evaluation(
         RuleStatus.INSUFFICIENT_DATA,
         Priority.LOW,
-        f"Нельзя проверить {what}: не хватает сведений — {', '.join(m.lower() for m in missing)}.",
+        f"Нельзя проверить {what}. Не хватает сведений: {', '.join(m.lower() for m in missing)}.",
         used=used,
         missing=missing,
     )
@@ -81,7 +81,7 @@ def rule_i1(facts):
         return Evaluation(
             RuleStatus.NOT_TRIGGERED,
             Priority.LOW,
-            f"Категория изменена {d(changed)}, раньше регистрации права {d(bought)}: участок куплен уже после решения.",
+            f"Категория изменена {d(changed)}, раньше регистрации права {d(bought)}: участок куплен после смены категории.",
             used,
             metrics=metrics,
         )
@@ -89,14 +89,14 @@ def rule_i1(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.NORMAL,
-            f"Право зарегистрировано {d(bought)}, а через {days} дн. ({d(changed)}) категорию изменили — внутри окна {WINDOW_MONTHS} месяцев (до {d(window_end)}).",
+            f"Право зарегистрировано {d(bought)}. Категорию изменили {d(changed)}, через {days} дн.: это в пределах окна {WINDOW_MONTHS} месяцев (до {d(window_end)}).",
             used,
             metrics=metrics,
         )
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"Между покупкой ({d(bought)}) и сменой категории ({d(changed)}) прошло {days} дн. — больше окна {WINDOW_MONTHS} месяцев.",
+        f"Между покупкой ({d(bought)}) и сменой категории ({d(changed)}) прошло {days} дн.: это больше окна {WINDOW_MONTHS} месяцев.",
         used,
         metrics=metrics,
     )
@@ -119,19 +119,20 @@ def rule_i2(facts):
         )
     share = owner / zone
     metrics = [("Доля основного владельца в зоне", f"{number(share * 100, 1)} %")]
-    after = fact_value(facts, "zone_after") or "новую зону"
+    after = fact_value(facts, "zone_after")
+    after_text = f" Зона после изменений: «{after}»." if after else ""
     if share >= SHARE_THRESHOLD:
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.NORMAL,
-            f"Участки одного владельца занимают {number(owner, 1)} из {number(zone, 1)} га изменённой зоны ({number(share * 100)} %) — зону перевели в «{after}» практически под него.",
+            f"Участки одного владельца занимают {number(owner, 1)} из {number(zone, 1)} га изменённой зоны ({number(share * 100)} %). Порог {number(SHARE_THRESHOLD * 100)} % достигнут.{after_text}",
             used + ["zone_before", "zone_after", "holders_approval"],
             metrics=metrics,
         )
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"Основной владелец занимает {number(share * 100)} % зоны — изменение затрагивает многих правообладателей, порог {number(SHARE_THRESHOLD * 100)} % не достигнут.",
+        f"Участки основного владельца занимают {number(share * 100)} % зоны. Порог {number(SHARE_THRESHOLD * 100)} % не достигнут.",
         used,
         metrics=metrics,
     )
@@ -154,11 +155,10 @@ def rule_i3(facts):
         return Evaluation(
             RuleStatus.NOT_TRIGGERED,
             Priority.LOW,
-            "Продажи после смены категории не было"
-            + (
-                " — выгода не реализована."
+            (
+                "Кадастровая стоимость после смены категории выросла, продажи не было."
                 if growth_after_change
-                else ", рост КС после смены категории не выявлен."
+                else "Продажи после смены категории не было, рост КС после смены категории не выявлен."
             ),
             used,
             metrics=metrics,
@@ -170,7 +170,7 @@ def rule_i3(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.LOW,
-            f"После смены категории ({d(changed)}) кадастровая стоимость выросла с {money(before)} до {money(after)}, а {d(sold)} участок продан{price_text}. Контекстный признак: показывает, как могла быть получена выгода.",
+            f"После смены категории ({d(changed)}) кадастровая стоимость выросла с {money(before)} до {money(after)}. {d(sold)} участок продан{price_text}. Контекстный признак: показывает, как могла быть получена выгода.",
             used + ["new_holder", "deal_price"],
             metrics=metrics,
         )
@@ -182,7 +182,7 @@ def rule_i3(facts):
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"Продажа {d(sold)} была, но {reason} — выгоды именно от смены категории не видно.",
+        f"Участок продан {d(sold)}, но {reason}. Условие правила не выполнено.",
         used,
         metrics=metrics,
     )
@@ -198,7 +198,7 @@ def rule_i4(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.NORMAL,
-            f"Торги с единственным участником: имущество передано по начальной цене {money(fact_value(facts, 'final_price') or 0)} без конкуренции.",
+            f"Торги с единственным участником: имущество передано по начальной цене {money(fact_value(facts, 'final_price') or 0)}.",
             used + ["counterparty", "method"],
         )
     if bypass:
@@ -213,7 +213,7 @@ def rule_i4(facts):
         return Evaluation(
             RuleStatus.NOT_TRIGGERED,
             Priority.LOW,
-            f"Цена на торгах выросла с {money(start)} до {money(final)} ({number(final / start * 100 - 100)} %) — конкуренция была.",
+            f"Цена на торгах выросла с {money(start)} до {money(final)} ({number(final / start * 100 - 100)} %): признак конкуренции.",
             used,
             metrics=[("Рост цены на торгах", f"{number(final / start * 100 - 100)} %")],
         )
@@ -239,7 +239,7 @@ def rule_i6(facts):
         return Evaluation(
             RuleStatus.NOT_TRIGGERED,
             Priority.LOW,
-            f"Покупка ({d(bought)}) — после начала процедуры ({d(started)}): заранее о решении знать было не нужно.",
+            f"Покупка ({d(bought)}) не раньше начала процедуры ({d(started)}). Условие правила не выполнено.",
             used,
             metrics=metrics,
         )
@@ -260,7 +260,7 @@ def rule_i6(facts):
         return Evaluation(
             RuleStatus.INSUFFICIENT_DATA,
             Priority.NORMAL,
-            f"Покупка за {days} дн. до процедуры, с участником решения ({official}) совпадает только фамилия. Это гипотеза, а не связь: нужна проверка документами.",
+            f"Покупка за {days} дн. до процедуры. С участником решения ({official}) совпадает только фамилия. Связь не подтверждена: нужны документы.",
             used + ["buyer"],
             missing=["Документальное подтверждение связи (ЕГРЮЛ, анкета, сведения ЗАГС)"],
             metrics=metrics,
@@ -308,9 +308,9 @@ def rule_i8(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.NORMAL,
-            f"Контур заполняет лишь {number(fill * 100)} % описанного прямоугольника (порог {number(FILL_THRESHOLD * 100)} %)"
+            f"Контур заполняет {number(fill * 100)} % описанного прямоугольника (порог {number(FILL_THRESHOLD * 100)} %)"
             + (f": {shape_text[0].lower()}{shape_text[1:]}." if shape_text else ".")
-            + " Изломанность границ может указывать на прирезку чужой земли.",
+            + " Изломанность границ — повод для проверки.",
             used + ["shape"],
             metrics=metrics,
         )
@@ -334,14 +334,14 @@ def rule_i10(facts):
         return Evaluation(
             RuleStatus.TRIGGERED,
             Priority.HIGH,
-            f"{person} фигурирует в {number(repeats)} эпизодах других индикаторов — повторяющийся участник решений.",
+            f"{person} встречается в {number(repeats)} эпизодах других индикаторов.",
             used + ["person"],
             metrics=metrics,
         )
     return Evaluation(
         RuleStatus.NOT_TRIGGERED,
         Priority.LOW,
-        f"{person} встречается в одном эпизоде — повторяемости нет.",
+        f"{person} встречается в одном эпизоде. Повтора нет.",
         used,
         metrics=metrics,
     )
