@@ -2,7 +2,7 @@
 
 Рабочее место специалиста по профилактике коррупции в земельных отношениях: сопоставляет сделки с землёй, смену категории, правки ПЗЗ и связи с должностными лицами, показывает основания для проверки по каждому объекту.
 
-Демо для просмотра: <https://oskarasadullin.github.io/kod-prozrachnosti/> · код: [ветка oskar/mvp](https://github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp). Команда Zeus Analytics, хакатон «Код прозрачности». Django 5.2 LTS, Python 3.12, MySQL 8.4.
+Демо для просмотра: <https://oskarasadullin.github.io/kod-prozrachnosti/> · код: <https://github.com/EthanNewell/Zeus_Analytics>. Команда Zeus Analytics, хакатон «Код прозрачности». Django 5.2 LTS, Python 3.12, MySQL 8.4.
 
 - [Запуск приложения и состав реализации](Code/README.md)
 - [Соглашения разработки](Code/docs/conventions.md)

@@ -25,7 +25,7 @@ CARD = [
     "Zeus Analytics",
     "[полное наименование вуза]",
     "[ФИО капитана, роль, e-mail, телефон]",
-    "Репозиторий (код в ветке oskar/mvp): https://github.com/EthanNewell/Zeus_Analytics/tree/oskar/mvp. "
+    "Репозиторий: https://github.com/EthanNewell/Zeus_Analytics. "
     "Демо для просмотра: https://oskarasadullin.github.io/kod-prozrachnosti/.",
 ]
 

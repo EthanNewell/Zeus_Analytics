@@ -26,7 +26,7 @@ VERSIONS = [
 ]
 
 DOCKER = [
-    f"git clone -b oskar/mvp {REPO}.git",
+    f"git clone {REPO}.git",
     "cd Zeus_Analytics/Code",
     "cp .env.example .env",
     "docker compose up -d --build --wait",
@@ -38,7 +38,7 @@ DOCKER = [
 ]
 
 LOCAL = [
-    f"git clone -b oskar/mvp {REPO}.git",
+    f"git clone {REPO}.git",
     "cd Zeus_Analytics/Code",
     "python3.12 -m venv .venv && source .venv/bin/activate",
     "python -m pip install -r requirements-dev.txt",
@@ -95,14 +95,13 @@ def main():
     d.add_heading("Код прозрачности — ссылка на прототип и инструкция запуска", level=1)
     d.add_paragraph("Проект «Риски в кадастре» — рабочее место специалиста по профилактике коррупции "
                     "в земельных отношениях. Команда Zeus Analytics. "
-                    "Репозиторий и демо принадлежат одной команде, код — в ветке oskar/mvp.")
+                    "Репозиторий и демо принадлежат одной команде.")
 
     d.add_heading("Ссылки", level=2)
     table = d.add_table(rows=0, cols=2)
     table.style = "Table Grid"
     for label, value in [
-        ("Репозиторий (открытый), код в ветке oskar/mvp", REPO + "/tree/oskar/mvp"),
-        ("Ветка с кодом", "oskar/mvp — команды ниже клонируют эту ветку"),
+        ("Репозиторий (открытый)", REPO),
         ("Инструкция в репозитории", "Code/README.md"),
         ("Сценарий показа", "Code/docs/demo.md"),
         ("Демо без установки", DEMO + " — только просмотр, реальные люди показаны инициалами"),
