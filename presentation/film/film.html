@@ -4,9 +4,14 @@
 <meta charset="utf-8" />
 <title>Код прозрачности — фильм</title>
 <!--
-  Ролик-фильм. Каждый кадр — чистая функция времени: render(t) расставляет сцену на момент t,
+  Фильм. Каждый кадр — чистая функция времени: render(t) расставляет сцену на момент t,
   render.mjs снимает 30 кадров в секунду и сводит их с music.wav. Разделы и такты —
   timeline.json (100 BPM, такт 2,4 с), общие с музыкой: смены сцен приходятся на сильные доли.
+
+  Одна сетка на все сцены. Поля 80 px со всех сторон; сверху строка подписи 1760 × 120
+  (слева раздел и заголовок, справа текст), под ней через 40 px тело 1760 × 760.
+  Половины тела — 848 | 64 | 848. Сервис показан чёткими снимками страниц (capture.mjs),
+  камера ездит по ним; линий-украшений и наложений нет.
 -->
 <style>
 @font-face { font-family: "SG"; src: url("../../Code/static/fonts/science-gothic-cyrillic.woff2") format("woff2");
@@ -17,558 +22,582 @@
 @font-face { font-family: "SG"; src: url("../../Code/static/fonts/science-gothic-symbols.woff2") format("woff2");
   unicode-range: U+2074, U+2080, U+2192, U+2244-2248, U+2260, U+2264-2265; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
 
-:root { --blue: #0000e8; }
+:root { --blue: #0000e8; --grey: #ededed; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--blue); }
-body { font-family: "SG", Arial, sans-serif; font-weight: 250; font-stretch: 72%; color: #fff; -webkit-font-smoothing: antialiased; }
+body { font-family: "SG", Arial, sans-serif; font-weight: 250; font-stretch: 72%; -webkit-font-smoothing: antialiased; }
 
 .scene { position: absolute; inset: 0; overflow: hidden; display: none; }
 .scene.on { display: block; }
-.blue { background: var(--blue); color: #fff; --ink: #fff; --hair: rgba(255,255,255,.28); --fill: rgba(255,255,255,.14); }
-.paper { background: #fff; color: #000; --ink: #000; --hair: rgba(0,0,0,.16); --fill: #efefef; }
-.abs { position: absolute; }
-.eyebrow { font-weight: 400; font-size: 20px; letter-spacing: .22em; text-transform: uppercase; line-height: 1.2; }
-.h { font-weight: 200; font-stretch: 62%; text-transform: uppercase; line-height: .92; letter-spacing: -.004em; }
-.txt { font-size: 30px; line-height: 1.45; font-weight: 250; }
-.num { font-weight: 100; font-variant-numeric: tabular-nums; line-height: .9; }
+.blue { background: var(--blue); color: #fff; --ink: #fff; --soft: rgba(255,255,255,.72); --hair: rgba(255,255,255,.24); --fill: rgba(255,255,255,.14); --chip: #fff; --chip-ink: var(--blue); }
+.grey { background: var(--grey); color: #000; --ink: #000; --soft: rgba(0,0,0,.62); --hair: rgba(0,0,0,.14); --fill: #fff; --chip: var(--blue); --chip-ink: #fff; }
+
+.eyebrow { font-weight: 400; font-size: 18px; letter-spacing: .2em; text-transform: uppercase; line-height: 1.2; }
+.h { font-weight: 200; font-stretch: 62%; text-transform: uppercase; line-height: 1; letter-spacing: -.004em; }
+.txt { font-size: 26px; line-height: 1.4; font-weight: 250; text-wrap: balance; }
+.num { font-weight: 100; font-variant-numeric: tabular-nums; line-height: .82; letter-spacing: -.01em; }
+.chip { display: inline-block; font-weight: 400; font-size: 18px; letter-spacing: .12em; padding: 6px 10px 5px; background: var(--chip); color: var(--chip-ink); line-height: 1; }
 .mask { overflow: hidden; display: block; }
-.mask > * { display: block; will-change: transform; }
-.code { display: inline-block; font-weight: 400; letter-spacing: .08em; background: var(--fill); padding: .08em .4em; font-size: .8em; }
+.mask > * { display: block; }
+.mask > .num { line-height: 1; }
 
-/* Сетка колонок, которая «прорастает» на голубых сценах. */
-.cols { position: absolute; inset: 0; pointer-events: none; }
-.cols i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--hair); transform-origin: top; }
+/* Строка подписи и тело — общие для всех сцен. */
+.cap { position: absolute; left: 80px; top: 80px; width: 1760px; height: 120px; display: grid; grid-template-columns: 848px 848px; column-gap: 64px; }
+.cap .l { display: grid; gap: 14px; align-content: end; }
+.cap .r { position: relative; }
+.cap .r .tx { position: absolute; left: 0; right: 0; bottom: 0; }
+.cap .h { font-size: 64px; }
+.body { position: absolute; left: 80px; top: 240px; width: 1760px; height: 760px; }
+.L { position: absolute; left: 0; top: 0; width: 848px; height: 760px; }
+.R { position: absolute; left: 912px; top: 0; width: 848px; height: 760px; }
 
-/* Кадр записи сервиса: заливка без обводки, запись внутри. */
-.frame { position: absolute; background: var(--fill); overflow: hidden; }
-.frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+/* Окно сервиса: белая страница на сером поле, без обводки. */
+.panel { position: absolute; inset: 0; background: #fff; overflow: hidden; }
+.panel img { position: absolute; left: 0; top: 0; max-width: none; }
+.cursor { position: absolute; width: 30px; height: 30px; left: 0; top: 0; z-index: 5; transform-origin: 3px 3px; opacity: 0; }
 
-/* Плашка подписи. */
-.plate { position: absolute; background: var(--blue); color: #fff; padding: 36px 40px; display: grid; gap: 18px; }
-
-/* Шапка фильма поверх всех сцен. */
-#hud { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
-#hud .mark { position: absolute; left: 96px; top: 48px; display: flex; align-items: center; gap: 16px; }
-#hud .logo { width: 34px; height: 34px; background: currentColor; -webkit-mask: url("../../Code/static/img/mark.png") center / contain no-repeat; }
-#hud .sec { position: absolute; right: 96px; top: 52px; display: flex; gap: 22px; align-items: center; }
-#hud .beats { display: flex; gap: 4px; }
-#hud .beats i { width: 7px; height: 20px; background: currentColor; opacity: .22; }
-#hud .beats i.on { opacity: 1; }
-#hud .bar { position: absolute; left: 96px; right: 96px; bottom: 44px; height: 2px; background: currentColor; opacity: .18; }
-#hud .bar b { position: absolute; left: 0; top: 0; bottom: 0; background: currentColor; opacity: 1; display: block; }
-#hud .barfill { position: absolute; left: 96px; bottom: 44px; height: 2px; background: currentColor; }
-
-/* Шторка между сценами: пять колонок. */
-#shutter { position: absolute; inset: 0; z-index: 40; pointer-events: none; display: grid; grid-template-columns: repeat(5, 1fr); }
-#shutter i { display: block; height: 100%; transform: translateY(100%); }
-
-svg { overflow: visible; }
+/* Списки: строки делят высоту поровну, между строками — тонкий разделитель. */
+.rows { position: absolute; inset: 0; display: grid; }
+.rows > div { display: grid; align-items: center; border-top: 1px solid var(--hair); position: relative; }
+.rows > div:first-child { border-top: 0; }
 </style>
 </head>
 <body>
-
-<!-- 1 · заголовок -->
-<section class="scene blue" id="title">
-  <img class="abs bg" src="../../Code/static/img/hero.jpg" style="inset:0;width:100%;height:100%;object-fit:cover" alt="" />
-  <div class="abs" style="inset:0;background:linear-gradient(90deg,#0000e8 0%,#0000e8 34%,rgba(0,0,232,.0) 78%)"></div>
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:300px;width:1100px;display:grid;gap:34px">
-    <div class="mask"><p class="eyebrow e1">Хакатон «Код прозрачности» · 2026</p></div>
-    <div style="display:grid;gap:6px">
-      <div class="mask"><h1 class="h l1" style="font-size:170px">Риски в кадастре</h1></div>
-      <div class="mask"><h1 class="h l2" style="font-size:170px">видны по фактам</h1></div>
-    </div>
-    <div class="mask"><p class="txt l3" style="width:820px">Рабочее место специалиста по профилактике коррупции</p></div>
-    <div class="mask"><p class="eyebrow l4">Zeus Analytics / направление 02</p></div>
-  </div>
-</section>
-
-<!-- 2 · проблема -->
-<section class="scene blue" id="problem">
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:250px;width:620px;display:grid;gap:28px">
-    <div class="mask"><p class="eyebrow a">01 / проблема</p></div>
-    <div class="num counter" style="font-size:300px">0</div>
-    <div class="mask"><p class="txt b" style="font-size:40px">источников на один объект</p></div>
-    <div class="mask"><p class="txt c" style="width:600px;opacity:.85">По отдельности каждый факт законен. Повод для проверки — в сочетании дат и лиц.</p></div>
-  </div>
-  <svg class="abs net" width="1920" height="1080" style="left:0;top:0"></svg>
-  <div class="abs hub" style="left:1180px;top:490px;width:140px;height:140px;background:#fff"></div>
-  <div class="abs hubtxt" style="left:1180px;top:640px;width:240px;text-align:center"><p class="eyebrow">один экран</p></div>
-</section>
-
-<!-- 3 · механизмы -->
-<section class="scene blue" id="mechanisms">
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:150px"><div class="mask"><p class="eyebrow a">02 / что ищем</p></div>
-    <div class="mask" style="margin-top:22px"><h2 class="h b" style="font-size:96px">Три механизма риска</h2></div></div>
-  <div class="abs trio" style="left:96px;right:96px;top:420px;height:560px;display:grid;grid-template-columns:repeat(3,1fr);gap:32px">
-    <figure class="m" style="position:relative;overflow:hidden"><img src="../../Code/static/img/m1.jpg" style="width:100%;height:100%;object-fit:cover" alt="" />
-      <div class="plate" style="left:0;bottom:0;right:0"><p class="eyebrow">#1 / И1, И3, И6</p><p class="h" style="font-size:52px">Сделка перед решением</p></div></figure>
-    <figure class="m" style="position:relative;overflow:hidden"><img src="../../Code/static/img/m2.jpg" style="width:100%;height:100%;object-fit:cover" alt="" />
-      <div class="plate" style="left:0;bottom:0;right:0"><p class="eyebrow">#2 / И2, И4, И10</p><p class="h" style="font-size:52px">Решение под владельца</p></div></figure>
-    <figure class="m" style="position:relative;overflow:hidden"><img src="../../Code/static/img/m3.jpg" style="width:100%;height:100%;object-fit:cover" alt="" />
-      <div class="plate" style="left:0;bottom:0;right:0"><p class="eyebrow">#3 / И8</p><p class="h" style="font-size:52px">Граница с изломом</p></div></figure>
-  </div>
-</section>
-
-<!-- 4 · данные -->
-<section class="scene paper" id="data">
-  <div class="abs cap" style="left:96px;top:250px;width:470px;display:grid;gap:26px">
-    <div class="mask"><p class="eyebrow a">03 / данные</p></div>
-    <div class="mask"><h2 class="h b" style="font-size:84px">Таблицы как есть</h2></div>
-    <div class="mask"><p class="txt c">Семь таблиц исследования, Excel или CSV. Файл проверяется целиком, повтор не дублирует записи.</p></div>
-  </div>
-  <div class="frame f" style="left:630px;top:186px;width:1194px;height:672px"><img class="clip" data-clip="login" alt="" /><img class="clip" data-clip="passport" alt="" /></div>
-  <div class="plate stats" style="left:96px;top:700px;width:1728px;grid-template-columns:repeat(4,1fr);gap:32px;padding:30px 40px">
-    <div><div class="num s1" style="font-size:96px">0</div><p class="eyebrow">записей</p></div>
-    <div><div class="num s2" style="font-size:96px">0</div><p class="eyebrow">объектов</p></div>
-    <div><div class="num s3" style="font-size:96px">0</div><p class="eyebrow">сигналов</p></div>
-    <div><div class="num s4" style="font-size:96px">0 мс</div><p class="eyebrow">весь анализ</p></div>
-  </div>
-</section>
-
-<!-- 5 · реестр -->
-<section class="scene paper" id="registry">
-  <img class="clip abs full" data-clip="registry" style="left:0;top:-104px;width:1920px;height:1080px;object-fit:cover;transform-origin:50% 0" alt="" />
-  <div class="plate cap" style="left:96px;bottom:110px;width:820px">
-    <div class="mask"><p class="eyebrow a">04 / реестр</p></div>
-    <div class="mask"><h2 class="h b" style="font-size:76px">Сначала главное</h2></div>
-    <div class="lv" style="display:flex;gap:6px"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="mask"><p class="txt c">Пять уровней приоритета. Процента коррупции нет — намеренно.</p></div>
-  </div>
-</section>
-
-<!-- 6 · карточка -->
-<section class="scene paper" id="card">
-  <div class="frame f" style="left:630px;top:186px;width:1194px;height:672px"><img class="clip" data-clip="card" alt="" /></div>
-  <div class="abs" style="left:96px;top:186px;width:470px;height:672px">
-    <div class="beat abs" data-i="0" style="inset:0;display:grid;gap:22px;align-content:center">
-      <div class="mask"><p class="eyebrow">05 / карточка</p></div>
-      <div class="mask"><h2 class="h" style="font-size:84px">Аксайский район</h2></div>
-      <div class="mask"><p class="txt">61:02:0600010:2843 — почему объект в реестре</p></div></div>
-    <div class="beat abs" data-i="1" style="inset:0;display:grid;gap:18px;align-content:center">
-      <div class="mask"><p class="eyebrow">И6 / связанное лицо</p></div>
-      <div class="mask"><div class="num" style="font-size:200px">75</div></div>
-      <div class="mask"><p class="txt">дней от покупки до начала процедуры</p></div></div>
-    <div class="beat abs" data-i="2" style="inset:0;display:grid;gap:18px;align-content:center">
-      <div class="mask"><p class="eyebrow">И6 / ЕГРЮЛ</p></div>
-      <div class="mask"><div class="num" style="font-size:200px">ИНН</div></div>
-      <div class="mask"><p class="txt">участник решения — учредитель фирмы-покупателя</p></div></div>
-    <div class="beat abs" data-i="3" style="inset:0;display:grid;gap:18px;align-content:center">
-      <div class="mask"><p class="eyebrow">И1 / И10</p></div>
-      <div class="mask"><div class="num" style="font-size:200px">271</div></div>
-      <div class="mask"><p class="txt">день до смены категории; то же лицо — ещё в 5 эпизодах</p></div></div>
-  </div>
-</section>
-
-<!-- 7 · хронология -->
-<section class="scene blue" id="timeline">
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:150px"><div class="mask"><p class="eyebrow a">05 / хронология</p></div>
-    <div class="mask" style="margin-top:22px"><h2 class="h b" style="font-size:96px">События из трёх таблиц</h2></div></div>
-  <svg class="abs tl" width="1920" height="1080" style="left:0;top:0"></svg>
-</section>
-
-<!-- 8 · решение человека -->
-<section class="scene paper" id="review">
-  <div class="frame f" style="left:630px;top:186px;width:1194px;height:672px"><img class="clip" data-clip="review" alt="" /></div>
-  <div class="abs cap" style="left:96px;top:186px;width:470px;height:672px;display:grid;gap:26px;align-content:center">
-    <div class="mask"><p class="eyebrow a">06 / решение человека</p></div>
-    <div class="mask"><h2 class="h b" style="font-size:84px">Решает сотрудник</h2></div>
-    <div class="mask"><p class="txt c">Запись — с автором и временем. Факты и сигнал системы не меняются.</p></div>
-  </div>
-</section>
-
-<!-- 9 · геометрия -->
-<section class="scene blue" id="geometry">
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:240px;width:760px;display:grid;gap:26px">
-    <div class="mask"><p class="eyebrow a">07 / геометрия</p></div>
-    <div class="mask"><h2 class="h b" style="font-size:84px">Граница с «хвостом»</h2></div>
-    <div class="num fill" style="font-size:240px">0,000</div>
-    <div class="gauge" style="position:relative;height:56px;width:700px">
-      <div style="position:absolute;left:0;right:0;top:24px;height:2px;background:var(--hair)"></div>
-      <div class="gfill" style="position:absolute;left:0;top:20px;height:10px;background:#fff;width:0"></div>
-      <div style="position:absolute;left:595px;top:6px;width:2px;height:44px;background:#fff"></div>
-      <p class="eyebrow" style="position:absolute;left:520px;top:-34px;white-space:nowrap">порог 0,85</p>
-    </div>
-    <div class="mask"><p class="txt c">Площадь 1&nbsp;418&nbsp;м² — лишь 59&nbsp;% описанного прямоугольника 2&nbsp;393&nbsp;м². Считается по координатам.</p></div>
-  </div>
-  <svg class="abs geo" width="1920" height="1080" style="left:0;top:0"></svg>
-</section>
-
-<!-- 10 · карта -->
-<section class="scene paper" id="map">
-  <div class="frame f" style="left:630px;top:186px;width:1194px;height:672px"><img class="clip" data-clip="map" alt="" /></div>
-  <div class="abs cap" style="left:96px;top:186px;width:470px;height:672px;display:grid;gap:26px;align-content:center">
-    <div class="mask"><p class="eyebrow a">07 / карта</p></div>
-    <div class="mask"><h2 class="h b" style="font-size:84px">Контуры на карте</h2></div>
-    <div class="mask"><p class="txt c">Участки и изменённые зоны из таблиц. Плотнее заливка — выше приоритет.</p></div>
-  </div>
-</section>
-
-<!-- 11 · сверка -->
-<section class="scene blue" id="quality">
-  <div class="cols"></div>
-  <div class="abs" style="left:96px;top:150px"><div class="mask"><p class="eyebrow a">08 / проверка качества</p></div>
-    <div class="mask" style="margin-top:22px"><h2 class="h b" style="font-size:96px">Сверка с разметкой</h2></div></div>
-  <div class="abs rowsq" style="left:96px;top:390px;width:1060px;display:grid;gap:0"></div>
-  <div class="abs" style="left:1260px;top:390px;width:564px;display:grid;gap:24px">
-    <div class="num total" style="font-size:250px">0</div>
-    <p class="eyebrow">из 70 записей совпали</p>
-    <div class="mask"><p class="txt f1">F1 0,98 · точность 1,00 · полнота 0,97</p></div>
-  </div>
-</section>
-
-<!-- 12 · принципы -->
-<section class="scene paper" id="principles">
-  <div class="abs" style="left:96px;top:150px"><div class="mask"><p class="eyebrow a">09 / принципы</p></div></div>
-  <div class="abs stack" style="left:96px;right:96px;top:300px;height:600px"></div>
-</section>
-
-<!-- 13 · финал -->
-<section class="scene blue" id="outro">
-  <img class="abs bg" src="../../Code/static/img/band-cases.jpg" style="inset:0;width:100%;height:100%;object-fit:cover" alt="" />
-  <div class="abs veil" style="inset:0;background:#0000e8;opacity:0"></div>
-  <div class="plate fin" style="left:96px;bottom:130px;width:1100px;gap:22px;padding:44px">
-    <div class="mask"><p class="eyebrow">Код прозрачности / Zeus Analytics</p></div>
-    <div class="mask"><h2 class="h" style="font-size:110px">Индикатор — повод проверить</h2></div>
-    <div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics</p></div>
-    <div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>
-  </div>
-</section>
-
-<div id="shutter"><i></i><i></i><i></i><i></i><i></i></div>
-<div id="hud">
-  <div class="mark"><span class="logo"></span><span class="eyebrow">Код прозрачности</span></div>
-  <div class="sec"><span class="eyebrow secname"></span><span class="beats"><i></i><i></i><i></i><i></i></span></div>
-  <div class="bar"></div><div class="barfill"></div>
-</div>
+<div id="stage"></div>
 
 <script>
 const D = window.__DATA || {};
 const TL = D.timeline || { bpm: 100, sections: [] };
-const BEAT = 60 / TL.bpm, BAR = 4 * BEAT;
-const CLIPS = D.clips || {};
 const SHAPE = D.shape || null;
-const NAMES = { title: "", problem: "проблема", mechanisms: "механизмы", data: "данные", registry: "реестр", card: "карточка",
-  timeline: "хронология", review: "решение", geometry: "геометрия", map: "карта", quality: "сверка", principles: "принципы", outro: "" };
+const BOX = D.boxes || {};
+const BEAT = 60 / TL.bpm, BAR = 4 * BEAT;
+const TW = 0.5;                       // длительность шторки: сцена начинается за TW до сильной доли
+const BODY_W = 1760, BODY_H = 760;
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const prog = (t, a, d) => clamp((t - a) / d);
 const outQ = (x) => 1 - Math.pow(1 - clamp(x), 4);
 const inOut = (x) => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const lerp = (a, b, k) => a + (b - a) * k;
 const $ = (root, sel) => root.querySelector(sel);
 const $$ = (root, sel) => [...root.querySelectorAll(sel)];
 const fmt = (n, d = 0) => n.toFixed(d).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 
-let starts = [], acc = 0;
-for (const s of TL.sections) { starts.push(acc); acc += s.bars * BAR; }
-const END = acc;
-
-// Строка в маске выезжает снизу: in — момент начала, out — момент ухода вверх.
-function line(el, t, at, out = Infinity, dur = 0.7) {
-  if (!el) return;
-  const a = outQ(prog(t, at, dur));
-  const b = inOut(prog(t, out, 0.5));
-  el.style.transform = `translateY(${(1 - a) * 110 - b * 110}%)`;
-}
-function fadeIn(el, t, at, dur = 0.6) { if (el) el.style.opacity = outQ(prog(t, at, dur)); }
-
-function grow(scene, t, at = 0) {
-  const cols = $(scene, ".cols");
-  if (!cols) return;
-  if (!cols.children.length) for (let i = 0; i <= 12; i++) { const e = document.createElement("i"); e.style.left = (96 + i * 144) + "px"; cols.appendChild(e); }
-  [...cols.children].forEach((e, i) => { e.style.transform = `scaleY(${outQ(prog(t, at + i * 0.05, 1.1))})`; });
+// Строка в маске выезжает снизу и уходит вверх.
+function line(e, t, at, out = Infinity, dur = 0.7) {
+  if (!e) return;
+  const a = outQ(prog(t, at, dur)), b = inOut(prog(t, out, 0.45));
+  e.style.transform = `translateY(${(1 - a) * 110 - b * 110}%)`;
 }
 
-function clip(img, t, rate = 1, offset = 0, from = 0, to = Infinity) {
-  const name = img.dataset.clip, count = CLIPS[name] || 1;
-  const visible = t >= from && t < to;
-  img.style.visibility = visible ? "visible" : "hidden";
-  if (!visible) return null;
-  const idx = clamp(Math.floor((t - from - offset) * rate * 30) + 1, 1, count);
-  const src = `clips/${name}/${String(idx).padStart(4, "0")}.jpg`;
-  if (!img.src.endsWith(src)) img.src = src;
-  return img.decode().catch(() => {});
+// ------------------------------------------------------------------ подписи
+// tx — строка или список {at, text}: текст справа меняется по ходу сцены.
+function caption(scene, { ey, ti, tx }) {
+  const list = typeof tx === "string" ? [{ at: 0, text: tx }] : tx;
+  const cap = el(`<div class="cap"><div class="l"><div class="mask"><p class="eyebrow">${ey}</p></div>
+    <div class="mask"><h2 class="h">${ti}</h2></div></div><div class="r"></div></div>`);
+  list.forEach((v) => cap.querySelector(".r").appendChild(el(`<div class="tx">${v.html || `<div class="mask"><p class="txt">${v.text}</p></div>`}</div>`)));
+  scene.appendChild(cap);
+  scene._tx = list;
+}
+function captionAt(scene, t) {
+  const [ey, ti] = $$(scene, ".cap .l .mask > *");
+  line(ey, t, TW + 0.05); line(ti, t, TW + 0.15, Infinity, 0.85);
+  const blocks = $$(scene, ".cap .tx");
+  scene._tx.forEach((v, i) => {
+    const at = Math.max(v.at, TW + 0.3), next = scene._tx[i + 1];
+    const out = next ? Math.max(next.at, TW + 0.3) - 0.5 : Infinity;
+    $$(blocks[i], ".mask > *").forEach((e, k) => line(e, t, at + k * 0.08, out + k * 0.04));
+  });
 }
 
-function frameIn(el, t, at = 0) {
-  const a = outQ(prog(t, at, 0.9));
-  el.style.clipPath = `inset(0 0 0 ${(1 - a) * 100}%)`;
-  el.style.transform = `scale(${1.04 - 0.04 * a})`;
+// ------------------------------------------------------------------ окно сервиса
+// Камера: прямоугольник страницы {x, y, w} в CSS-пикселях снимка; высота — по пропорции окна.
+const KH = BODY_H / BODY_W;
+function cam(x, y, w) { return { x, y, w }; }
+function fitBox(b, pad = 24, wMin = 0) {
+  const w = Math.max(b.w + pad * 2, (b.h + pad * 2) / KH, wMin);
+  return cam(b.x + b.w / 2 - w / 2, b.y + b.h / 2 - (w * KH) / 2, w);
 }
+function camAt(stops, t) {            // stops: [{at, cam, dur}]
+  let c = stops[0].cam;
+  for (const s of stops.slice(1)) {
+    const k = inOut(prog(t, s.at, s.dur || 1.2));
+    c = { x: lerp(c.x, s.cam.x, k), y: lerp(c.y, s.cam.y, k), w: lerp(c.w, s.cam.w, k) };
+  }
+  return c;
+}
+function panel(scene) {
+  const p = el(`<div class="panel"></div>`);
+  scene.querySelector(".body").appendChild(p);
+  const svg = `<svg class="cursor" viewBox="0 0 30 30"><path d="M3 3 L3 24 L8.6 18.8 L12.4 27.2 L16 25.6 L12.3 17.4 L19.8 17.4 Z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  p.appendChild(el(svg));
+  return p;
+}
+// Слой-снимок: name — файл в shots/, at — его левый верхний угол на странице (для вставок).
+function layer(p, name, key) {
+  let img = p.querySelector(`img[data-k="${key}"]`);
+  if (!img) { img = document.createElement("img"); img.dataset.k = key; p.insertBefore(img, p.querySelector(".cursor")); }
+  const src = `shots/${name}.png`;
+  if (!img.getAttribute("src")?.endsWith(src)) img.src = src;
+  return img;
+}
+function place(img, c, x, y, w, h, opacity = 1) {
+  const s = BODY_W / c.w;
+  Object.assign(img.style, { left: (x - c.x) * s + "px", top: (y - c.y) * s + "px", width: w * s + "px", height: h == null ? "auto" : h * s + "px", opacity, display: opacity > 0 ? "block" : "none" });
+  return img.style.display === "block" ? img.decode().catch(() => {}) : null;
+}
+function page(p, name, c, opacity = 1, key = "base") {
+  const b = BOX[name] || { w: 1280, h: 720 };
+  return place(layer(p, name, key), c, 0, 0, b.w, b.h, opacity);
+}
+function cursor(p, c, path, t) {        // path: [{at, x, y, dur}], клик — {click: at}
+  const cur = p.querySelector(".cursor");
+  let pos = path[0], clickK = 0;
+  for (const q of path.slice(1)) {
+    if (q.click !== undefined) { clickK = Math.max(clickK, 1 - Math.abs(t - q.click) / 0.12); continue; }
+    const k = inOut(prog(t, q.at, q.dur || 0.7));
+    pos = { x: lerp(pos.x, q.x, k), y: lerp(pos.y, q.y, k) };
+  }
+  const s = BODY_W / c.w;
+  const show = clamp(prog(t, path[0].at - 0.3, 0.3)) * (1 - clamp(prog(t, path.hide ?? Infinity, 0.3)));
+  cur.style.opacity = show;
+  cur.style.transform = `translate(${(pos.x - c.x) * s - 3}px, ${(pos.y - c.y) * s - 3}px) scale(${1 - 0.18 * clamp(clickK)})`;
+}
+const mid = (b) => ({ x: b.x + Math.min(b.w / 2, 160), y: b.y + b.h / 2 });
 
 // ------------------------------------------------------------------ сцены
-const scenes = {
-  title(s, t) {
-    const bg = $(s, ".bg");
-    bg.style.opacity = 0.15 + 0.85 * outQ(prog(t, 0, 2));
-    bg.style.transform = `scale(${1.16 - 0.12 * inOut(t / (4 * BAR))})`;
-    grow(s, t, 0.2);
-    line($(s, ".e1"), t, BEAT * 2);
-    line($(s, ".l1"), t, BEAT * 3, Infinity, 0.9);
-    line($(s, ".l2"), t, BEAT * 5, Infinity, 0.9);
-    line($(s, ".l3"), t, BEAT * 8);
-    line($(s, ".l4"), t, BEAT * 11);
+const SC = {};
+
+SC.title = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "Хакатон «Код прозрачности» · 2026", ti: "Zeus Analytics", tx: "Рабочее место специалиста по профилактике коррупции в земельных отношениях" });
+    s.querySelector(".body").innerHTML = `
+      <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Риски в кадастре</h1></div>
+        <div class="mask"><h1 class="h big">видны по фактам</h1></div></div>
+      <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/hero.jpg" style="position:absolute;left:0;width:100%;object-fit:cover" alt="" /></div>`;
   },
-  problem(s, t) {
-    grow(s, t, 0);
-    line($(s, ".a"), t, 0.1);
-    const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты региона", "Сайты муниципалитетов", "Протоколы комиссий"];
-    const n = names.filter((_, i) => t >= BEAT * (1 + i)).length;
-    $(s, ".counter").textContent = n;
-    line($(s, ".b"), t, BEAT);
-    line($(s, ".c"), t, BAR * 2 + BEAT * 2);
-    const svg = $(s, ".net");
-    const cx = 1250, cy = 560, merge = inOut(prog(t, BAR * 3, BAR * 0.8));
-    let html = "";
-    names.forEach((name, i) => {
-      const at = BEAT * (1 + i);
-      const a = outQ(prog(t, at, 0.7));
-      if (a <= 0) return;
-      const ang = -Math.PI / 2 + i * (Math.PI * 2 / 8);
-      const rx = 360 * (1 - merge), ry = 300 * (1 - merge);
-      const x = cx + Math.cos(ang) * rx, y = cy + Math.sin(ang) * ry;
-      const len = Math.hypot(x - cx, y - cy);
-      const anchor = Math.cos(ang) > 0.3 ? "start" : Math.cos(ang) < -0.3 ? "end" : "middle";
-      const dx = anchor === "start" ? 18 : anchor === "end" ? -18 : 0;
-      html += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-dasharray="${len}" stroke-dashoffset="${len * (1 - a)}"/>`;
-      html += `<rect x="${x - 6}" y="${y - 6}" width="12" height="12" fill="#fff" opacity="${a}"/>`;
-      html += `<text x="${x + dx}" y="${y + (Math.sin(ang) > 0.3 ? 44 : Math.sin(ang) < -0.3 ? -24 : 8)}" text-anchor="${anchor}" fill="#fff" opacity="${a * (1 - merge)}" style="font: 400 22px SG; letter-spacing:.18em; text-transform:uppercase">${name}</text>`;
-    });
-    svg.innerHTML = html;
-    const hub = $(s, ".hub");
-    const g = outQ(prog(t, 0.3, 0.8));
-    const big = inOut(prog(t, BAR * 3, BAR * 0.8));
-    const w = 140 * g + big * 380, h = 140 * g + big * 220;
-    Object.assign(hub.style, { width: w + "px", height: h + "px", left: cx - w / 2 + "px", top: cy - h / 2 + "px" });
-    $(s, ".hubtxt").style.opacity = big;
-    $(s, ".hubtxt").style.top = cy + h / 2 + 24 + "px";
-  },
-  mechanisms(s, t) {
-    grow(s, t, 0);
-    line($(s, ".a"), t, 0.05);
-    line($(s, ".b"), t, BEAT * 0.5, Infinity, 0.9);
-    $$(s, ".m").forEach((m, i) => {
-      const at = BEAT * 2 + i * BAR * 0.75;
-      const a = outQ(prog(t, at, 1));
-      m.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
-      const img = m.querySelector("img");
-      img.style.transform = `scale(${1.25 - 0.15 * a + 0.06 * inOut(prog(t, BAR * 3, BAR))})`;
-      const plate = m.querySelector(".plate");
-      plate.style.transform = `translateY(${(1 - outQ(prog(t, at + 0.4, 0.8))) * 100}%)`;
-    });
-  },
-  data(s, t) {
-    line($(s, ".a"), t, 0.2); line($(s, ".b"), t, 0.35, Infinity, 0.9); line($(s, ".c"), t, 0.6);
-    frameIn($(s, ".f"), t, 0.1);
-    const [login, pass] = $$(s, ".clip");
-    const p1 = clip(login, t, 1, 0, 0, BAR * 2);
-    const p2 = clip(pass, t, 0.94, 0, BAR * 2, Infinity);
-    const st = $(s, ".stats");
-    const a = outQ(prog(t, BAR * 4, 0.8));
-    st.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
-    const c = outQ(prog(t, BAR * 4 + 0.3, 1.6));
-    $(s, ".s1").textContent = Math.round(70 * c);
-    $(s, ".s2").textContent = Math.round(50 * c);
-    $(s, ".s3").textContent = Math.round(31 * c);
-    $(s, ".s4").textContent = Math.round(17 * c) + " мс";
-    return Promise.all([p1, p2]);
-  },
-  registry(s, t) {
-    const img = $(s, ".clip");
-    const p = clip(img, t, 1, -3.4);  // пропустить гравюру-заставку страницы: на ней своя плашка «Реестр»
-    img.style.transform = `scale(${1.3 + 0.04 * (t / (4 * BAR))})`;
-    const cap = $(s, ".cap");
-    const a = outQ(prog(t, 0.2, 0.8));
-    cap.style.clipPath = `inset(0 ${(1 - a) * 100}% 0 0)`;
-    line($(s, ".a"), t, 0.4); line($(s, ".b"), t, 0.55, Infinity, 0.9); line($(s, ".c"), t, BEAT * 3);
-    $$(s, ".lv i").forEach((e, i) => {
-      Object.assign(e.style, { display: "block", width: "12px", height: "34px", background: "#fff", opacity: t > BEAT * (1.5 + i * 0.5) ? 1 : 0.22 });
-    });
-    return p;
-  },
-  card(s, t) {
-    frameIn($(s, ".f"), t, 0);
-    const p = clip($(s, ".clip"), t, 24.5 / (8 * BAR));
-    $$(s, ".beat").forEach((b) => {
-      const i = +b.dataset.i, at = i * 2 * BAR, out = at + 2 * BAR - 0.45;
-      const last = i === 3;
-      b.querySelectorAll(".mask > *").forEach((el, k) => line(el, t, at + 0.12 + k * 0.12, last ? Infinity : out + k * 0.04, 0.8));
-    });
-    return p;
-  },
-  timeline(s, t) {
-    grow(s, t, 0);
-    line($(s, ".a"), t, 0.1); line($(s, ".b"), t, 0.3, Infinity, 0.9);
-    const events = [["2024-03-14", "Присвоен кадастровый номер", "И1"], ["2025-05-22", "Регистрация права", "И1"],
-      ["2025-05-22", "Право покупателя", "И6"], ["2025-08-05", "Начало процедуры", "И6"], ["2026-02-17", "Смена категории", "И1"],
-      ["2026-02-17", "Новая кадастровая стоимость", "И3"], ["2026-05-15", "Раздел участка", "И3"]];
-    const x0 = 160, x1 = 1760, d0 = Date.parse("2024-01-01"), d1 = Date.parse("2026-07-01");
-    const X = (d) => x0 + (Date.parse(d) - d0) / (d1 - d0) * (x1 - x0);
-    const axisY = 700, ax = outQ(prog(t, 0.4, 1.4));
-    let h = `<line x1="${x0}" y1="${axisY}" x2="${x0 + (x1 - x0) * ax}" y2="${axisY}" stroke="#fff" stroke-width="2"/>`;
-    ["2024-01-01", "2025-01-01", "2026-01-01"].forEach((d, i) => {
-      const o = outQ(prog(t, 0.6 + i * 0.3, 0.5));
-      h += `<line x1="${X(d)}" y1="${axisY}" x2="${X(d)}" y2="${axisY + 22}" stroke="#fff" stroke-width="2" opacity="${o}"/>`;
-      h += `<text x="${X(d) + 10}" y="${axisY + 52}" fill="#fff" opacity="${o}" style="font:400 22px SG;letter-spacing:.2em;paint-order:stroke;stroke:#0000e8;stroke-width:10px">${d.slice(0, 4)}</text>`;
-    });
-    const levels = [1, 1, 2, 3, -1, -2, 4];
-    let labels = "";
-    events.forEach(([d, txt, code], i) => {
-      const at = BEAT * 3 + i * BEAT * 1.6;
-      const a = outQ(prog(t, at, 0.6));
-      if (a <= 0) return;
-      const x = X(d), lv = levels[i], right = x > 1300;
-      const top = lv > 0 ? axisY - 40 - lv * 78 : axisY + 80 + (-lv) * 80;
-      const yTop = axisY - (axisY - top) * a;
-      h += `<line x1="${x}" y1="${axisY}" x2="${x}" y2="${yTop}" stroke="#fff" stroke-width="2"/>`;
-      h += `<rect x="${x - 7}" y="${axisY - 7}" width="14" height="14" fill="#fff"/>`;
-      const o = outQ(prog(t, at + 0.25, 0.5));
-      const anchor = right ? "end" : "start", tx = right ? x - 14 : x + 14;
-      labels += `<g opacity="${o}" transform="translate(${tx} ${(lv > 0 ? top + 8 : top - 30) + (1 - o) * 14})">
-        <text y="0" text-anchor="${anchor}" fill="#fff" style="font:400 18px SG;letter-spacing:.2em;paint-order:stroke;stroke:#0000e8;stroke-width:10px">${d.split("-").reverse().join(".")} · ${code}</text>
-        <text y="38" text-anchor="${anchor}" fill="#fff" style="font:150 34px SG;font-stretch:70%;paint-order:stroke;stroke:#0000e8;stroke-width:12px">${txt}</text></g>`;
-    });
-    $(s, ".tl").innerHTML = h + labels;
-  },
-  review(s, t) {
-    frameIn($(s, ".f"), t, 0);
-    const p = clip($(s, ".clip"), t, 13.3 / (6 * BAR));
-    line($(s, ".a"), t, 0.2); line($(s, ".b"), t, 0.35, Infinity, 0.9); line($(s, ".c"), t, BAR * 3);
-    return p;
-  },
-  geometry(s, t) {
-    grow(s, t, 0);
-    line($(s, ".a"), t, 0.1); line($(s, ".b"), t, 0.25, Infinity, 0.9); line($(s, ".c"), t, BAR * 2.5);
-    const fill = 0.593 * inOut(prog(t, BAR * 1.5, BAR * 1.2));
-    $(s, ".fill").textContent = fmt(fill, 3);
-    $(s, ".gfill").style.width = 700 * fill + "px";
-    if (!SHAPE) return;
-    const pts = SHAPE.polygon, rect = SHAPE.rectangle;
-    const xs = rect.map((p) => p[0]).concat(pts.map((p) => p[0])), ys = rect.map((p) => p[1]).concat(pts.map((p) => p[1]));
-    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-    const k = Math.min(720 / (maxx - minx), 640 / (maxy - miny));
-    const ox = 1824 - (maxx - minx) * k, oy = 220;
-    const P = ([x, y]) => [ox + (x - minx) * k, oy + (maxy - y) * k];
-    const path = pts.map(P).map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + " Z";
-    const rpath = rect.map(P).map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + " Z";
-    const draw = inOut(prog(t, 0.4, BAR * 0.9)), rdraw = inOut(prog(t, BAR * 1.2, BAR * 0.6));
-    const area = outQ(prog(t, BAR * 1.0, 0.8));
-    let h = "";
-    // сетка 10 м
-    for (let gx = Math.ceil(minx / 10) * 10; gx <= maxx; gx += 10) { const [x] = P([gx, 0]); h += `<line x1="${x}" y1="${oy}" x2="${x}" y2="${oy + (maxy - miny) * k}" stroke="rgba(255,255,255,.16)" opacity="${outQ(prog(t, 0, 1))}"/>`; }
-    for (let gy = Math.ceil(miny / 10) * 10; gy <= maxy; gy += 10) { const [, y] = P([0, gy]); h += `<line x1="${ox}" y1="${y}" x2="${ox + (maxx - minx) * k}" y2="${y}" stroke="rgba(255,255,255,.16)" opacity="${outQ(prog(t, 0, 1))}"/>`; }
-    h += `<path d="${rpath}" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="10 8" pathLength="1000" style="stroke-dasharray:${1000 * rdraw} 1000"/>`;
-    h += `<path d="${path}" fill="rgba(255,255,255,${0.32 * area})" stroke="#fff" stroke-width="4" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="${1000 * (1 - draw)}"/>`;
-    h += `<text x="1824" text-anchor="end" y="${oy + (maxy - miny) * k + 50}" fill="#fff" opacity="${area}" style="font:400 20px SG;letter-spacing:.2em">КОНТУР ПО КООРДИНАТАМ · СЕТКА 10 М</text>`;
-    $(s, ".geo").innerHTML = h;
-  },
-  map(s, t) {
-    frameIn($(s, ".f"), t, 0);
-    const p = clip($(s, ".clip"), t, 6.2 / (4 * BAR));
-    line($(s, ".a"), t, 0.2); line($(s, ".b"), t, 0.35, Infinity, 0.9); line($(s, ".c"), t, BAR * 1.5);
-    return p;
-  },
-  quality(s, t) {
-    grow(s, t, 0);
-    line($(s, ".a"), t, 0.05); line($(s, ".b"), t, 0.2, Infinity, 0.9);
-    const rows = [["И1", "Покупка до смены категории", 10], ["И2", "Правка ПЗЗ / генплана", 10], ["И3", "Выгода после смены категории", 10],
-      ["И4", "Единственный участник торгов", 10], ["И6", "Связанное лицо до процедуры", 9], ["И8", "Аномалия границ", 10], ["И10", "Повтор должностного лица", 10]];
-    const box = $(s, ".rowsq");
-    if (!box.children.length) rows.forEach(([c, n]) => {
-      const r = document.createElement("div");
-      r.style.cssText = "display:grid;grid-template-columns:110px 1fr 300px 130px;align-items:center;gap:24px;height:78px;border-top:1px solid rgba(255,255,255,.28)";
-      r.innerHTML = `<span class="code" style="font-size:22px;justify-self:start">${c}</span><span style="font-size:30px">${n}</span><span style="position:relative;height:12px;background:rgba(255,255,255,.18)"><b style="position:absolute;left:0;top:0;bottom:0;background:#fff;display:block"></b></span><span class="v" style="font-size:30px;text-align:right">0</span>`;
-      box.appendChild(r);
-    });
-    let total = 0;
-    [...box.children].forEach((r, i) => {
-      const at = BEAT * 2 + i * BEAT;
-      const a = outQ(prog(t, at, 0.8));
-      r.style.opacity = outQ(prog(t, at - 0.3, 0.4));
-      const v = Math.round(rows[i][2] * a);
-      total += v;
-      r.querySelector("b").style.width = (rows[i][2] / 10) * 100 * a + "%";
-      r.querySelector(".v").textContent = `${v} / 10`;
-      r.style.fontWeight = rows[i][2] < 10 && a >= 1 ? 400 : 250;
-    });
-    $(s, ".total").textContent = total;
-    line($(s, ".f1"), t, BAR * 3);
-  },
-  principles(s, t) {
-    line($(s, ".a"), t, 0.05);
-    const items = ["Сигнал, а не обвинение", "«Нет данных» ≠ «нет риска»", "У каждого значения — первоисточник", "Решение принимает человек"];
-    const stack = $(s, ".stack");
-    if (!stack.children.length) items.forEach((txt) => {
-      const m = document.createElement("div");
-      m.className = "mask abs";
-      m.style.cssText = "left:0;right:0;top:0";
-      m.innerHTML = `<h2 class="h" style="font-size:150px;white-space:nowrap">${txt}</h2>`;
-      stack.appendChild(m);
-    });
-    [...stack.children].forEach((m, i) => {
-      const at = i * BAR + 0.15;
-      const shown = outQ(prog(t, at, 0.8));
-      const rise = i < 3 ? inOut(prog(t, at + BAR - 0.3, 0.6)) : 0;
-      m.style.top = (160 - 0) + "px";
-      m.firstChild.style.transform = `translateY(${(1 - shown) * 110 - rise * 110}%)`;
-    });
-    const h = stack.children[0].firstChild;
-    // поджать каждую строку по ширине
-    [...stack.children].forEach((m) => {
-      const el = m.firstChild;
-      if (!el.dataset.fit) { el.style.fontSize = "200px"; const w = el.scrollWidth; el.style.fontSize = Math.floor(200 * 1728 / w) + "px"; el.dataset.fit = 1; }
-    });
-  },
-  outro(s, t) {
-    const bg = $(s, ".bg");
-    bg.style.transform = `scale(${1.02 + 0.08 * (t / (4 * BAR + 4))})`;
-    const fin = $(s, ".fin");
-    const a = outQ(prog(t, 0.3, 0.9));
-    fin.style.clipPath = `inset(0 ${(1 - a) * 100}% 0 0)`;
-    $$(s, ".fin .mask > *").forEach((el, k) => line(el, t, 0.6 + k * BEAT * 0.75));
-    $(s, ".veil").style.opacity = inOut(prog(t, 4 * BAR - 0.2, 3));
+  layout(s) { fitPair(s, 0); },
+  frame(s, t) {
+    captionAt(s, t);
+    const [l1, l2] = $$(s, ".big");
+    line(l1, t, BEAT * 2, Infinity, 1); line(l2, t, BEAT * 3, Infinity, 1);
+    const band = $(s, ".band"), a = outQ(prog(t, BEAT * 5, 1.4));
+    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
+    const img = band.querySelector("img");
+    img.style.top = `${-420 + 160 * inOut(t / (4 * BAR))}px`; img.style.height = "1760px";
   },
 };
 
-// ------------------------------------------------------------------ кадр
+// Две строки одинакового кегля: длинная — во всю ширину; под ними полоса гравюры до низа тела.
+function fitPair(s) {
+  const big = $$(s, ".big");
+  big.forEach((e) => { e.style.fontSize = "200px"; e.style.whiteSpace = "nowrap"; e.style.display = "inline-block"; });
+  const w = Math.max(...big.map((e) => e.getBoundingClientRect().width));
+  const size = Math.floor(200 * BODY_W / w);
+  big.forEach((e) => { e.style.fontSize = size + "px"; e.style.display = "block"; });
+  const h = $(s, ".fit").getBoundingClientRect().height;
+  const band = $(s, ".band");
+  if (band) band.style.top = h + 40 + "px";
+  return size;
+}
+
+SC.problem = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "01 / проблема", ti: "Факты разбросаны", tx: "По отдельности каждый факт законен. Повод для проверки — в сочетании дат и лиц." });
+    const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты региона", "Сайты муниципалитетов", "Протоколы комиссий"];
+    s.querySelector(".body").innerHTML = `
+      <div class="L"><div class="num cnt" style="font-size:520px;position:absolute;left:-14px;top:0">0</div>
+        <div style="position:absolute;left:0;bottom:0"><div class="mask"><p class="txt lab" style="font-size:40px">источников на один объект</p></div></div></div>
+      <div class="R"><div class="rows" style="grid-template-rows:repeat(8,1fr)">${names.map((n, i) =>
+        `<div style="grid-template-columns:80px 1fr"><span class="eyebrow" style="opacity:.6">${String(i + 1).padStart(2, "0")}</span><span class="txt" style="font-size:32px">${n}</span></div>`).join("")}</div>
+        <div class="one" style="position:absolute;left:0;right:0;bottom:0;background:#fff;color:var(--blue);display:grid;align-content:end;padding:40px">
+          <p class="eyebrow">Код прозрачности</p><p class="h" style="font-size:96px;margin-top:16px">один экран</p></div></div>`;
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const rows = $$(s, ".rows > div");
+    const merge = inOut(prog(t, TW + BAR * 3 - 0.2, 1.1));
+    let n = 0;
+    rows.forEach((r, i) => {
+      const at = TW + BEAT * (1 + i);
+      const a = outQ(prog(t, at, 0.6));
+      if (t >= at) n++;
+      r.style.opacity = a * (1 - merge);
+      r.style.transform = `translateX(${(1 - a) * 40}px)`;
+    });
+    $(s, ".cnt").textContent = n;
+    $(s, ".cnt").style.opacity = n ? 1 : 0;
+    line($(s, ".lab"), t, TW + BEAT);
+    const one = $(s, ".one");
+    one.style.height = merge * BODY_H + "px";
+    one.style.opacity = merge > 0 ? 1 : 0;
+  },
+};
+
+SC.mechanisms = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "02 / что ищем", ti: "Три механизма риска", tx: "Семь правил исследования сведены к трём схемам. Каждое правило — отдельный сигнал со своим расчётом." });
+    const items = [["m1", "#1 / И1, И3, И6", "Сделка перед решением"], ["m2", "#2 / И2, И4, И10", "Решение под владельца"], ["m3", "#3 / И8", "Граница с изломом"]];
+    s.querySelector(".body").innerHTML = `<div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px">${items.map(([img, ey, ti]) => `
+      <figure class="m" style="position:relative;display:grid;grid-template-rows:1fr 150px">
+        <div style="overflow:hidden;position:relative"><img src="../../Code/static/img/${img}.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="" /></div>
+        <div style="display:grid;align-content:end;gap:14px"><div class="mask"><p class="eyebrow">${ey}</p></div><div class="mask"><p class="h" style="font-size:52px">${ti}</p></div></div>
+      </figure>`).join("")}</div>`;
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    $$(s, ".m").forEach((m, i) => {
+      const at = TW + BEAT * 2 + i * BEAT * 2.5;
+      const a = outQ(prog(t, at, 1));
+      const box = m.firstElementChild;
+      box.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
+      box.querySelector("img").style.transform = `scale(${1.18 - 0.12 * a + 0.05 * inOut(prog(t, TW + BAR * 2.5, BAR * 1.5))})`;
+      $$(m, ".mask > *").forEach((e, k) => line(e, t, at + 0.35 + k * 0.1));
+    });
+  },
+};
+
+SC.login = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "03 / вход", ti: "Доступ по ролям", tx: "Специалист, проверяющий и руководитель видят своё. Учётные записи выдаёт администратор." });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const p = s._p, b = BOX.login, n = BOX.loginTyped || 16;
+    const c = camAt([{ cam: cam(0, 158, 1280) }, { at: TW + 4.6, cam: cam(0, 0, 1280), dur: 1.6 }], t);
+    const Tu = TW + 1.3, Tp = TW + 2.4, click = TW + 4.0, nu = BOX.loginUser || 4;
+    const typed = clamp(Math.ceil((t - Tu) / 0.13), 0, nu) + clamp(Math.ceil((t - Tp) / 0.1), 0, n - nu);
+    const done = clamp(prog(t, click + 0.15, 0.5));
+    const w = [page(p, typed ? `login-${String(typed).padStart(2, "0")}` : "login", c, 1 - done),
+      page(p, "overview", c, done, "next")];
+    const u = b.user, pw = b.pass, sb = b.submit;
+    cursor(p, c, Object.assign([{ at: TW + 0.4, x: 860, y: 520 }, { at: TW + 0.6, x: mid(u).x, y: u.y + 26 }, { click: TW + 1.15 },
+      { at: TW + 1.75, x: mid(pw).x, y: pw.y + 26, dur: 0.45 }, { click: TW + 2.25 },
+      { at: TW + 3.3, x: sb.x + sb.w / 2, y: sb.y + 26, dur: 0.6 }, { click }], { hide: click + 0.4 }), t);
+    return Promise.all(w);
+  },
+};
+
+SC.data = {
+  kind: "grey",
+  build(s) {
+    const st = [["70", "записей"], ["50", "объектов"], ["31", "сигнал"], ["17 мс", "весь анализ"]];
+    caption(s, { ey: "04 / данные", ti: "Таблицы как есть", tx: [
+      { at: 0, text: "Семь таблиц исследования, Excel или CSV. Повторная загрузка не дублирует записи: 0 новых из 10." },
+      { at: TW + BAR * 3, html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
+        `<div style="display:grid;gap:12px"><div class="mask"><div class="num stat" data-v="${v}" style="font-size:72px">0</div></div><div class="mask"><p class="eyebrow">${l}</p></div></div>`).join("")}</div>` }] });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const p = s._p, b = BOX.upload, click = TW + 2.2;
+    const done = clamp(prog(t, click + 0.15, 0.5));
+    const cu = cam(0, 470, 1280);
+    const cp = camAt([{ cam: cam(0, 0, 1280) }, { at: TW + BAR * 2, cam: cam(0, 330, 1280), dur: 2.4 }, { at: TW + BAR * 3.6, cam: cam(0, 700, 1280), dur: 2.6 }], t);
+    const c = done < 1 ? cu : cp;
+    const w = [page(p, "upload", cu, 1 - done), page(p, "passport", cp, done, "next")];
+    const sb = b.submit;
+    cursor(p, c, Object.assign([{ at: TW + 0.6, x: 980, y: 1000 }, { at: TW + 0.9, x: sb.x + sb.w / 2, y: sb.y + 26, dur: 0.8 }, { click }], { hide: click + 0.4 }), t);
+    const k = outQ(prog(t, TW + BAR * 3 + 0.2, 1.6));
+    $$(s, ".stat").forEach((e) => { const v = e.dataset.v, n = parseInt(v); e.textContent = Math.round(n * k) + (v.includes("мс") ? " мс" : ""); });
+    return Promise.all(w);
+  },
+};
+
+SC.registry = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "05 / реестр", ti: "Сначала главное", tx: "Восемь объектов с высоким приоритетом. Пять уровней приоритета — процента коррупции нет намеренно." });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const tb = BOX.registry.table;
+    const c = camAt([{ cam: cam(0, 0, 1280) }, { at: TW + 1.4, cam: cam(0, tb.y - 290, 1280), dur: 2.2 }, { at: TW + 4.6, cam: cam(28, tb.y - 40, 1224), dur: 3.6 }], t);
+    return page(s._p, "registry", c);
+  },
+};
+
+SC.card = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "06 / карточка", ti: "Почему объект в реестре", tx: [
+      { at: 0, text: "Аксайский район, 61:02:0600010:2843. Три правила из четырёх сработали, каждое — со своим расчётом." },
+      { at: TW + BAR * 1.5, text: "И6. Участок куплен за 75 дней до начала процедуры; участник решения был учредителем покупателя." },
+      { at: TW + BAR * 3.5, text: "И10. То же должностное лицо — ещё в пяти эпизодах других правил." },
+      { at: TW + BAR * 5, text: "И1. Категорию земли сменили через 271 день после регистрации права." },
+      { at: TW + BAR * 6.75, text: "Хронологию система собрала сама — из трёх разных таблиц исследования." }] });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const b = BOX.card;
+    const c = camAt([{ cam: cam(0, 0, 1280) },
+      { at: TW + BAR * 1.5 - 0.4, cam: fitBox(b.i6, 32) },
+      { at: TW + BAR * 3.5 - 0.4, cam: fitBox(b.i10, 32) },
+      { at: TW + BAR * 5 - 0.4, cam: fitBox(b.i1, 32) },
+      { at: TW + BAR * 6.75 - 0.4, cam: fitBox({ x: 64, y: b.chrono.y - 24, w: 1152, h: b.chrono.h + 48 }, 0) }], t);
+    return page(s._p, "card", c);
+  },
+};
+
+SC.timeline = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "07 / хронология", ti: "События из трёх таблиц", tx: "Покупка — за 75 дней до начала процедуры. Смена категории — через 271 день после регистрации права." });
+    const ev = [["14.03.2024", "Присвоен кадастровый номер", "И1", ""], ["22.05.2025", "Регистрация права", "И1", ""],
+      ["22.05.2025", "Право покупателя", "И6", ""], ["05.08.2025", "Начало процедуры", "И6", "+75 дн."],
+      ["17.02.2026", "Смена категории", "И1", "+271 дн."], ["17.02.2026", "Новая кадастровая стоимость", "И3", ""], ["15.05.2026", "Раздел участка", "И3", ""]];
+    const d0 = Date.parse("2024-01-01"), d1 = Date.parse("2026-07-01");
+    const X = (d) => { const [dd, mm, yy] = d.split("."); return (Date.parse(`${yy}-${mm}-${dd}`) - d0) / (d1 - d0) * 848; };
+    s._X = X;
+    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:64px repeat(7,1fr)">
+      <div style="grid-template-columns:848px 848px;column-gap:64px;align-items:start"><span class="eyebrow" style="opacity:.6">дата / событие / правило</span>
+        <span style="position:relative;height:22px">${["2024", "2025", "2026"].map((y) => `<span class="eyebrow yr" style="position:absolute;left:${X("01.01." + y)}px;top:0">${y}</span>`).join("")}</span></div>
+      ${ev.map(([d, txt, code, gap]) => `<div class="ev" style="grid-template-columns:848px 848px;column-gap:64px">
+        <span style="display:grid;grid-template-columns:200px 1fr;align-items:center"><span class="eyebrow">${d}</span><span class="txt" style="font-size:30px">${txt} <span class="chip" style="margin-left:10px;vertical-align:4px">${code}</span></span></span>
+        <span style="position:relative;height:16px"><i class="bar" style="position:absolute;left:0;top:7px;height:2px;background:var(--hair);width:0"></i>
+          <i class="dot" style="position:absolute;top:0;width:16px;height:16px;background:#fff;left:${X(d) - 8}px"></i>
+          ${gap ? `<span class="eyebrow gap" style="position:absolute;left:${X(d) + 24}px;top:-2px;white-space:nowrap">${gap}</span>` : ""}</span></div>`).join("")}</div>`;
+    s._ev = ev;
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const head = $(s, ".rows > div");
+    head.style.opacity = outQ(prog(t, TW + 0.4, 0.6));
+    $$(s, ".ev").forEach((r, i) => {
+      const at = TW + 0.8 + i * BEAT * 1.25;
+      const a = outQ(prog(t, at, 0.7));
+      r.style.opacity = a;
+      const x = s._X(s._ev[i][0]);
+      r.querySelector(".bar").style.width = x * outQ(prog(t, at + 0.1, 0.9)) + "px";
+      const dot = r.querySelector(".dot");
+      dot.style.transform = `scale(${outQ(prog(t, at + 0.6, 0.4))})`;
+      const gap = r.querySelector(".gap");
+      if (gap) gap.style.opacity = outQ(prog(t, at + 0.9, 0.5));
+    });
+  },
+};
+
+SC.review = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "08 / решение человека", ti: "Решает сотрудник", tx: [
+      { at: 0, text: "Сотрудник отмечает вывод и пишет, какие документы открыл и что проверил." },
+      { at: TW + BAR * 4, text: "Запись хранится с автором и временем. Факты и сигнал системы не меняются." }] });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const p = s._p, b = BOX["review-filled"], rv = BOX.card.review, steps = BOX.reviewSteps || 35;
+    const save = TW + BAR * 3.6;
+    const done = clamp(prog(t, save + 0.15, 0.5));
+    const c = camAt([{ cam: fitBox(rv, 24) }, { at: save + 0.5, cam: fitBox(BOX["review-saved"].review, 24), dur: 1.4 }], t);
+    const T = TW + 2.6, step = 0.13;
+    let k = 0;
+    if (t > TW + 1.5) k = 1;
+    if (t > T) k = Math.min(steps - 1, 1 + Math.ceil((t - T) / step));
+    const w = [page(p, "card", c, 1 - done),
+      place(layer(p, `review-${String(k).padStart(2, "0")}`, "over"), c, Math.floor(rv.x), Math.floor(rv.y), Math.ceil(rv.x + rv.w) - Math.floor(rv.x), null, 1 - done),
+      page(p, "review-saved", c, done, "next")];
+    const ch = b.choice, tx = b.text, sb = b.submit;
+    cursor(p, c, Object.assign([{ at: TW + 0.5, x: 900, y: rv.y + 300 }, { at: TW + 0.7, x: ch.x + 20, y: ch.y + 24, dur: 0.6 }, { click: TW + 1.45 },
+      { at: TW + 1.9, x: tx.x + 120, y: tx.y + 60, dur: 0.6 }, { click: T - 0.1 },
+      { at: save - 0.9, x: sb.x + sb.w / 2, y: sb.y + 26, dur: 0.7 }, { click: save }], { hide: save + 0.4 }), t);
+    return Promise.all(w);
+  },
+};
+
+SC.geometry = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "09 / геометрия", ti: "Граница с изломом", tx: "Участок 61:02:0120105:331. Контур посчитан по координатам: участок занимает лишь 59 % описанного прямоугольника." });
+    s.querySelector(".body").innerHTML = `
+      <div class="L"><div class="num fill" style="font-size:300px;position:absolute;left:-8px;top:0">0,000</div>
+        <div style="position:absolute;left:0;top:280px"><div class="mask"><p class="txt" style="font-size:34px">коэффициент заполнения</p></div></div>
+        <div class="gs" style="position:absolute;left:0;right:0;bottom:184px;display:grid;grid-template-columns:1fr 1fr;column-gap:32px">
+          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:96px">1 418 м²</div></div><div class="mask"><p class="eyebrow">площадь участка</p></div></div>
+          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:96px">2 393 м²</div></div><div class="mask"><p class="eyebrow">описанный прямоугольник</p></div></div></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;height:120px">
+          <p class="eyebrow" style="position:absolute;left:0;top:0">0</p><p class="eyebrow thr" style="position:absolute;top:0;transform:translateX(-50%);white-space:nowrap">порог 0,85</p><p class="eyebrow" style="position:absolute;right:0;top:0">1</p>
+          <div style="position:absolute;left:0;right:0;top:56px;height:24px;background:var(--fill)"></div>
+          <div class="gfill" style="position:absolute;left:0;top:56px;height:24px;background:#fff;width:0"></div>
+          <div class="thrline" style="position:absolute;top:44px;width:4px;height:48px;background:#fff"></div></div></div>
+      <div class="R"><svg class="geo" width="848" height="760"></svg></div>`;
+    const thr = 848 * 0.85;
+    s.querySelector(".thr").style.left = thr + "px";
+    s.querySelector(".thrline").style.left = thr - 2 + "px";
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    $$(s, ".gs .mask > *").forEach((e, k) => line(e, t, TW + BAR * 2.4 + k * 0.1));
+    const fill = 0.593 * inOut(prog(t, TW + BAR * 1.4, BAR * 1.2));
+    $(s, ".fill").textContent = fmt(fill, 3);
+    $(s, ".gfill").style.width = 848 * fill + "px";
+    if (!SHAPE) return;
+    const pts = SHAPE.polygon, rect = SHAPE.rectangle;
+    const all = rect.concat(pts), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+    const k = Math.min(848 / (maxx - minx), 760 / (maxy - miny));
+    const ox = (848 - (maxx - minx) * k) / 2, oy = (760 - (maxy - miny) * k) / 2;
+    const P = ([x, y]) => [ox + (x - minx) * k, oy + (maxy - y) * k];
+    const d = (arr) => arr.map(P).map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + " Z";
+    const draw = inOut(prog(t, TW + 0.3, BAR * 0.9)), rdraw = inOut(prog(t, TW + BAR * 1.1, BAR * 0.6));
+    const area = outQ(prog(t, TW + BAR * 0.9, 0.8));
+    $(s, ".geo").innerHTML =
+      `<path d="${d(rect)}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-dasharray="12 10" opacity="${rdraw}"/>` +
+      `<path d="${d(pts)}" fill="rgba(255,255,255,${0.28 * area})" stroke="#fff" stroke-width="4" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="${1000 * (1 - draw)}"/>`;
+  },
+};
+
+SC.map = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "10 / карта", ti: "Контуры на карте", tx: "Участки и изменённые зоны из таблиц. Чем плотнее заливка, тем выше приоритет; клик открывает карточку." });
+    s._p = panel(s);
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    const m = BOX.map.map;
+    const c = camAt([{ cam: cam(0, 0, 1280) }, { at: TW + 1.0, cam: cam(0, m.y + m.h / 2 - 276, 1280), dur: 2.0 }, { at: TW + 3.6, cam: cam(140, m.y + 60, 1100), dur: 3.4 }], t);
+    return page(s._p, "map", c);
+  },
+};
+
+SC.quality = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "11 / проверка качества", ti: "Сверка с разметкой", tx: "Правила проверены на тех же 70 записях, что размечены в исследовании." });
+    const rows = [["И1", "Покупка до смены категории", 10], ["И2", "Правка ПЗЗ / генплана", 10], ["И3", "Выгода после смены категории", 10],
+      ["И4", "Единственный участник торгов", 10], ["И6", "Связанное лицо до процедуры", 9], ["И8", "Аномалия границ", 10], ["И10", "Повтор должностного лица", 10]];
+    s._rows = rows;
+    s.querySelector(".body").innerHTML = `
+      <div class="L"><div class="rows" style="grid-template-rows:repeat(7,1fr)">${rows.map(([c, n]) => `
+        <div class="q" style="grid-template-columns:96px 1fr 180px 100px;column-gap:24px"><span><span class="chip">${c}</span></span><span class="txt">${n}</span>
+          <span style="position:relative;height:12px;background:var(--fill)"><b style="position:absolute;left:0;top:0;bottom:0;background:#fff;display:block;width:0"></b></span>
+          <span class="txt v" style="text-align:right;font-variant-numeric:tabular-nums">0</span></div>`).join("")}</div></div>
+      <div class="R"><div class="num total" style="font-size:400px;position:absolute;left:-12px;top:0">0</div>
+        <div style="position:absolute;left:0;top:350px"><div class="mask"><p class="txt" style="font-size:34px">из 70 записей совпали</p></div></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;gap:16px">
+          <div class="mask"><p class="txt f1">F1 0,98 · точность 1,00 · полнота 0,97</p></div>
+          <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение намеренное: совпала только фамилия — это гипотеза, а не связь.</p></div></div></div>`;
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    let total = 0;
+    $$(s, ".q").forEach((r, i) => {
+      const at = TW + BEAT * 1.5 + i * BEAT;
+      const a = outQ(prog(t, at, 0.8));
+      r.style.opacity = outQ(prog(t, at - 0.2, 0.4));
+      const v = Math.round(s._rows[i][2] * a);
+      total += v;
+      r.querySelector("b").style.width = (s._rows[i][2] / 10) * 100 * a + "%";
+      r.querySelector(".v").textContent = `${v} / 10`;
+    });
+    $(s, ".total").textContent = total;
+    line($(s, ".R .mask > *"), t, TW + 0.6);
+    line($(s, ".f1"), t, TW + BAR * 3); line($(s, ".f2"), t, TW + BAR * 3 + 0.15);
+  },
+};
+
+SC.principles = {
+  kind: "grey",
+  build(s) {
+    caption(s, { ey: "12 / принципы", ti: "Как читать сигнал", tx: "Система показывает основания для проверки и не делает выводов о нарушении." });
+    const items = ["Сигнал, а не обвинение", "«Нет данных» — не «нет риска»", "У каждого значения — первоисточник", "Решение принимает человек"];
+    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:repeat(4,1fr)">${items.map((x, i) => `
+      <div style="grid-template-columns:120px 1fr"><span class="eyebrow">${String(i + 1).padStart(2, "0")}</span><div class="mask"><p class="h pr" style="white-space:nowrap">${x}</p></div></div>`).join("")}</div>`;
+  },
+  layout(s) {
+    const ps = $$(s, ".pr");
+    ps.forEach((e) => { e.style.fontSize = "100px"; e.style.display = "inline-block"; });
+    const w = Math.max(...ps.map((e) => e.getBoundingClientRect().width));
+    const size = Math.min(150, Math.floor(100 * (BODY_W - 120) / w));
+    ps.forEach((e) => { e.style.fontSize = size + "px"; e.style.display = "block"; });
+  },
+  frame(s, t) {
+    captionAt(s, t);
+    $$(s, ".rows > div").forEach((r, i) => {
+      const at = TW + 0.5 + i * BAR * 0.75;
+      r.style.opacity = outQ(prog(t, at - 0.1, 0.3));
+      line(r.querySelector(".pr"), t, at, Infinity, 0.9);
+    });
+  },
+};
+
+SC.outro = {
+  kind: "blue",
+  build(s) {
+    caption(s, { ey: "Код прозрачности · 2026", ti: "Zeus Analytics", tx: [{ at: 0, html: `<div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics</p></div><div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>` }] });
+    s.querySelector(".body").innerHTML = `
+      <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Индикатор —</h1></div>
+        <div class="mask"><h1 class="h big">повод проверить</h1></div></div>
+      <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/band-cases.jpg" style="position:absolute;left:0;width:100%;height:auto" alt="" /></div>`;
+  },
+  layout(s) { fitPair(s); },
+  frame(s, t) {
+    captionAt(s, t);
+    const [l1, l2] = $$(s, ".big");
+    line(l1, t, TW + 0.3, Infinity, 1); line(l2, t, TW + 0.3 + BEAT, Infinity, 1);
+    const band = $(s, ".band"), a = outQ(prog(t, TW + BEAT * 3, 1.4));
+    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
+    band.querySelector("img").style.top = `${-300 + 140 * inOut(t / (4 * BAR + 4))}px`;
+    const veil = $(s, ".veil");
+    veil.style.opacity = inOut(prog(t, TW + 4 * BAR - 0.4, 3));
+  },
+};
+
+// ------------------------------------------------------------------ сборка
+const stage = document.getElementById("stage");
+const starts = []; let acc = 0;
+for (const sec of TL.sections) { starts.push(acc); acc += sec.bars * BAR; }
+const END = acc;
+for (const sec of TL.sections) {
+  const def = SC[sec.id];
+  const s = el(`<section class="scene ${def.kind}" id="${sec.id}"><div class="body"></div></section>`);
+  stage.appendChild(s);
+  def.build(s);
+  if (sec.id === "outro") s.appendChild(el(`<div class="veil" style="position:absolute;inset:0;background:var(--blue);opacity:0;z-index:9"></div>`));
+}
+// Шрифт грузится только когда нужен: подгрузить все наборы до замера строк по ширине.
+const ready = Promise.all(["Риски", "Zeus", "→≈"].map((x) => document.fonts.load('200 100px "SG"', x))).then(() => document.fonts.ready).then(() => {
+  for (const sec of TL.sections) {
+    const s = document.getElementById(sec.id);
+    if (SC[sec.id].layout) { s.classList.add("on"); SC[sec.id].layout(s); s.classList.remove("on"); }
+  }
+});
+
+// Сцена i живёт от starts[i] − TW (начало шторки) до starts[i+1]; локальное время отсчитывается от начала шторки.
+const begin = (i) => (i === 0 ? 0 : starts[i] - TW);
 async function render(t) {
-  let idx = TL.sections.length - 1;
-  for (let i = 0; i < starts.length; i++) if (t >= starts[i]) idx = i;
-  const sec = TL.sections[idx], local = t - starts[idx];
-  document.querySelectorAll(".scene").forEach((s) => s.classList.toggle("on", s.id === sec.id));
-  const scene = document.getElementById(sec.id);
-  const pending = scenes[sec.id](scene, local);
-
-  // Шторка: закрывает конец сцены и открывает следующую, цвет — против фона уходящей.
-  const sh = document.getElementById("shutter");
-  let near = null;
-  for (let i = 1; i < starts.length; i++) if (Math.abs(t - starts[i]) < 0.6) near = i;
-  [...sh.children].forEach((e, k) => {
-    if (near === null) { e.style.transform = "translateY(100%)"; return; }
-    const b = starts[near], from = document.getElementById(TL.sections[near - 1].id);
-    e.style.background = from.classList.contains("blue") ? "#fff" : "#0000e8";
-    if (t < b) e.style.transform = `translateY(${(1 - inOut(prog(t, b - 0.42 + k * 0.05, 0.3))) * 100}%)`;
-    else e.style.transform = `translateY(${-inOut(prog(t, b + 0.02 + k * 0.05, 0.32)) * 100}%)`;
+  await ready;
+  let i = 0;
+  for (let k = 0; k < starts.length; k++) if (t >= begin(k)) i = k;
+  const cur = TL.sections[i], prev = i > 0 && t < starts[i] ? TL.sections[i - 1] : null;
+  document.querySelectorAll(".scene").forEach((s) => {
+    const on = s.id === cur.id || (prev && s.id === prev.id);
+    s.classList.toggle("on", on);
+    s.style.zIndex = s.id === cur.id ? 2 : 1;
+    s.style.clipPath = ""; s.style.transform = "";
   });
-
-  // Шапка: цвет по фону сцены, раздел, четыре доли такта, полоса прогресса.
-  const hud = document.getElementById("hud");
-  hud.style.color = scene.classList.contains("blue") ? "#fff" : "#000";
-  // Запись реестра идёт во весь кадр, и её строка заголовков стоит под шапкой: марку фильма прячем.
-  hud.querySelector(".mark").style.opacity = sec.id === "registry" ? 1 - outQ(prog(local, 0, 0.4)) : 1;
-  
-  const name = NAMES[sec.id];
-  hud.querySelector(".secname").textContent = "";
-  const beat = Math.floor(t / BEAT) % 4;
-  hud.querySelectorAll(".beats i").forEach((e, i) => e.classList.toggle("on", i <= beat && t < END));
-  hud.querySelector(".barfill").style.width = 1728 * clamp(t / END) + "px";
-  hud.style.opacity = sec.id === "title" ? outQ(prog(local, BAR * 2, 1)) : sec.id === "outro" ? 1 - inOut(prog(local, 4 * BAR - 0.2, 2)) : 1;
-  await pending;
-  await document.fonts.ready;
+  const jobs = [];
+  const sc = document.getElementById(cur.id);
+  jobs.push(SC[cur.id].frame(sc, t - begin(i)));
+  if (prev) {
+    const ps = document.getElementById(prev.id);
+    jobs.push(SC[prev.id].frame(ps, t - begin(i - 1)));
+    const k = inOut(prog(t, begin(i), TW));
+    sc.style.clipPath = `inset(${(1 - k) * 100}% 0 0 0)`;
+    ps.style.transform = `translateY(${-k * 120}px)`;
+  }
+  await Promise.all(jobs);
 }
 window.render = render;
 window.FILM_END = END;

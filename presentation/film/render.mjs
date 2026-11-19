@@ -5,19 +5,19 @@
  *   PLAYWRIGHT=… node presentation/film/render.mjs --stills 3,12.5 # отдельные кадры в stills/
  *
  * Кадры снимают четыре вкладки параллельно; каждая вызывает render(t) и ждёт, пока
- * подгрузятся кадры записи, поэтому результат не зависит от скорости машины.
+ * подгрузятся снимки сервиса, поэтому результат не зависит от скорости машины.
  */
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
-import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { chromium } = await import(process.env.PLAYWRIGHT || "playwright");
 const timeline = JSON.parse(readFileSync(resolve(here, "timeline.json")));
 const shape = JSON.parse(readFileSync(resolve(here, "shape.json")));
-const clips = Object.fromEntries(readdirSync(resolve(here, "clips")).map((d) => [d, readdirSync(resolve(here, "clips", d)).length]));
-const data = { timeline, shape, clips };
+const boxes = JSON.parse(readFileSync(resolve(here, "shots", "boxes.json")));
+const data = { timeline, shape, boxes };
 
 const stillsArg = process.argv.indexOf("--stills");
 const stills = stillsArg > 0 ? process.argv[stillsArg + 1].split(",").map(Number) : null;
