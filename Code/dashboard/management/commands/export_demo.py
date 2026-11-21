@@ -32,7 +32,7 @@ PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:ич|вна|чна|тична|оглы|кы
 NAME_RE = re.compile(rf"\b([А-ЯЁ])[а-яё]+(?:-[А-ЯЁ][а-яё]+)?\s+([А-ЯЁ])[а-яё]+\s+({PATRONYMIC})")
 INN_RE = re.compile(r"(ИНН\s*)\d{10,12}")
 SKIP = ("/admin", "/accounts/logout", "/health", "/evidence/", "/analysis/", "/static/")
-ATTR_RE = re.compile(r'''(\s(?:href|src|action)=")([^"#]*)(#[^"]*)?"''')
+ATTR_RE = re.compile(r'''(\s(?:href|src|action|data-index)=")([^"#]*)(#[^"]*)?"''')
 
 # Демо обходит сайт от имени читателя без прав записи: формы загрузки, анализа, проверки и
 # документов сервис сам не показывает. Остаётся форма «Выйти» — в статичной копии она не нужна.
@@ -248,7 +248,7 @@ class Command(BaseCommand):
         """Site URL (path + query) → relative file path of the static page."""
         parts = urlsplit(url)
         path = parts.path.strip("/")
-        if parts.path.endswith(".csv"):
+        if parts.path.endswith((".csv", ".json")):  # the CSV export and the search index
             return path
         if parts.query:
             query = urlencode(sorted((k, v) for k, v in parse_qsl(parts.query) if v))
@@ -268,6 +268,14 @@ class Command(BaseCommand):
                 continue
             file = out / self.target(url)
             file.parent.mkdir(parents=True, exist_ok=True)
+            if url.endswith(".json"):
+                # the search index: its links are site paths, the demo lives under the prefix
+                data = json.loads(response.content)
+                for item in data["items"] + data["actions"]:
+                    path = self.target(self.canonical(item["url"])).removesuffix("index.html")
+                    item["url"] = f"{prefix}{path}"
+                file.write_text(json.dumps(data, ensure_ascii=False))
+                continue
             if url.endswith(".csv"):
                 file.write_bytes(response.content)
                 continue
