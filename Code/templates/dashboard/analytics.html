@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load static kp %}
+{% block title %}Аналитика · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
+{% block content %}
+<h1 class="sr-only">Аналитика: индикаторы</h1>
+{% include "dashboard/_analytics_bar.html" %}
+<div class="pg-page">
+  {% if run %}
+  <div class="grid g-4">
+    <div class="card kpi">
+      <div><div class="t-mono">Записей проверено</div><div class="t-period">последний анализ</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ run.records_count }}</span></div>
+    </div>
+    <div class="card kpi">
+      <div><div class="t-mono">Срабатываний</div><div class="t-period">по семи индикаторам</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ run.triggered_count }}</span></div>
+    </div>
+    <a class="card kpi card-link" href="{% url 'dashboard:case_list' %}">
+      <div><div class="t-mono">Объектов</div><div class="t-period">в последнем анализе</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ run.cases_count }}</span></div>
+    </a>
+    <a class="card kpi card-link" href="{% url 'dashboard:methodology' %}#quality">
+      <div><div class="t-mono">Сверка с разметкой</div><div class="t-period">совпало с ответом автора</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ run.agreed_count }} <span class="pg-of">из {{ run.compared_count }}</span></span></div>
+    </a>
+  </div>
+  {% else %}
+  <section class="card">
+    <div class="card-head"><div><h2 class="t-mono">Анализ</h2><div class="t-period">результатов пока нет</div></div></div>
+    <p class="soft">Анализ ещё не запускался. Загрузите таблицы исследования и запустите анализ в разделе «История изменений».</p>
+  </section>
+  {% endif %}
+
+  <div class="grid g-side pg-even">
+    <div class="stack">
+      <section class="card pg-fill" aria-labelledby="bars-h">
+        <div class="card-head"><div><h2 class="t-mono" id="bars-h">Срабатывания по индикаторам</h2><div class="t-period">столбец открывает объекты индикатора</div></div></div>
+        <div class="chart" style="min-height:300px" data-chart="bars" data-src="bars-data" role="img" aria-label="{% for s in chart_bars %}{{ s.label }}: {{ s.value }}{% if not forloop.last %}; {% endif %}{% endfor %}"></div>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card" aria-labelledby="ind-h">
+        <div class="card-head"><div><h2 class="t-mono" id="ind-h">Семь индикаторов</h2><div class="t-period">строка открывает объекты индикатора в реестре</div></div></div>
+        <div class="tbl-wrap"><table class="tbl pg-stack">
+          <thead><tr><th>Индикатор</th><th>Вес риска</th><th class="r">Записей</th><th class="r">Сработал</th><th class="r">Нет данных</th><th>Сверка с разметкой</th><th></th></tr></thead>
+          <tbody>{% for row in per_indicator %}<tr class="row">
+            <td class="pg-full"><a class="row-link" href="{{ row.url }}"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</a><span class="sub">{{ row.indicator.title }}</span></td>
+            <td data-label="Вес риска"><span class="risk {{ row.indicator.risk }}">{{ row.risk_label }}</span></td>
+            <td class="r" data-label="Записей">{{ row.total }}</td>
+            <td class="r" data-label="Сработал">{{ row.triggered }}</td>
+            <td class="r" data-label="Нет данных">{{ row.insufficient }}</td>
+            <td data-label="Сверка с разметкой">{% if row.compared %}<span class="pg-agree"><span class="pg-meter"><i style="width:{{ row.agreed|percent:row.compared }}%"></i></span><span class="nowrap">{{ row.agreed }} из {{ row.compared }}</span></span>{% else %}<span class="soft">нет разметки</span>{% endif %}</td>
+            <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
+          </tr>{% endfor %}</tbody>
+        </table></div>
+      </section>
+    </div>
+  </div>
+</div>
+{{ chart_bars|json_script:"bars-data" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/charts.js' %}"></script>{% endblock %}

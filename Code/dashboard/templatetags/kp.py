@@ -5,6 +5,7 @@ from django.utils.safestring import mark_safe
 
 from analysis.contracts import RuleStatus
 from cases.facts import ABSENT, MISSING
+from cases.indicators import INDICATORS
 from cases.models import Origin
 
 register = template.Library()
@@ -24,8 +25,7 @@ ORIGIN_SHORT = {
 STATUS = {
     RuleStatus.TRIGGERED: ("s-trig", "Сработал"),
     RuleStatus.NOT_TRIGGERED: ("s-none", "Не сработал"),
-    RuleStatus.INSUFFICIENT_DATA: ("s-insuf", "Недостаточно данных"),
-    RuleStatus.NOT_APPLICABLE: ("s-na", "Не применим"),
+    RuleStatus.INSUFFICIENT_DATA: ("s-insuf", "Нет данных"),
 }
 
 
@@ -104,7 +104,7 @@ def code_display(code):
     return "И" + str(code)[1:]
 
 
-ATTENTION_LEVEL = {"high": 5, "normal": 3, "low": 2, "none": 0, "insufficient": -1, "not_run": -1}
+ATTENTION_LEVEL = {"high": 5, "medium": 3, "low": 2, "none": 0, "insufficient": -1, "not_run": -1}
 
 
 def _level_svg(level):
@@ -137,7 +137,12 @@ def outcome_level(outcome):
     if outcome is None:
         return _level_svg(-1)
     if outcome.status == RuleStatus.TRIGGERED:
-        return _level_svg({"high": 5, "normal": 3, "low": 2}.get(outcome.priority, 3))
+        return _level_svg({"high": 5, "medium": 3, "low": 2}[INDICATORS[outcome.rule_code].risk])
     if outcome.status == RuleStatus.NOT_TRIGGERED:
         return _level_svg(0)
     return _level_svg(-1)
+
+
+@register.filter
+def mul(value, factor):
+    return int(value) * int(factor)

@@ -48,9 +48,9 @@ FILTER_SCRIPT = """
   const data = JSON.parse(document.getElementById("demo-index").textContent);
   const form = document.querySelector("form.filters");
   const body = document.querySelector("table.tbl tbody");
-  const found = [...document.querySelectorAll("h2")].find((h) => h.textContent.startsWith("Найдено"));
+  const found = document.querySelector("[data-found]");
   const pager = document.querySelector("nav.pager");
-  const tabs = [...document.querySelectorAll("nav.seg a")];
+  const tabs = [...document.querySelectorAll("nav.tabs a[data-attention]")];
   if (!form || !body) return;
   const state = Object.fromEntries(new URLSearchParams(location.search));
   const hidden = form.querySelector('input[name="attention"]');
@@ -68,16 +68,22 @@ FILTER_SCRIPT = """
     if (found) found.textContent = "Найдено: " + ids.length;
     if (pager) pager.hidden = true;
     tabs.forEach((a) => {
-      const value = new URL(a.href, location.href).searchParams.get("attention") || a.dataset.attention || "";
-      a.toggleAttribute("aria-current", value === (state.attention || ""));
-      if (a.hasAttribute("aria-current")) a.setAttribute("aria-current", "true");
+      const on = a.dataset.attention === (state.attention || "") && a.dataset.review === (state.review || "");
+      if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
     });
-    for (const field of form.elements) if (field.name && field.name in state) field.value = state[field.name];
+    for (const field of form.elements) {
+      if (!field.name || !(field.name in state)) continue;
+      field.value = state[field.name];
+      // the select is driven by a button (static/js/app.js): show the chosen option on it
+      const label = field.closest(".dd")?.querySelector(".dd-btn span");
+      if (label && field.selectedIndex >= 0) label.textContent = field.options[field.selectedIndex].textContent;
+    }
     if (push) history.replaceState(null, "", "?" + new URLSearchParams(Object.entries(state).filter(([, v]) => v)));
   }
   tabs.forEach((a) => a.addEventListener("click", (event) => {
     event.preventDefault();
-    state.attention = a.dataset.attention || "";
+    state.attention = a.dataset.attention;
+    state.review = a.dataset.review;
     apply(true);
   }));
   form.addEventListener("submit", (event) => {
@@ -211,14 +217,7 @@ class Command(BaseCommand):
         payload = f'<script id="demo-index" type="application/json">{index}</script>{FILTER_SCRIPT}'
         for file in [out / "cases" / "index.html", *(out / "cases" / "q").glob("*/index.html")]:
             html = file.read_text()
-            html = re.sub(r'<a href="([^"]*)" data-lbl', self.tab_mark, html)
             file.write_text(html.replace("</body>", payload + "</body>", 1))
-
-    @staticmethod
-    def tab_mark(match):
-        """Вкладка итога анализа помнит своё значение: скрипт фильтров переключает её на месте."""
-        value = re.search(r"attention-(\w+)", match.group(1))
-        return f'<a href="{match.group(1)}" data-attention="{value.group(1) if value else ""}" data-lbl'
 
     def mask_real_people(self):
         changed = 0
@@ -298,8 +297,6 @@ class Command(BaseCommand):
 
             html = ATTR_RE.sub(rewrite, html)
             html = POST_FORM_RE.sub("", html)
-            # the map builds card links in JS
-            html = html.replace('href="/cases/${f.id}/"', f'href="{prefix}cases/${{f.id}}/"')
             html = html.replace("</head>", '<meta name="robots" content="noindex">\n</head>', 1)
             file.write_text(html)
         return len([p for p in out.rglob("index.html")])

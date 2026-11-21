@@ -1,22 +1,42 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load kp %}
 {% block title %}Вход · Код прозрачности{% endblock %}
 {% block body_class %}page-login{% endblock %}
-{% block top %}
-<section class="login">
-  <div class="login-copy">
-    <div class="hero-rail eyebrow"><span>Земельные отношения</span><span>Профилактика коррупции</span></div>
-    <h1 class="display-xl fit"><span class="sr-only">Земельные решения по данным реестров</span><span class="fit-line" aria-hidden="true">Земельные решения</span><span class="fit-line" aria-hidden="true">по данным реестров</span></h1>
-    <p class="lede j">Сервис сопоставляет сделки с землёй, смену категории, правки ПЗЗ и связи с должностными лицами, показывает основания для проверки по каждому объекту.</p>
+{% block shell %}
+<main class="login">
+  <div class="login-card">
+    <div class="login-side">
+      <div class="login-brand"><svg class="icon" aria-hidden="true"><use href="#i-logo"/></svg>Код прозрачности</div>
+      <svg class="login-art" viewBox="0 0 300 180" aria-hidden="true">
+        <g stroke="#ffffff" stroke-opacity=".14" stroke-dasharray="1 5">{% for x in "0123456789"|make_list %}<path d="M{{ forloop.counter0|mul:30 }} 0V180"/>{% endfor %}<path d="M0 45H300M0 90H300M0 135H300"/></g>
+        <g fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1.2"><path d="M10 15 68 22 92 52 182 76 300 39M0 70 20 95 88 85 115 127 205 102 300 130M110 0 105 52M182 0 190 35 239 21M240 20 237 95 300 150M115 127 92 172M205 102 230 145M160 180 205 102"/></g>
+        <path d="M88 52 155 66 182 103 115 127 88 85Z" fill="#6f8fd0" fill-opacity=".38" stroke="#a9c3f2" stroke-width="1.6"/>
+        <path d="M155 66 190 35 239 21M155 66 115 127" fill="none" stroke="#dce8ff" stroke-width="1.4" stroke-dasharray="4 4"/>
+        <circle cx="155" cy="66" r="7" fill="#222b33" stroke="#c2f0b6" stroke-width="1.6"/><circle cx="155" cy="66" r="2.6" fill="#c2f0b6"/>
+      </svg>
+      <p class="login-title">Рабочее место специалиста</p>
+    </div>
     <form method="post" action="{% url 'accounts:login' %}" class="login-form">
       {% csrf_token %}
-      {% if form.non_field_errors %}<div class="notice notice-strong small">Неверный логин или пароль.</div>{% endif %}
-      <div><label class="field-label eyebrow" for="id_username">Логин</label><input class="input" type="text" name="username" id="id_username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
-      <div><label class="field-label eyebrow" for="id_password">Пароль</label><input class="input" type="password" name="password" id="id_password" autocomplete="current-password" required></div>
+      <div class="login-head">
+        <h1>Вход в систему</h1>
+        <p class="soft">Используйте учётную запись, выданную администратором.</p>
+      </div>
+      {% if form.non_field_errors %}<p class="notice error" role="alert">Неверный логин или пароль.</p>{% endif %}
+      <div class="field"><label for="id_username">Логин</label><input class="input" type="text" name="username" id="id_username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
+      <div class="field"><label for="id_password">Пароль</label>
+        <div class="pass"><input class="input" type="password" name="password" id="id_password" autocomplete="current-password" required><button class="pass-eye" type="button" aria-label="Показать пароль" data-eye><svg class="icon"><use href="#i-eye"/></svg></button></div>
+      </div>
       {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <button class="btn btn-primary" type="submit" data-lbl="Войти">Войти</button>
-      <span class="eyebrow">Учётные записи выдаёт администратор</span>
+      <button class="btn btn-wide" type="submit">Войти <svg class="icon"><use href="#i-arrow"/></svg></button>
     </form>
   </div>
-  <figure class="login-plate"><img src="{% static 'img/hero.jpg' %}" alt="Поля, разделённые на участки: гравюра" width="1000" height="1000"></figure>
-</section>
+</main>
+<script>
+document.querySelector("[data-eye]").addEventListener("click", (event) => {
+  const input = document.getElementById("id_password");
+  const shown = input.type === "text";
+  input.type = shown ? "password" : "text";
+  event.currentTarget.setAttribute("aria-label", shown ? "Показать пароль" : "Скрыть пароль");
+});
+</script>
 {% endblock %}

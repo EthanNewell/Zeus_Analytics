@@ -5,6 +5,9 @@ from . import views
 app_name = "dashboard"
 urlpatterns = [
     path("", views.overview, name="overview"),
+    path("analytics/", views.analytics, name="analytics"),
+    path("history/", views.history, name="history"),
+    path("search.json", views.search_index, name="search_index"),
     path("cases/", views.cases, name="case_list"),
     path("cases/<uuid:case_id>/", views.case_detail, name="case_detail"),
     path("cases/<uuid:case_id>/reviews/", views.review_create, name="review_create"),

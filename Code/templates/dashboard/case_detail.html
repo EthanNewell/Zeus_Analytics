@@ -1,148 +1,262 @@
-{% extends "base.html" %}{% load kp %}
-{% block title %}{{ case.reference }} · Код прозрачности{% endblock %}
-{% block top %}
-<section class="case-head">
-  <div class="wrap case-head-in">
-    <div style="display:grid;gap:var(--s5)">
-      <a class="eyebrow" href="{% url 'dashboard:case_list' %}"><svg class="icon"><use href="#i-back"/></svg> Реестр</a>
-      <span class="eyebrow">{{ case.object_kind|default:"Объект" }} / {{ case.reference }}</span>
-      <h1 class="display-l">{{ case.title }}</h1>
-      <div class="case-meta">
-        <span class="state">{% attention_level case.attention %}<span class="eyebrow">{{ case.get_attention_display }}</span></span>
-        {% if case.triggered_list %}<span class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% endfor %}</span>{% endif %}
-        {% if case.region %}<span class="eyebrow">{{ case.region }}</span>{% endif %}
-        {% if case.area_sq_m %}<span class="eyebrow">{{ case.area_sq_m|floatformat:"0g" }} м²</span>{% endif %}
+{% extends "base.html" %}{% load static kp %}
+{% block title %}{{ case.cadastral_number|default:case.reference }} · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/object.css' %}">{% endblock %}
+{% block content %}
+<h1 class="sr-only">Объект {{ case.cadastral_number|default:case.reference }}: {% if view == "graph" %}граф проверки{% else %}сводка{% endif %}</h1>
+{% if view == "graph" %}
+{# ------------------------------------------------------------------ Граф: история проверки по этапам #}
+<section class="graph" data-graph aria-label="Граф проверки объекта">
+  <svg class="graph-lines" aria-hidden="true"></svg>
+  <div class="graph-flow">
+    <div class="g-col">
+      <div class="g-node" data-node="object">
+        <span class="g-label">объект</span>
+        <div class="g-inner">
+          <span class="t-value obj-cad">{{ case.cadastral_number|default:case.reference }}</span>
+          <span class="soft">{{ case.object_kind|default:"Объект" }}{% if case.region %} / {{ case.region }}{% endif %}{% if case.address and case.address != case.region %}<br>{{ case.address }}{% endif %}</span>
+        </div>
       </div>
-      {% if case.is_demonstration %}<p class="small" style="max-width:60ch">Данные демонстрационные: часть сведений синтетическая. Сработавшие индикаторы показывают работу правил, нарушений они не устанавливают.</p>{% endif %}
     </div>
-    <aside class="head-side">
-      {% if outline %}
-      <figure class="outline-plate" aria-label="Контур участка по координатам, север сверху">
-        <svg viewBox="0 0 240 240" role="img">
+    <div class="g-col">
+      <div class="g-plate" data-node="plate" data-from="object">{{ graph.plate }}<span class="g-plate-sub">из {{ graph.checked }} проверенных</span></div>
+    </div>
+    {% if graph.branches %}
+    <div class="g-col">
+      {% for branch in graph.branches %}
+      <a class="g-branch" href="?view=summary#ind-{{ branch.indicator.code }}" data-node="branch" data-from="plate"><span class="code {{ branch.tone }}">{{ branch.indicator.code_display }}</span><span>{{ branch.indicator.short }}</span>{% if branch.tone == "unknown" %}<span class="soft nowrap">нет данных</span>{% endif %}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if graph.comments %}
+    <div class="g-col">
+      {% for review in graph.comments %}
+      <article class="g-node" data-node="comment" data-from="{% if graph.branches %}branch{% else %}plate{% endif %}">
+        <span class="g-label">комментарий от коллеги</span>
+        <div class="g-inner">
+          <span><b class="g-who">{{ review.author.get_full_name|default:review.author.username }}</b> <span class="soft">{{ review.created_at|date:"d.m.Y H:i" }}</span></span>
+          <p>{{ review.comment|linebreaksbr }}</p>
+          <span class="risk {{ review.tone }} t-label">{{ review.get_outcome_display }}</span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="g-col">
+      <div class="g-node" data-node="final" data-from="{% if graph.comments %}comment{% elif graph.branches %}branch{% else %}plate{% endif %}">
+        {% if graph.decided %}
+        <span class="g-label">итог проверки</span>
+        <div class="g-inner">
+          <span class="risk {{ graph.last.tone }} t-value g-final">{{ graph.last.get_outcome_display }}</span>
+          <span class="soft">{{ graph.last.created_at|date:"d.m.Y H:i" }}, {{ graph.last.author.get_full_name|default:graph.last.author.username }}</span>
+          <a class="link" href="{% url 'dashboard:case_list' %}?review={{ graph.last.outcome }}">Объект во вкладке «{{ graph.last.get_outcome_display }}»</a>
+        </div>
+        {% elif perms.cases.add_review %}
+        <span class="g-label">решение сотрудника</span>
+        <form class="g-decide" method="post" action="{% url 'dashboard:review_create' case.id %}">{% csrf_token %}
+          <input type="hidden" name="view" value="graph">
+          <div class="g-inner">
+            <label class="g-ask" for="g-comment">Коррупционный риск подтверждён?</label>
+            <input class="input" id="g-comment" name="comment" required maxlength="4000" placeholder="Короткое обоснование">
+            {% if review_form.errors %}<span class="error">Укажите обоснование и выберите ответ.</span>{% endif %}
+          </div>
+          <div class="g-yesno">
+            <button class="g-btn" type="submit" name="outcome" value="confirmed"><svg class="icon"><use href="#i-check"/></svg>да</button>
+            <button class="g-btn" type="submit" name="outcome" value="not_confirmed"><svg class="icon"><use href="#i-x"/></svg>нет</button>
+          </div>
+        </form>
+        {% else %}
+        <span class="g-label">итог проверки</span>
+        <div class="g-inner"><span class="soft">Решения ещё нет.</span></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% else %}
+{# ------------------------------------------------------------------ Сводка: сетка главной страницы #}
+<div class="grid g-main">
+  <div class="stack">
+    <div class="grid g-2 kpi-pair" style="--o:1">
+      <section class="card kpi">
+        <div><h2 class="t-mono">Риск объекта</h2><div class="t-period">по сработавшим</div></div>
+        <div class="kpi-row"><span class="risk {{ case.attention }} t-value obj-risk">{{ risk_word }}</span></div>
+      </section>
+      <section class="card kpi">
+        <div><h2 class="t-mono">Сработало</h2><div class="t-period">из проверенных</div></div>
+        <div class="kpi-row"><span class="t-kpi">{{ kpi.triggered }}</span><span class="delta flat">из {{ kpi.checked }}</span></div>
+      </section>
+    </div>
+    <section class="card" aria-labelledby="obj-h">
+      <div class="card-head"><div><h2 class="t-mono" id="obj-h">Основная информация об объекте</h2><div class="t-period">{{ case.get_origin_display|lower }} данные{% if case.is_demonstration %}, демонстрация{% endif %}</div></div>{% if case.geometry %}<a class="link" href="{% url 'dashboard:map' %}#{{ case.id }}">на карте</a>{% endif %}</div>
+      <div class="obj-id">
+        <span class="t-value obj-cad">{{ case.cadastral_number|default:case.reference }}</span>
+        <span class="soft">{{ case.object_kind|default:"Объект" }}{% if case.region %} / {{ case.region }}{% endif %}</span>
+        {% if case.address and case.address != case.region %}<span class="soft">{{ case.address }}</span>{% endif %}
+      </div>
+      <dl class="obj-attrs">
+        <div><dt><svg class="icon"><use href="#i-area"/></svg>площадь</dt><dd>{% if case.area_sq_m %}{{ case.area_sq_m|floatformat:"0g" }} м²{% else %}<span class="soft">нет данных</span>{% endif %}</dd></div>
+        {% with last=story.timeline|last %}{% if last %}<div><dt><svg class="icon"><use href="#i-calendar"/></svg>последнее изменение</dt><dd>{{ last.date|date:"d.m.Y" }}<span class="soft">, {{ last.label|lower }}</span></dd></div>{% endif %}{% endwith %}
+        <div><dt><svg class="icon"><use href="#i-pin"/></svg>регион</dt><dd>{{ case.region|default:"нет данных" }}</dd></div>
+        <div><dt><svg class="icon"><use href="#i-pen"/></svg>происхождение</dt><dd>{{ case.get_origin_display }}</dd></div>
+      </dl>
+      {% if case.is_demonstration %}<p class="notice">Данные демонстрационные: часть сведений синтетическая. Сработавшие индикаторы показывают работу правил, нарушений они не устанавливают.</p>{% endif %}
+    </section>
+    {% if outline %}
+    <section class="card" aria-labelledby="outline-h">
+      <div class="card-head"><div><h2 class="t-mono" id="outline-h">Контур участка</h2><div class="t-period">по координатам, север сверху</div></div></div>
+      <figure class="outline-plate">
+        <svg viewBox="0 0 240 240" role="img" aria-label="Контур участка по координатам, север сверху">
           {% for x in grid %}<line class="grid-line" x1="{{ x }}" y1="0" x2="{{ x }}" y2="240"/><line class="grid-line" x1="0" y1="{{ x }}" x2="240" y2="{{ x }}"/>{% endfor %}
           <path d="{{ outline }}"/>
         </svg>
-        <figcaption class="eyebrow">Контур по координатам / север сверху</figcaption>
+        <figcaption class="t-label soft">Индикатор И8 сравнивает площадь контура с площадью описанного прямоугольника.</figcaption>
       </figure>
-      {% else %}
-      <div class="head-summary">
-        <span class="eyebrow">Индикаторы по объекту</span>
-        <span class="num-xl">{{ case.signal_count }} из {{ story.findings|length }}</span>
-        <span class="small">сработали</span>
-        <ul class="head-list">{% for item in story.findings %}<li><span class="code">{{ item.indicator.code_display }}</span><span class="small">{{ item.indicator.short }}</span>{% outcome_level item.outcome %}</li>{% endfor %}</ul>
-      </div>
+    </section>
+    {% endif %}
+    <section class="card" aria-labelledby="time-h">
+      <div class="card-head"><div><h2 class="t-mono" id="time-h">Хронология</h2><div class="t-period">даты из таблиц индикаторов</div></div></div>
+      {% if story.timeline %}
+      <ol class="rows">{% for event in story.timeline %}
+        <li class="row-item obj-event"><time class="t-period" datetime="{{ event.date|date:'Y-m-d' }}">{{ event.date|date:"d.m.Y" }}</time><span class="t-compact">{{ event.label }} <span class="code">{{ event.indicator.code_display }}</span>{% if event.detail %}<span class="soft t-label obj-sub">{{ event.detail|truncatechars:160 }}</span>{% endif %}</span></li>
+      {% endfor %}</ol>
+      {% else %}<p class="soft">В таблицах нет дат по этому объекту.</p>{% endif %}
+    </section>
+    <section class="card" id="documents" aria-labelledby="doc-h">
+      <div class="card-head"><div><h2 class="t-mono" id="doc-h">Документы и основания</h2><div class="t-period">добавленные сотрудниками и из таблиц</div></div></div>
+      {% if evidence or story.documents %}
+      <ul class="rows">
+        {% for item in evidence %}<li class="row-item"><span class="soft t-label">Добавлен {{ item.added_at|date:"d.m.Y H:i" }}{% if item.added_by %} · {{ item.added_by.username }}{% endif %} · {{ item.origin|origin_short }}</span><span class="t-compact">{% if item.url %}<a class="arrow-link" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}<svg class="icon"><use href="#i-arrow"/></svg></a>{% else %}{{ item.title }}{% endif %}</span>{% if item.source_reference %}<span class="soft t-label">{{ item.source_reference }}</span>{% endif %}{% if item.file %}<a class="link" href="{% url 'dashboard:evidence_download' item.id %}">Скачать файл</a>{% endif %}</li>{% endfor %}
+        {% for doc in story.documents %}<li class="row-item"><span class="soft t-label">{{ doc.label }} · {{ doc.origin|origin_short }}</span><span class="t-compact break">{{ doc.value }}</span></li>{% endfor %}
+      </ul>
+      {% else %}<p class="soft">Документов пока нет.</p>{% endif %}
+      {% if perms.cases.add_evidence %}
+      <details class="obj-details" {% if evidence_form.errors %}open{% endif %}>
+        <summary><span>Добавить документ или ссылку</span><svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:evidence_create' case.id %}" class="obj-form">{% csrf_token %}
+          {% if evidence_form.non_field_errors %}<p class="error">{{ evidence_form.non_field_errors|join:" " }}</p>{% endif %}
+          <div class="grid g-2 obj-form-grid">
+            <div class="field"><label for="{{ evidence_form.title.id_for_label }}">Название</label>{{ evidence_form.title }}{% for e in evidence_form.title.errors %}<span class="error">{{ e }}</span>{% endfor %}</div>
+            <div class="field"><label for="{{ evidence_form.url.id_for_label }}">Ссылка</label>{{ evidence_form.url }}{% for e in evidence_form.url.errors %}<span class="error">{{ e }}</span>{% endfor %}</div>
+            <div class="field"><label for="{{ evidence_form.source_reference.id_for_label }}">Источник и реквизиты</label>{{ evidence_form.source_reference }}</div>
+            <div class="field"><label for="{{ evidence_form.origin.id_for_label }}">Происхождение</label>{{ evidence_form.origin }}</div>
+          </div>
+          <div class="obj-file"><input id="doc-file" class="sr-only" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt"><label class="btn btn-ghost" for="doc-file"><svg class="icon"><use href="#i-upload"/></svg>Выбрать файл</label><span class="hint" id="doc-file-name">PDF, изображение, DOCX, XLSX или TXT до 5 МБ. Можно только ссылку</span></div>
+          <button class="btn btn-wide" type="submit">Добавить к объекту</button>
+        </form>
+      </details>
       {% endif %}
-    </aside>
-  </div>
-</section>
-{% endblock %}
-{% block content %}
-<section class="section">
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Анализ</span><h2 class="h1">Почему объект в реестре</h2><p class="small soft">По каждому индикатору: статус, объяснение, расчёт и недостающие сведения.</p></div>
-    <div class="block-body">
-      {% for item in story.findings %}{% with outcome=item.outcome indicator=item.indicator %}
-      <article class="finding">
-        <div class="finding-head">
-          <h3 class="h2"><span class="code">{{ indicator.code_display }}</span> {{ indicator.short }}</h3>
-          {% if outcome %}<span class="state">{% outcome_level outcome %}{% if outcome.status == 'triggered' %}<span class="tag tag-blue">{{ outcome.status|status_label }}</span>{% else %}<span class="tag">{{ outcome.status|status_label }}</span>{% endif %}</span>{% else %}<span class="tag tag-line">Не анализировалось</span>{% endif %}
-        </div>
-        <p class="small soft">{{ indicator.question }}</p>
-        {% if outcome %}
-        <p class="body-s j">{{ outcome.explanation }}</p>
-        {% if outcome.metrics %}<div class="metrics">{% for label, value in outcome.metrics %}<div class="metric"><span class="eyebrow">{{ label }}</span><b>{{ value }}</b></div>{% endfor %}</div>{% endif %}
-        {% if outcome.missing_fields %}<div class="notice small"><span class="eyebrow">Чего не хватает</span><ul style="margin:var(--s2) 0 0;padding-left:1.1rem">{% for field in outcome.missing_fields %}<li>{{ field }}</li>{% endfor %}</ul></div>{% endif %}
-        {% if not outcome.agrees %}<p class="small">В разметке исследования здесь «{{ item.record.author_mark }}». Ответ правила отличается: <a class="code" href="{% url 'dashboard:methodology' %}#quality">причина</a></p>{% endif %}
-        <p class="small soft j">Что учесть: {{ indicator.limitations }}</p>
-        <span class="eyebrow soft">Правило {{ indicator.code_display }} v{{ outcome.rule_version }} / запуск {{ outcome.run.started_at|date:"d.m.Y H:i" }}{% if outcome.is_demonstration %} / демонстрационные данные{% endif %}</span>
-        {% endif %}
-      </article>
-      {% endwith %}{% empty %}<p class="soft">Записей индикаторов по объекту нет.</p>{% endfor %}
-    </div>
+    </section>
   </div>
 
-  {% if story.timeline %}
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Хронология</span><h2 class="h1">Как шли события</h2></div>
-    <ol class="timeline block-body" style="gap:0">{% for event in story.timeline %}<li><time class="eyebrow" datetime="{{ event.date|date:'Y-m-d' }}">{{ event.date|date:"d.m.Y" }}</time><span class="body-s">{{ event.label }} <span class="code">{{ event.indicator.code_display }}</span>{% if event.detail %}<span class="small soft" style="display:block">{{ event.detail|truncatechars:160 }}</span>{% endif %}</span></li>{% endfor %}</ol>
-  </div>
-  {% endif %}
-
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Объект</span><h2 class="h1">Участники и основания</h2>
-      <div class="legend small" style="margin-top:var(--s3)"><span class="org o-real">реальное по маркировке</span><span class="org o-synth">синтетика</span><span class="org o-calc">расчёт в таблице</span><span class="org o-unknown">уточнить</span></div>
+  <div class="stack">
+    <div class="grid g-2 kpi-pair" style="--o:2">
+      <section class="card kpi">
+        <div><h2 class="t-mono">Нет данных</h2><div class="t-period">индикаторов</div></div>
+        <div class="kpi-row"><span class="t-kpi">{{ kpi.insufficient }}</span></div>
+      </section>
+      <a class="card kpi card-link" href="#documents">
+        <div><div class="t-mono">Документов</div><div class="t-period">файлы и реквизиты</div></div>
+        <div class="kpi-row"><span class="t-kpi">{{ kpi.documents }}</span></div>
+      </a>
     </div>
-    <div class="block-body">
-      <dl class="kv" style="grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))">
-        {% if case.cadastral_number %}<div><dt class="eyebrow">Кадастровый номер</dt><dd>{{ case.cadastral_number }}</dd></div>{% endif %}
-        {% if case.address %}<div><dt class="eyebrow">Местоположение</dt><dd>{{ case.address }}</dd></div>{% endif %}
-        <div><dt class="eyebrow">Происхождение</dt><dd>{{ case.get_origin_display }}</dd></div>
-        {% if story.sources %}<div><dt class="eyebrow">Источники сведений</dt><dd class="small">{{ story.sources|join:"; " }}</dd></div>{% endif %}
-      </dl>
-      {% if case.geometry %}<a class="btn" data-lbl="Показать на карте" href="{% url 'dashboard:map' %}#{{ case.id }}" >Показать на карте</a>{% endif %}
-      {% if story.parties %}<div><h3 class="eyebrow" style="margin-bottom:var(--s3)">Участники</h3><ul class="list">{% for party in story.parties %}<li><span class="meta small"><span class="eyebrow">{{ party.roles|join:" / " }}</span><span class="org {{ party.origin|origin_class }}">{{ party.origin|origin_short }}</span></span><span class="body-s">{{ party.value|linebreaksbr }}</span></li>{% endfor %}</ul></div>{% endif %}
-      <div id="documents"><h3 class="eyebrow" style="margin-bottom:var(--s3)">Документы и основания</h3>
-        {% if evidence or story.documents %}<ul class="list">
-        {% for item in evidence %}<li><span class="meta small"><span class="eyebrow">Добавлен {{ item.added_at|date:"d.m.Y H:i" }}{% if item.added_by %} / {{ item.added_by.username }}{% endif %}</span><span class="org {{ item.origin|origin_class }}">{{ item.origin|origin_short }}</span></span><span class="body-s">{% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }} <svg class="icon"><use href="#i-arrow"/></svg></a>{% else %}{{ item.title }}{% endif %}{% if item.file %} <a class="code" href="{% url 'dashboard:evidence_download' item.id %}">Скачать</a>{% endif %}</span>{% if item.source_reference %}<span class="small soft">{{ item.source_reference }}</span>{% endif %}</li>{% endfor %}
-        {% for doc in story.documents %}<li><span class="meta small"><span class="eyebrow">{{ doc.label }}</span><span class="org {{ doc.origin|origin_class }}">{{ doc.origin|origin_short }}</span></span><span class="body-s">{{ doc.value }}</span></li>{% endfor %}
-        </ul>{% else %}<p class="soft small">Документов пока нет.</p>{% endif %}
-        {% if perms.cases.add_evidence %}
-        <details class="facts add-doc" {% if evidence_form.errors %}open{% endif %} style="margin-top:var(--s4)">
-          <summary><span class="h3">Добавить документ или ссылку</span><svg class="icon chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
-          <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:evidence_create' case.id %}" class="doc-form">{% csrf_token %}
-            {% if evidence_form.non_field_errors %}<div class="notice notice-strong small">{{ evidence_form.non_field_errors|join:" " }}</div>{% endif %}
-            <div class="doc-grid">
-              <div><label class="field-label eyebrow" for="{{ evidence_form.title.id_for_label }}">Название</label>{{ evidence_form.title.errors }}{{ evidence_form.title }}</div>
-              <div><label class="field-label eyebrow" for="{{ evidence_form.url.id_for_label }}">Ссылка</label>{{ evidence_form.url.errors }}{{ evidence_form.url }}</div>
-              <div><label class="field-label eyebrow" for="{{ evidence_form.source_reference.id_for_label }}">Источник и реквизиты</label>{{ evidence_form.source_reference }}</div>
-              <div><label class="field-label eyebrow" for="{{ evidence_form.origin.id_for_label }}">Происхождение</label>{{ evidence_form.origin }}</div>
-            </div>
-            <div class="file-pick"><input id="doc-file" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt"><label class="btn" for="doc-file" data-lbl="Выбрать файл">Выбрать файл</label><span class="file-name small" id="doc-file-name">PDF, изображение, DOCX, XLSX или TXT до 5 МБ. Можно только ссылку</span></div>
-            <button class="btn btn-primary" type="submit" data-lbl="Добавить к объекту">Добавить к объекту</button>
-          </form>
-        </details>
-        {% endif %}
+    <section class="card" aria-labelledby="ind-h">
+      <div class="card-head"><div><h2 class="t-mono" id="ind-h">Индикаторы</h2><div class="t-period">цвет — риск сработавшего индикатора</div></div><a class="link" href="{% url 'dashboard:analytics' %}">все индикаторы</a></div>
+      {% if story.findings %}
+      <div class="prio obj-inds" style="--cols:{{ indicator_cols }}" data-n="{{ story.findings|length }}">
+        {% for item in story.findings %}{% with outcome=item.outcome indicator=item.indicator %}
+        <a class="prio-item {% if not outcome %}none{% elif outcome.status == 'triggered' %}{{ indicator.risk }}{% elif outcome.status == 'insufficient_data' %}unknown{% else %}none{% endif %}" href="#ind-{{ indicator.code }}" title="{{ indicator.short }}: {{ outcome.status|status_label|default:'не анализировался' }}"><span class="t-value">{{ indicator.code_display }}</span><span class="t-label">{{ indicator.short }}</span></a>
+        {% endwith %}{% endfor %}
       </div>
-    </div>
-  </div>
-
-  <div class="block" id="review">
-    <div class="block-rail"><span class="eyebrow">Проверка</span><h2 class="h1">Решение сотрудника</h2><p class="small soft">Запись хранится отдельно и не меняет исходные факты и итог анализа.</p></div>
-    <div class="block-body">
+      <ul class="legend obj-legend"><li style="--c:var(--high)">высокий</li><li style="--c:var(--medium)">средний</li><li style="--c:var(--low)">низкий</li><li>нет данных</li></ul>
+      {% else %}<p class="soft">Записей индикаторов по объекту нет.</p>{% endif %}
+    </section>
+    <section class="card" aria-labelledby="party-h">
+      <div class="card-head"><div><h2 class="t-mono" id="party-h">Участники и основания</h2><div class="t-period">из таблиц индикаторов</div></div></div>
+      {% if story.parties %}
+      <ul class="rows">{% for party in story.parties %}
+        <li class="row-item"><span class="soft t-label">{{ party.roles|join:" / " }} · {{ party.origin|origin_short }}</span><span class="t-compact">{{ party.value|linebreaksbr }}</span></li>
+      {% endfor %}</ul>
+      {% else %}<p class="soft">Участники в таблицах не указаны.</p>{% endif %}
+      {% if story.sources %}
+      <div class="obj-block"><h3 class="t-label soft">Источники сведений</h3><ul class="obj-sources t-label">{% for source in story.sources %}<li>{{ source }}</li>{% endfor %}</ul></div>
+      {% endif %}
+    </section>
+    <section class="card" id="review" aria-labelledby="rev-h">
+      <div class="card-head"><div><h2 class="t-mono" id="rev-h">Решение сотрудника</h2><div class="t-period">запись не меняет исходные факты и итог анализа</div></div></div>
       {% if perms.cases.add_review %}
-      <form method="post" action="{% url 'dashboard:review_create' case.id %}" style="display:grid;gap:var(--s4)">{% csrf_token %}
-        {{ review_form.non_field_errors }}{{ review_form.outcome.errors }}
-        <ul class="choice">{% for radio in review_form.outcome %}<li><label>{{ radio.tag }}<span class="body-s">{{ radio.choice_label }}</span></label></li>{% endfor %}</ul>
-        <div><label class="field-label eyebrow" for="{{ review_form.comment.id_for_label }}">Обоснование и реквизиты документов</label>{{ review_form.comment.errors }}{{ review_form.comment }}</div>
-        <button class="btn btn-primary" type="submit" data-lbl="Сохранить в истории">Сохранить в истории</button>
+      <form class="obj-form" method="post" action="{% url 'dashboard:review_create' case.id %}">{% csrf_token %}
+        {% if review_form.non_field_errors %}<p class="error">{{ review_form.non_field_errors|join:" " }}</p>{% endif %}
+        <div class="field"><span class="label" id="risk-q">Коррупционный риск</span><div class="obj-choices" role="radiogroup" aria-labelledby="risk-q">
+          {% for radio in review_form.outcome %}<label class="obj-choice">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
+          </div></div>
+        {% for e in review_form.outcome.errors %}<span class="error">{{ e }}</span>{% endfor %}
+        <div class="field"><label for="{{ review_form.comment.id_for_label }}">Обоснование и реквизиты документов</label>{{ review_form.comment }}{% for e in review_form.comment.errors %}<span class="error">{{ e }}</span>{% endfor %}</div>
+        <button class="btn btn-wide" type="submit">Сохранить решение</button>
       </form>
       {% endif %}
-      {% if reviews %}<div>{% for review in reviews %}
-        <article class="review"><span class="eyebrow soft">{{ review.created_at|date:"d.m.Y H:i" }} / {{ review.author.username }}</span><h3 class="h2">{{ review.get_outcome_display }}</h3><p class="body-s">{{ review.comment|linebreaksbr }}</p></article>
-      {% endfor %}</div>{% elif not perms.cases.add_review %}<p class="soft">Записей проверки пока нет.</p>{% endif %}
-    </div>
+      {% if reviews %}
+      <ul class="rows">{% for review in reviews %}
+        <li class="row-item"><span class="t-period">{{ review.created_at|date:"d.m.Y H:i" }} · {{ review.author.get_full_name|default:review.author.username }}</span><span class="risk {{ review.outcome }} t-compact">{{ review.get_outcome_display }}</span><span class="t-label">{{ review.comment|linebreaksbr }}</span></li>
+      {% endfor %}</ul>
+      {% elif not perms.cases.add_review %}<p class="soft">Записей проверки пока нет.</p>{% endif %}
+    </section>
   </div>
 
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Первоисточник</span><h2 class="h1">Исходные факты</h2><p class="small soft">У каждого значения есть источник: ячейка файла и происхождение. Жирным выделены поля, которые использует правило.</p></div>
-    <div class="block-body" style="gap:0">
-      {% for table in story.fact_tables %}
-      <details class="facts" {% if forloop.first %}open{% endif %}>
-        <summary><span><span class="code">{{ table.indicator.code_display }}</span> <span class="h3">{{ table.indicator.short }}</span> <span class="small soft">/ {{ table.record.batch.file_name }}, строка {{ table.record.row_number }}</span></span><svg class="icon chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
-        <div class="tbl-wrap"><table class="tbl facts-tbl"><tbody>
-          {% for row in table.rows %}<tr {% if row.used %}class="used"{% endif %}><td class="small">{{ row.column.header }}</td><td class="small">{{ row.fact|fact_display:row.column|linebreaksbr }}</td><td class="r"><span class="org {{ row.fact.origin|origin_class }}">{{ row.fact.cell }}</span></td></tr>{% endfor %}
-        </tbody></table></div>
-      </details>
-      {% endfor %}
+  <div class="stack col-3">
+    <div class="grid g-2 kpi-pair" style="--o:3">
+      <section class="card kpi">
+        <div><h2 class="t-mono">Решений</h2><div class="t-period">записей проверки</div></div>
+        <div class="kpi-row"><span class="t-kpi">{{ reviews|length }}</span></div>
+      </section>
+      <a class="card kpi card-link" href="#review">
+        <div><div class="t-mono">Итог проверки</div><div class="t-period">{% if graph.last %}{{ graph.last.created_at|date:"d.m.Y H:i" }}{% else %}решения нет{% endif %}</div></div>
+        <div class="kpi-row">{% if graph.last %}<span class="risk {{ graph.last.tone }} t-value obj-risk">{{ graph.last.get_outcome_display }}</span>{% else %}<span class="risk unknown t-value obj-risk">Ждёт решения</span>{% endif %}</div>
+      </a>
     </div>
+    <section class="card" aria-labelledby="why-h">
+      <div class="card-head"><div><h2 class="t-mono" id="why-h">Почему объект в реестре</h2><div class="t-period">объяснение, расчёт и недостающие сведения</div></div></div>
+      <div class="rows">
+        {% for item in story.findings %}{% with outcome=item.outcome indicator=item.indicator %}
+        <article class="row-item obj-why" id="ind-{{ indicator.code }}">
+          <div class="obj-why-head">
+            <h3 class="t-compact"><span class="code{% if outcome.status == 'triggered' %} {{ indicator.risk }}{% endif %}">{{ indicator.code_display }}</span> {{ indicator.short }}</h3>
+            {% if outcome %}<span class="risk {% if outcome.status == 'triggered' %}{{ indicator.risk }}{% elif outcome.status == 'insufficient_data' %}insufficient{% endif %} t-label">{{ outcome.status|status_label }}</span>{% else %}<span class="risk unknown t-label">Не анализировался</span>{% endif %}
+          </div>
+          <p class="soft t-label">{{ indicator.question }}</p>
+          {% if outcome %}
+          <p class="j">{{ outcome.explanation }}</p>
+          {% if outcome.metrics %}<dl class="obj-metrics">{% for label, value in outcome.metrics %}<div><dt class="t-label soft">{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+          {% if outcome.missing_fields %}<div class="notice"><span class="t-label soft">Чего не хватает</span><ul class="obj-missing">{% for field in outcome.missing_fields %}<li>{{ field }}</li>{% endfor %}</ul></div>{% endif %}
+          {% if not outcome.agrees %}<p class="t-label">В разметке исследования здесь «{{ item.record.author_mark }}». Ответ правила отличается: <a class="link" href="{% url 'dashboard:methodology' %}#quality">причина</a></p>{% endif %}
+          <p class="t-label soft j">Что учесть: {{ indicator.limitations }}</p>
+          <span class="t-period">Правило {{ indicator.code_display }} v{{ outcome.rule_version }} · запуск {{ outcome.run.started_at|date:"d.m.Y H:i" }}{% if outcome.is_demonstration %} · демонстрационные данные{% endif %}</span>
+          {% endif %}
+        </article>
+        {% endwith %}{% empty %}<p class="soft">Записей индикаторов по объекту нет.</p>{% endfor %}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="facts-h">
+      <div class="card-head"><div><h2 class="t-mono" id="facts-h">Исходные факты</h2><div class="t-period">строка таблицы по индикатору; жирным — поля правила</div></div></div>
+      <div class="obj-facts">
+        {% for table in story.fact_tables %}
+        <details class="obj-details">
+          <summary><span><span class="code">{{ table.indicator.code_display }}</span> {{ table.indicator.short }}<span class="soft t-label obj-sub">{{ table.record.batch.file_name }}, строка {{ table.record.row_number }}</span></span><svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+          <div class="tbl-wrap"><table class="tbl obj-tbl"><tbody>
+            {% for row in table.rows %}<tr{% if row.used %} class="used"{% endif %}><td>{{ row.column.header }}</td><td class="break">{{ row.fact|fact_display:row.column|linebreaksbr }}</td><td class="r soft">{{ row.fact.cell }}</td></tr>{% endfor %}
+          </tbody></table></div>
+        </details>
+        {% empty %}<p class="soft">Записей нет.</p>{% endfor %}
+      </div>
+    </section>
   </div>
-</section>
+</div>
+{% endif %}
+
+<nav class="obj-switch" aria-label="Вид карточки">
+  <div class="switch">
+    <a href="?view=summary" {% if view != "graph" %}aria-current="true"{% endif %}><svg class="icon"><use href="#i-list"/></svg>Сводка</a>
+    <a href="?view=graph" {% if view == "graph" %}aria-current="true"{% endif %}><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h5M12 5v14M12 5h5M12 19h5"/></svg>Граф</a>
+  </div>
+</nav>
 {% endblock %}
-{% block scripts %}<script>
-(function () {
-  const input = document.getElementById("doc-file");
-  if (input) input.addEventListener("change", () => {
-    document.getElementById("doc-file-name").textContent = input.files[0] ? input.files[0].name : "Файл не выбран";
-  });
-})();
-</script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/object.js' %}"></script>{% endblock %}

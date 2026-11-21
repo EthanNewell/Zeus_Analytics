@@ -1,19 +1,48 @@
-{% extends "base.html" %}{% load kp %}
+{% extends "base.html" %}{% load static kp %}
 {% block title %}Должностные лица · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-officials.jpg" kicker="Индикатор И10" title="Должностные лица" lede="Должностные лица из таблицы И10 и эпизоды с их участием. Повтор лица — повод проверить его решения вместе. Все лица в наборе синтетические." short=True %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
 {% block content %}
-<section class="section">
-  {% for person in people %}
-  <article class="person">
-    <div class="block-rail">
-      <h2 class="h2">{{ person.record.title }}</h2>
-      {% if person.outcome %}<span class="state">{% outcome_level person.outcome %}{% if person.outcome.status == 'triggered' %}<span class="tag tag-blue">Повторяется / {{ person.repeats }}</span>{% else %}<span class="tag">Один эпизод</span>{% endif %}</span>{% endif %}
+<h1 class="sr-only">Аналитика: должностные лица</h1>
+{% include "dashboard/_analytics_bar.html" %}
+<div class="pg-page">
+  <div class="grid g-4">
+    <div class="card kpi">
+      <div><div class="t-mono">Должностных лиц</div><div class="t-period">в таблице И10</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ people|length }}</span></div>
     </div>
-    <div class="block-body" style="gap:var(--s4)">
-      <ol class="episodes body-s">{% for episode in person.episodes %}<li>{{ episode }}</li>{% endfor %}</ol>
-      {% if person.cases %}<div class="codes">{% for case in person.cases %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div>{% endif %}
+    <div class="card kpi">
+      <div><div class="t-mono">Повторяются</div><div class="t-period">индикатор И10 сработал</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ repeating }}</span></div>
     </div>
-  </article>
-  {% empty %}<p class="soft">Таблица И10 ещё не загружена.</p>{% endfor %}
-</section>
+    <div class="card kpi">
+      <div><div class="t-mono">Эпизодов</div><div class="t-period">с участием этих лиц</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ episodes }}</span></div>
+    </div>
+    <a class="card kpi card-link" href="{% url 'dashboard:case_list' %}?indicator=I10">
+      <div><div class="t-mono">Объектов</div><div class="t-period">связаны с таблицей И10</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ linked_cases }}</span></div>
+    </a>
+  </div>
+
+  <section class="card" aria-labelledby="people-h">
+    <div class="card-head"><div><h2 class="t-mono" id="people-h">Должностные лица и эпизоды</h2><div class="t-period">повтор лица — повод проверить его решения вместе. Все лица в наборе синтетические</div></div></div>
+    <div>
+      {% for person in people %}
+      <article class="pg-person">
+        <div class="pg-person-name">
+          <h3 class="t-nav">{{ person.record.title }}</h3>
+          {% if person.outcome.status == 'triggered' %}<span class="risk high">Повторяется: эпизодов {{ person.repeats }}</span>
+          {% elif person.outcome.status == 'not_triggered' %}<span class="risk pg-none">Один эпизод</span>
+          {% elif person.outcome %}<span class="risk insufficient">Нет данных</span>
+          {% else %}<span class="risk insufficient">Анализ не запускался</span>{% endif %}
+        </div>
+        <div class="pg-person-body">
+          {% if person.episodes %}<ol class="pg-episodes">{% for episode in person.episodes %}<li>{{ episode }}</li>{% endfor %}</ol>{% endif %}
+          {% if person.cases %}<div class="codes">{% for case in person.cases %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div>{% endif %}
+        </div>
+      </article>
+      {% empty %}<p class="empty">Таблица И10 ещё не загружена.</p>{% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

@@ -1,54 +1,42 @@
-{% extends "base.html" %}{% load kp %}
+{% extends "base.html" %}{% load static kp %}
 {% block title %}Источники · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-sources.jpg" kicker="Откуда данные" title="Источники" lede="Государственные системы, из которых взяты сведения, индикаторы, которые их используют, и число реальных и синтетических ячеек в каждом наборе." short=True %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="block">
-    <div class="block-rail">
-      <span class="eyebrow">Реестр источников</span>
-      <h2 class="h1">Государственные системы</h2>
-      <p class="small soft">В столбце «Индикаторы» — те, в паспорте таблицы которых источник назван. Прямых подключений к системам нет: сервис работает с таблицами, подготовленными из них.</p>
-    </div>
-    <div class="block-body tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Источник</th><th>Что даёт</th><th>Индикаторы</th></tr></thead>
-        <tbody>{% for row in sources %}<tr>
-          <td>{% if row.source.url %}<a class="body-s" href="{{ row.source.url }}" target="_blank" rel="noopener noreferrer">{{ row.source.name }} <svg class="icon"><use href="#i-arrow"/></svg></a>{% else %}<span class="body-s">{{ row.source.name }}</span>{% endif %}</td>
-          <td class="small">{{ row.source.gives }}</td>
-          <td data-label="Индикаторы"><div class="codes">{% for code in row.codes %}<span class="code">{{ code|code_display }}</span>{% empty %}<span class="soft">—</span>{% endfor %}</div></td>
-        </tr>{% endfor %}</tbody>
-      </table>
-    </div>
-  </div>
+<h1 class="sr-only">Аналитика: источники данных</h1>
+{% include "dashboard/_analytics_bar.html" %}
+<div class="pg-page">
+  <section class="card" aria-labelledby="src-h">
+    <div class="card-head"><div><h2 class="t-mono" id="src-h">Государственные системы</h2><div class="t-period">откуда взяты сведения таблиц исследования</div></div></div>
+    <p class="pg-lead t-label">В столбце «Индикаторы» — те, в паспорте таблицы которых источник назван. Прямых подключений к системам нет: сервис работает с таблицами, подготовленными из них.</p>
+    <div class="tbl-wrap"><table class="tbl pg-stack">
+      <thead><tr><th>Источник</th><th>Что даёт</th><th>Индикаторы</th></tr></thead>
+      <tbody>{% for row in sources %}<tr>
+        <td class="pg-full">{% if row.source.url %}<a class="arrow-link" href="{{ row.source.url }}" target="_blank" rel="noopener noreferrer">{{ row.source.name }} <svg class="icon" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>{% else %}{{ row.source.name }}{% endif %}</td>
+        <td class="pg-full soft">{{ row.source.gives }}</td>
+        <td class="pg-full" data-label="Индикаторы"><div class="codes">{% for code in row.codes %}<span class="code">{{ code|code_display }}</span>{% empty %}<span class="soft">—</span>{% endfor %}</div></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
 
-  <div class="block">
-    <div class="block-rail">
-      <span class="eyebrow">Паспорта наборов</span>
-      <h2 class="h1">Реальное и синтетика</h2>
-      <p class="small soft">Последняя загрузка по каждому индикатору: {{ records }} записей. Жёлтую заливку ячейки сервис сохраняет как «реальное по маркировке автора».</p>
-      <div class="legend small"><span class="org o-real">реальные ячейки</span><span class="org o-synth">синтетические</span></div>
-    </div>
-    <div class="block-body tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Индикатор</th><th class="r">Строк</th><th>Ячейки</th><th>Источники по паспорту</th>{% if perms.cases.import_cases %}<th></th>{% endif %}</tr></thead>
-        <tbody>{% for indicator, batch in batches %}<tr {% if perms.cases.import_cases %}class="row"{% endif %}>
-          <td>{% if perms.cases.import_cases %}<a class="row-link" href="{% url 'imports:batch' batch.id %}">{% endif %}<span class="code">{{ indicator.code_display }}</span> {{ indicator.short }}{% if perms.cases.import_cases %}</a>{% endif %}<span class="sub">{{ batch.file_name }} / {{ batch.created_at|date:"d.m.Y H:i" }}</span></td>
-          <td class="r" data-label="Строк">{{ batch.rows_total }}</td>
-          <td data-label="Ячейки"><span class="state small"><span class="org o-real">{{ batch.real_cells }}</span><span class="org o-synth">{{ batch.synthetic_cells }}</span></span></td>
-          <td class="small">{{ batch.sources_note|default:"в паспорте не указаны"|cut:"Источники данных: "|cut:"Источники координат: " }}</td>
-          {% if perms.cases.import_cases %}<td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>{% endif %}
-        </tr>{% empty %}<tr><td colspan="5" class="empty">Таблицы ещё не загружены.</td></tr>{% endfor %}</tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Ограничения</span><h2 class="h1">Чего здесь нет</h2></div>
-    <div class="block-body"><ul class="list">
-      <li class="body-s">Название реестра или реквизиты акта в таблице не означают, что у сервиса есть доступ к API, полным выпискам и архивным редакциям.</li>
-      <li class="body-s">При реальном кадастровом номере правообладатель, дата покупки и связь с должностным лицом могут быть синтетическими. Такие поля помечены как синтетика.</li>
-      <li class="body-s">Перед подключением реальных данных нужен паспорт набора: поставщик, основание получения, период, полнота истории и ограничения на использование персональных данных.</li>
-    </ul></div>
-  </div>
-</section>
+  <section class="card" aria-labelledby="pass-h">
+    <div class="card-head"><div><h2 class="t-mono" id="pass-h">Реальные и синтетические ячейки</h2><div class="t-period">последняя загрузка по каждому индикатору; в базе записей: {{ records }}</div></div></div>
+    <ul class="pg-legend">
+      <li><span class="pg-sw real" aria-hidden="true"></span><span><b>Реальные ячейки исследования.</b> В таблице автор выделил их жёлтой заливкой: значения взяты из опубликованных документов и реестров.</span></li>
+      <li><span class="pg-sw synth" aria-hidden="true"></span><span><b>Синтетические ячейки.</b> Остальные заполненные ячейки таблицы.</span></li>
+    </ul>
+    <div class="tbl-wrap"><table class="tbl pg-stack">
+      <thead><tr><th>Индикатор</th><th class="r">Строк</th><th>Ячейки</th><th>Источники по паспорту</th>{% if perms.cases.import_cases %}<th></th>{% endif %}</tr></thead>
+      <tbody>{% for indicator, batch in batches %}<tr{% if perms.cases.import_cases %} class="row"{% endif %}>
+        <td class="pg-full">{% if perms.cases.import_cases %}<a class="row-link" href="{% url 'imports:batch' batch.id %}">{% endif %}<span class="code">{{ indicator.code_display }}</span> {{ indicator.short }}{% if perms.cases.import_cases %}</a>{% endif %}<span class="sub">{{ batch.file_name }} / {{ batch.created_at|date:"d.m.Y H:i" }}</span></td>
+        <td class="r" data-label="Строк">{{ batch.rows_total }}</td>
+        <td class="pg-full" data-label="Ячейки">{% with total=batch.real_cells|add:batch.synthetic_cells %}<span class="pg-cells">
+          <span class="pg-cells-bar" aria-hidden="true">{% if batch.real_cells %}<i class="real" style="width:{{ batch.real_cells|percent:total }}%"></i>{% endif %}{% if batch.synthetic_cells %}<i class="synth" style="flex:1"></i>{% endif %}</span>
+          <span class="pg-cells-n"><span>реальных {{ batch.real_cells }}</span><span>синтетических {{ batch.synthetic_cells }}</span></span>
+        </span>{% endwith %}</td>
+        <td class="pg-full t-label soft" data-label="Источники по паспорту">{{ batch.sources_note|default:"в паспорте не указаны"|cut:"Источники данных: "|cut:"Источники координат: " }}</td>
+        {% if perms.cases.import_cases %}<td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>{% endif %}
+      </tr>{% empty %}<tr><td colspan="5" class="empty">Таблицы ещё не загружены.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>
 {% endblock %}

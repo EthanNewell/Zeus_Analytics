@@ -6,7 +6,7 @@ from django.db.models import Q
 
 from .facts import PRESENT, date_in_text
 from .indicators import INDICATORS
-from .models import Attention, Case, Review, ReviewOutcome
+from .models import DECIDED, Attention, Case, Review, ReviewOutcome
 
 REVIEW_FILTERS = {
     "none": "Без проверки",
@@ -25,7 +25,8 @@ def case_list(query="", attention="", indicator="", region="", review=""):
             | Q(records__title__icontains=query)
         ).distinct()
     if attention in Attention.values:
-        cases = cases.filter(attention=attention)
+        decided = [pk for pk, value in latest_outcome_by_case().items() if value in DECIDED]
+        cases = cases.filter(attention=attention).exclude(pk__in=decided)
     if indicator in INDICATORS:
         cases = cases.filter(records__indicator=indicator).distinct()
     if region:
@@ -33,13 +34,19 @@ def case_list(query="", attention="", indicator="", region="", review=""):
     if review == "none":
         cases = cases.filter(reviews__isnull=True)
     elif review in ReviewOutcome.values:
-        latest = {}
-        for case_id, outcome in Review.objects.order_by("case_id", "-created_at").values_list(
-            "case_id", "outcome"
-        ):
-            latest.setdefault(case_id, outcome)
+        latest = latest_outcome_by_case()
         cases = cases.filter(pk__in=[pk for pk, value in latest.items() if value == review])
     return cases
+
+
+def latest_outcome_by_case():
+    """{case id: outcome of its newest review}."""
+    latest = {}
+    for case_id, outcome in Review.objects.order_by("case_id", "-created_at").values_list(
+        "case_id", "outcome"
+    ):
+        latest.setdefault(case_id, outcome)
+    return latest
 
 
 def latest_reviews(case_ids):
@@ -138,7 +145,7 @@ def _finding_rank(item):
     code = int(item["indicator"].code[1:])
     if outcome is None:
         return (9, 9, code)
-    order = {"triggered": 0, "insufficient_data": 1, "not_triggered": 2, "not_applicable": 3}
+    order = {"triggered": 0, "insufficient_data": 1, "not_triggered": 2}
     priority = {"high": 0, "normal": 1, "low": 2}
     return (order.get(outcome.status, 5), priority.get(outcome.priority, 5), code)
 
@@ -189,3 +196,124 @@ def svg_outline(points, size=240, pad=16):
         for x, y in xy
     ]
     return "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in coords) + " Z"
+
+
+def recent_events(limit=None):
+    """The one event feed: reviews, imports and analysis runs, newest first.
+
+    Feeds the bell, the «История изменений» page and the search palette. Each event is a dict:
+    kind, tone (high | medium | ok | info), title, text, when, url.
+    """
+    from django.urls import reverse
+
+    from analysis.models import AnalysisRun
+    from imports.models import ImportBatch
+
+    tone = {
+        ReviewOutcome.CONFIRMED: "high",
+        ReviewOutcome.NOT_CONFIRMED: "ok",
+        ReviewOutcome.NEEDS_INFORMATION: "info",
+    }
+    events = []
+    for review in Review.objects.select_related("author", "case").order_by("-created_at")[:50]:
+        events.append(
+            {
+                "kind": "review",
+                "tone": tone.get(review.outcome, "info"),
+                "title": f"{review.author.username}: «{review.get_outcome_display()}»",
+                "text": f"{review.case.title}. {review.comment}"[:220],
+                "when": review.created_at,
+                "url": reverse("dashboard:case_detail", args=[review.case_id]),
+            }
+        )
+    for batch in ImportBatch.objects.select_related("uploaded_by").order_by("-created_at")[:50]:
+        events.append(
+            {
+                "kind": "import",
+                "tone": "info",
+                "title": f"Загружена таблица {batch.indicator_display}",
+                "text": f"{batch.file_name}: строк {batch.rows_total}, новых {batch.rows_created}, обновлено {batch.rows_updated}",
+                "when": batch.created_at,
+                "url": reverse("imports:batch", args=[batch.id]),
+            }
+        )
+    for run in AnalysisRun.objects.select_related("started_by").order_by("-started_at")[:20]:
+        events.append(
+            {
+                "kind": "analysis",
+                "tone": "info",
+                "title": "Анализ выполнен",
+                "text": f"Записей {run.records_count}, сработало {run.triggered_count}, объектов {run.cases_count}, {run.duration_ms} мс",
+                "when": run.started_at,
+                "url": reverse("dashboard:analytics"),
+            }
+        )
+    events.sort(key=lambda event: event["when"], reverse=True)
+    return events[:limit] if limit else events
+
+
+def queue_counts():
+    """Cases by risk that still wait for a decision, and decided cases by outcome."""
+    decided = latest_outcome_by_case()
+    counts = {key: 0 for key in Attention.values}
+    for pk, attention in Case.objects.values_list("pk", "attention"):
+        if decided.get(pk) not in (ReviewOutcome.CONFIRMED, ReviewOutcome.NOT_CONFIRMED):
+            counts[attention] += 1
+    for outcome in decided.values():
+        counts[outcome] = counts.get(outcome, 0) + 1
+    return counts
+
+
+def _plural(n, one, few, many):
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+# a review outcome as a status dot of the shared «.risk» part
+REVIEW_TONE = {
+    ReviewOutcome.CONFIRMED: "confirmed",
+    ReviewOutcome.NOT_CONFIRMED: "not_confirmed",
+    ReviewOutcome.NEEDS_INFORMATION: "needs_information",
+}
+
+
+def case_graph(story, reviews):
+    """Nodes of the card's graph, in stage order: object → «сработали N индикаторов» →
+    one branch per triggered or data-short indicator → colleagues' comments → the outcome.
+
+    ``reviews`` are the case's Review records in any order; ``story`` is case_story().
+    """
+    checked = [item for item in story["findings"] if item["outcome"] is not None]
+    triggered = [item for item in checked if item["outcome"].status == "triggered"]
+    short = [item for item in checked if item["outcome"].status == "insufficient_data"]
+    branches = [
+        {
+            "indicator": item["indicator"],
+            "tone": item["indicator"].risk,
+            "state": "сработал",
+        }
+        for item in triggered
+    ] + [
+        {"indicator": item["indicator"], "tone": "unknown", "state": "нет данных"} for item in short
+    ]
+    n = len(triggered)
+    if n:
+        verb = "сработал" if n % 10 == 1 and n % 100 != 11 else "сработали"
+        plate = f"{verb} {n} {_plural(n, 'индикатор', 'индикатора', 'индикаторов')}"
+    else:
+        plate = "индикаторы не сработали"
+    comments = sorted(reviews, key=lambda review: review.created_at)
+    for review in comments:
+        review.tone = REVIEW_TONE.get(review.outcome, "unknown")
+    last = comments[-1] if comments else None
+    return {
+        "plate": plate,
+        "checked": len(checked),
+        "branches": branches,
+        "comments": comments,
+        "last": last,
+        "decided": bool(last and last.outcome in DECIDED),
+    }

@@ -1,0 +1,9 @@
+{% with name=request.resolver_match.url_name %}<div class="pg-bar">
+  <nav class="switch" aria-label="Разделы аналитики">
+    <a href="{% url 'dashboard:analytics' %}"{% if name == 'analytics' %} aria-current="true"{% endif %}>Индикаторы</a>
+    <a href="{% url 'dashboard:officials' %}"{% if name == 'officials' %} aria-current="true"{% endif %}>Должностные лица</a>
+    <a href="{% url 'dashboard:sources' %}"{% if name == 'sources' %} aria-current="true"{% endif %}>Источники</a>
+    <a href="{% url 'dashboard:methodology' %}"{% if name == 'methodology' %} aria-current="true"{% endif %}>Методика</a>
+  </nav>
+  {% if last_run %}<span class="t-period">последний анализ {{ last_run.started_at|date:"d.m.Y H:i" }}</span>{% endif %}
+</div>{% endwith %}

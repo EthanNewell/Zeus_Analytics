@@ -12,20 +12,29 @@ class Origin(models.TextChoices):
     UNKNOWN = "unknown", "Происхождение требует уточнения"
 
 
+class Risk(models.TextChoices):
+    """Risk level of an indicator (its weight in the research table «Индикаторы и источники
+    данных Р1 и Р2») and of a case: the highest level among its triggered indicators."""
+
+    HIGH = "high", "Высокий"
+    MEDIUM = "medium", "Средний"
+    LOW = "low", "Низкий"
+
+
 class Attention(models.TextChoices):
     """Case-level outcome of the latest analysis run. Owned by analysis.services."""
 
     NOT_RUN = "not_run", "Анализ не запускался"
-    HIGH = "high", "Высокий приоритет проверки"
-    NORMAL = "normal", "Требует проверки"
-    LOW = "low", "Контекстный признак"
-    INSUFFICIENT = "insufficient", "Недостаточно данных"
+    HIGH = Risk.HIGH.value, "Высокий риск"
+    MEDIUM = Risk.MEDIUM.value, "Средний риск"
+    LOW = Risk.LOW.value, "Низкий риск"
+    INSUFFICIENT = "insufficient", "Нет данных"
     NONE = "none", "Сигналов нет"
 
 
 ATTENTION_ORDER = {
     Attention.HIGH: 0,
-    Attention.NORMAL: 1,
+    Attention.MEDIUM: 1,
     Attention.LOW: 2,
     Attention.INSUFFICIENT: 3,
     Attention.NONE: 4,
@@ -141,9 +150,13 @@ class Evidence(models.Model):
 
 
 class ReviewOutcome(models.TextChoices):
-    CONFIRMED = "confirmed", "Основания для дальнейшей проверки подтверждены"
-    NOT_CONFIRMED = "not_confirmed", "Предположение не подтвердилось"
-    NEEDS_INFORMATION = "needs_information", "Нужны дополнительные сведения"
+    CONFIRMED = "confirmed", "Подтверждено"
+    NOT_CONFIRMED = "not_confirmed", "Не подтверждено"
+    NEEDS_INFORMATION = "needs_information", "Нужны сведения"
+
+
+# a final decision moves the case out of the risk queue into «Подтверждено» / «Не подтверждено»
+DECIDED = (ReviewOutcome.CONFIRMED, ReviewOutcome.NOT_CONFIRMED)
 
 
 class Review(models.Model):

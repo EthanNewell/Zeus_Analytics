@@ -279,10 +279,13 @@ class Outcome:
 class SummaryTests(TestCase):
     def test_case_attention(self):
         cases = [
+            # the case takes the highest weight among its triggered indicators
             ([Outcome("I3", "triggered", "low")], Attention.LOW),
-            ([Outcome("I1", "triggered")], Attention.NORMAL),
-            ([Outcome("I1", "triggered"), Outcome("I2", "triggered")], Attention.HIGH),
-            ([Outcome("I6", "triggered", "high")], Attention.HIGH),
+            ([Outcome("I1", "triggered")], Attention.MEDIUM),
+            ([Outcome("I1", "triggered"), Outcome("I2", "triggered")], Attention.MEDIUM),
+            ([Outcome("I6", "triggered", "high")], Attention.MEDIUM),
+            ([Outcome("I4", "triggered")], Attention.HIGH),
+            ([Outcome("I3", "triggered", "low"), Outcome("I10", "triggered")], Attention.HIGH),
             ([Outcome("I3", "triggered", "low"), Outcome("I1", "not_triggered")], Attention.LOW),
             ([Outcome("I8", "insufficient_data", "low")], Attention.INSUFFICIENT),
             ([Outcome("I8", "not_triggered", "low")], Attention.NONE),
@@ -468,7 +471,7 @@ class ImportTests(TestCase):
         self.assertEqual((run.records_count, run.triggered_count), (2, 1))
         self.assertEqual((run.compared_count, run.agreed_count), (2, 1))
         self.assertEqual(
-            Case.objects.get(reference="61:02:0600010:2843").attention, Attention.NORMAL
+            Case.objects.get(reference="61:02:0600010:2843").attention, Attention.MEDIUM
         )
         self.assertEqual(Case.objects.get(reference="61:25:0600301:4127").attention, Attention.NONE)
         first = RuleOutcome.objects.get(record__source_key="61:02:0600010:2843")
@@ -503,7 +506,7 @@ class UserPathTests(TestCase):
             reverse("analysis:run"), {"next": reverse("dashboard:case_list")}, follow=True
         )
         self.assertContains(response, "Анализ выполнен")
-        self.assertContains(response, "Требует проверки")
+        self.assertContains(response, "Средний риск")
         case = Case.objects.get(reference="61:39:0600012:744")
         detail = self.client.get(reverse("dashboard:case_detail", args=[case.id]))
         self.assertContains(detail, "описанного прямоугольника")
@@ -513,7 +516,14 @@ class UserPathTests(TestCase):
             {"outcome": "confirmed", "comment": "Сверено с выпиской ЕГРН"},
         )
         export = self.client.get(reverse("dashboard:case_export")).content.decode("utf-8-sig")
-        self.assertIn("Основания для дальнейшей проверки подтверждены", export)
+        self.assertIn("Подтверждено", export)
+        registry = self.client.get(reverse("dashboard:case_list"), {"attention": "medium"})
+        # the rows, not the whole page: the bell in the header lists the decision itself
+        self.assertNotIn(
+            case, list(registry.context["page_obj"]), "a decided case leaves the risk tab"
+        )
+        decided = self.client.get(reverse("dashboard:case_list"), {"review": "confirmed"})
+        self.assertContains(decided, "61:39:0600012:744")
         self.assertIn("И8: Контур заполняет", export)
         for name in ["overview", "map", "officials", "methodology"]:
             with self.subTest(page=name):
@@ -522,10 +532,8 @@ class UserPathTests(TestCase):
             reverse("dashboard:case_list"), {"attention": "normal", "indicator": "I8"}
         )
         self.assertContains(filtered, "61:39:0600012:744")
-        self.assertNotContains(
-            self.client.get(reverse("dashboard:case_list"), {"attention": "high"}),
-            "61:39:0600012:744",
-        )
+        high = self.client.get(reverse("dashboard:case_list"), {"attention": "high"})
+        self.assertNotIn(case, list(high.context["page_obj"]))
 
 
 class EmptyAndRoleTests(TestCase):
@@ -566,7 +574,8 @@ class EmptyAndRoleTests(TestCase):
         for group, (can_upload, can_export, can_run) in expectations.items():
             with self.subTest(role=group):
                 self.client.force_login(self.users[group])
-                page = self.client.get(reverse("dashboard:overview")).content.decode()
+                # upload and analysis live in «История изменений», next to the event feed
+                page = self.client.get(reverse("dashboard:history")).content.decode()
                 self.assertEqual(f'href="{upload}"' in page, can_upload)
                 self.assertEqual(f'action="{run}"' in page, can_run)
                 listing = self.client.get(reverse("dashboard:case_list")).content.decode()

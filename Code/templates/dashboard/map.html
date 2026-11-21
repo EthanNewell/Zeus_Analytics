@@ -1,23 +1,54 @@
 {% extends "base.html" %}{% load static kp %}
-{% block title %}Карта · Код прозрачности{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'vendor/ol/ol.css' %}">{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-map.jpg" kicker="Геометрия из таблиц" title="Карта" lede="Контуры участков из И8 и изменённые зоны ПЗЗ и генплана из И2. Чем плотнее заливка, тем выше приоритет. Нажатие на контур открывает карточку." short=True %}{% endblock %}
+{% block title %}Карта объектов · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'vendor/ol/ol.css' %}"><link rel="stylesheet" href="{% static 'css/objects.css' %}">{% endblock %}
+{% block body_class %}page-map{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="map-grid">
-    <div class="map" id="map" role="region" aria-label="Карта объектов"><div class="map-pop" id="map-pop" hidden></div></div>
-    <aside class="map-list">
-      <span class="eyebrow">Объекты с геометрией / {{ features|length }}</span>
-      <ul class="list">{% for f in features %}<li><button type="button" class="map-item" data-feature="{{ forloop.counter0 }}"><span class="meta small"><span class="eyebrow">{% if f.kind == 'zone' %}Изменённая зона{% else %}{{ f.reference }}{% endif %}</span><span class="codes">{% for code in f.codes %}<span class="code">{{ code }}</span>{% endfor %}</span></span><span class="body-s">{{ f.title|truncatechars:70 }}</span><span class="state small">{% attention_level f.attention %}{{ f.attention_label }}</span></button></li>{% endfor %}</ul>
-    </aside>
+<h1 class="sr-only">Объекты на карте</h1>
+<nav class="switch map-switch" aria-label="Вид">
+  <a href="{% url 'dashboard:case_list' %}"><svg class="icon"><use href="#i-list"/></svg>Список</a>
+  <a href="{% url 'dashboard:map' %}" aria-current="true"><svg class="icon"><use href="#i-map"/></svg>Карта</a>
+</nav>
+<div class="map-stage" id="map" role="region" aria-label="Карта объектов"></div>
+<aside class="map-side" aria-label="Выбранный объект">
+  {% for obj in objects %}
+  <div class="map-obj" data-object="{{ obj.id }}" {% if obj.id != selected %}hidden{% endif %}>
+    <section class="card map-card">
+      <div class="map-card-head"><h2 class="soft">основная информация об объекте</h2><a class="link" href="{{ obj.url }}">подробнее</a></div>
+      <div class="map-title">
+        <p class="t-value break">{{ obj.number }}</p>
+        {% if obj.kind or obj.address %}<p class="soft">{{ obj.kind }}{% if obj.kind and obj.address %}<br>{% endif %}{{ obj.address }}</p>{% endif %}
+      </div>
+      <dl class="map-facts">
+        <div><dt><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg>риск</dt><dd><span class="risk {{ obj.attention }}">{{ obj.attention_label }}</span></dd></div>
+        {% for icon, label, value in obj.facts %}<div><dt><svg class="icon" aria-hidden="true"><use href="#{{ icon }}"/></svg>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+      </dl>
+    </section>
+    {% if obj.indicators %}<section class="card map-card">
+      <div class="map-card-head"><h2 class="soft">индикаторы</h2><a class="link" href="{% url 'dashboard:analytics' %}">все индикаторы</a></div>
+      <ul class="map-inds" style="--cols: {{ obj.columns }}">{% for ind in obj.indicators %}<li class="map-ind {{ ind.tone }}" title="{% if ind.tone == 'none' %}не сработал{% elif ind.tone == 'insufficient' %}нет данных{% else %}сработал{% endif %}"><span class="map-ind-code">{{ ind.code }}</span><span class="t-label">{{ ind.short }}</span></li>{% endfor %}</ul>
+    </section>{% endif %}
+    <section class="card map-card">
+      <div class="map-card-head"><h2 class="soft">возможные действия</h2></div>
+      <div class="actions">
+        <a class="pill-line" href="{{ obj.url }}">открыть карточку</a>
+        <a class="pill-line" href="{{ obj.url }}#documents">документы</a>
+        <a class="pill-line" href="{{ obj.url }}#review">решение сотрудника</a>
+        <a class="pill-line" href="{% url 'dashboard:history' %}">история изменений</a>
+      </div>
+    </section>
+    {% if obj.history %}<section class="card map-card">
+      <div class="map-card-head"><h2 class="soft">история действий</h2></div>
+      <ul class="map-history">{% for event in obj.history %}<li><span><span class="t-compact">{{ event.title }}</span><span class="soft">{{ event.ago }}</span></span><a class="link" href="{{ event.url }}">подробнее</a></li>{% endfor %}</ul>
+    </section>{% endif %}
   </div>
-  <div class="legend small" style="padding-top:var(--s4)">
-    <span class="state">{% attention_level 'high' %}высокий приоритет</span><span class="state">{% attention_level 'normal' %}требует проверки</span><span class="state">{% attention_level 'none' %}сигналов нет</span>
-    <span>пунктир — изменённая зона ПЗЗ / генплана</span><span>без координат в таблицах: {{ without_geometry }} объектов</span>
-  </div>
-</section>
+  {% empty %}
+  <section class="card map-card"><div class="map-card-head"><h2 class="soft">объекты на карте</h2></div><p class="soft">В загруженных таблицах нет координат объектов. Контуры появятся после загрузки таблиц И2 и И8.</p></section>
+  {% endfor %}
+  {% if without_geometry %}<p class="card map-note soft">Объектов без координат в таблицах: {{ without_geometry }}. <a class="link" href="{% url 'dashboard:case_list' %}">Открыть список</a></p>{% endif %}
+</aside>
 {{ features|json_script:"features" }}
 {{ center|json_script:"center" }}
+{{ selected|json_script:"selected" }}
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'vendor/ol/ol.js' %}"></script>
@@ -25,9 +56,24 @@
 (function () {
   const features = JSON.parse(document.getElementById("features").textContent);
   const center = JSON.parse(document.getElementById("center").textContent);
-  const BLUE = "#0000e8";
-  const density = { high: 0.62, normal: 0.36, low: 0.2, insufficient: 0.08, none: 0.06, not_run: 0.06 };
+  const panels = new Map([...document.querySelectorAll("[data-object]")].map((el) => [el.dataset.object, el]));
+  const side = document.querySelector(".map-side");
+  const header = document.querySelector(".top");
+  const root = document.documentElement;
+  const css = getComputedStyle(root);
+  const token = (name) => css.getPropertyValue(name).trim();
+  // contour colours are the risk tokens of app.css
+  const tone = { high: token("--high"), medium: token("--medium"), low: token("--low") };
+  const neutral = token("--text");
+  const colour = (attention) => tone[attention] || neutral;
+  const alpha = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; };
   const lonLat = (point) => ol.proj.fromLonLat([point[1], point[0]]);
+  const wide = () => matchMedia("(min-width: 861px)").matches;
+
+  // the side column starts one gap under the floating header
+  function place() { root.style.setProperty("--map-top", Math.round(header.getBoundingClientRect().bottom + 16) + "px"); }
+  place();
+  addEventListener("resize", place);
 
   // 2GIS basemap: Russian names and borders. A dropped tile is retried on the next server
   // before it is handed to the map, so no grey holes are left.
@@ -46,74 +92,79 @@
       probe.src = src;
     },
   });
+
+  let selected = "";
+  function styles(f, on) {
+    const c = colour(f.attention);
+    const zone = f.kind === "zone";
+    const list = [new ol.style.Style({
+      fill: new ol.style.Fill({ color: alpha(c, zone ? (on ? 0.18 : 0.06) : on ? 0.42 : 0.24) }),
+      stroke: new ol.style.Stroke({ color: c, width: on ? 3.5 : zone ? 1.5 : 2, lineDash: zone ? [6, 6] : undefined }),
+      zIndex: on ? 2 : zone ? 0 : 1,
+    })];
+    if (!zone) {
+      const point = (feat) => feat.getGeometry().getInteriorPoint();
+      if (on) list.push(new ol.style.Style({ geometry: point, zIndex: 3, image: new ol.style.Circle({ radius: 24, fill: new ol.style.Fill({ color: alpha(c, 0.2) }) }) }));
+      list.push(new ol.style.Style({ geometry: point, zIndex: 4, image: new ol.style.Circle({ radius: on ? 9 : 6, fill: new ol.style.Fill({ color: c }), stroke: new ol.style.Stroke({ color: "#ffffff", width: 2 }) }) }));
+    }
+    return list;
+  }
   const shapes = new ol.source.Vector();
   const olFeatures = features.map((f, i) => {
     const ring = f.points.map(lonLat);
     ring.push(ring[0]);
     const feature = new ol.Feature({ geometry: new ol.geom.Polygon([ring]), index: i });
-    const zone = f.kind === "zone";
-    feature.setStyle([
-      new ol.style.Style({
-        fill: new ol.style.Fill({ color: `rgba(0, 0, 232, ${zone ? 0.06 : (density[f.attention] ?? 0.1)})` }),
-        stroke: new ol.style.Stroke({ color: BLUE, width: zone ? 1.5 : 2, lineDash: zone ? [6, 6] : undefined }),
-      }),
-      new ol.style.Style({
-        geometry: (feat) => feat.getGeometry().getInteriorPoint(),
-        image: new ol.style.RegularShape({
-          points: 4, radius: 7, angle: Math.PI / 4,
-          fill: new ol.style.Fill({ color: f.attention === "high" || f.attention === "normal" ? BLUE : "#ffffff" }),
-          stroke: new ol.style.Stroke({ color: BLUE, width: 2 }),
-        }),
-      }),
-    ]);
+    feature.setStyle(styles(f, false));
     shapes.addFeature(feature);
     return feature;
   });
 
-  const pop = document.getElementById("map-pop");
-  const overlay = new ol.Overlay({ element: pop, positioning: "bottom-center", offset: [0, -14], autoPan: { margin: 40 } });
   const map = new ol.Map({
     target: "map",
-    layers: [new ol.layer.Tile({ source, className: "base-tiles" }), new ol.layer.Vector({ source: shapes })],
-    overlays: [overlay],
+    layers: [new ol.layer.Tile({ source }), new ol.layer.Vector({ source: shapes })],
     view: new ol.View({ center: ol.proj.fromLonLat([center[1], center[0]]), zoom: 8 }),
     controls: ol.control.defaults.defaults({ rotate: false, attributionOptions: { collapsible: false } }),
   });
 
-  const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  function show(feature) {
-    const f = features[feature.get("index")];
-    pop.innerHTML = `<span class="eyebrow">${escape(f.reference)}</span><b>${escape(f.title)}</b><span>${escape(f.attention_label)}${f.codes.length ? " / " + f.codes.map(escape).join(", ") : ""}</span>` +
-      (f.id ? `<a href="/cases/${f.id}/">Открыть карточку</a>` : "");
-    pop.hidden = false;
-    overlay.setPosition(feature.getGeometry().getInteriorPoint().getCoordinates());
+  function padding() {
+    if (!wide()) return [40, 40, 40, 40];
+    const top = header.getBoundingClientRect().bottom + 32;
+    return [top, 80, 96, side.getBoundingClientRect().right + 64];
   }
-  map.on("singleclick", (event) => {
-    const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
-    if (feature) show(feature); else { pop.hidden = true; overlay.setPosition(undefined); }
-  });
-  map.on("pointermove", (event) => { map.getTargetElement().style.cursor = map.hasFeatureAtPixel(event.pixel) ? "pointer" : ""; });
-
-  // open on the main cluster; objects in other regions stay reachable from the list
-  if (olFeatures.length) {
-    const centers = olFeatures.map((feat) => ol.proj.toLonLat(ol.extent.getCenter(feat.getGeometry().getExtent())));
-    const median = (values) => values.slice().sort((a, b) => a - b)[Math.floor(values.length / 2)];
-    const mid = [median(centers.map((c) => c[0])), median(centers.map((c) => c[1]))];
-    const near = olFeatures.filter((feat, i) => ol.sphere.getDistance(centers[i], mid) < 250000);
-    const extent = ol.extent.createEmpty();
-    (near.length ? near : olFeatures).forEach((feat) => ol.extent.extend(extent, feat.getGeometry().getExtent()));
-    map.getView().fit(extent, { padding: [48, 48, 48, 48] });
-  }
-  document.querySelectorAll("[data-feature]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const feature = olFeatures[Number(button.dataset.feature)];
-      map.getView().fit(feature.getGeometry().getExtent(), { maxZoom: 16, padding: [80, 80, 80, 80], duration: 400 });
-      setTimeout(() => show(feature), 420);
-      document.getElementById("map").scrollIntoView({ block: "center" });
+  function select(id, fly) {
+    if (!panels.has(id)) return;
+    selected = id;
+    panels.forEach((panel, key) => { panel.hidden = key !== id; });
+    side.scrollTop = 0;
+    const own = [];
+    olFeatures.forEach((feat) => {
+      const f = features[feat.get("index")];
+      const on = f.id === id;
+      feat.setStyle(styles(f, on));
+      if (on) own.push(feat);
     });
+    const plots = own.filter((feat) => features[feat.get("index")].kind === "plot");
+    const extent = ol.extent.createEmpty();
+    (plots.length ? plots : own).forEach((feat) => ol.extent.extend(extent, feat.getGeometry().getExtent()));
+    if (!ol.extent.isEmpty(extent)) map.getView().fit(extent, { maxZoom: 16, padding: padding(), duration: fly ? 400 : 0 });
+    history.replaceState(null, "", "#" + id);
+  }
+
+  map.on("singleclick", (event) => {
+    const feature = map.forEachFeatureAtPixel(event.pixel, (feat) => (panels.has(features[feat.get("index")].id) ? feat : undefined));
+    if (feature) select(features[feature.get("index")].id, true);
   });
-  const target = olFeatures.find((feat) => features[feat.get("index")].id === location.hash.slice(1) && features[feat.get("index")].kind !== "zone");
-  if (target) { map.getView().fit(target.getGeometry().getExtent(), { maxZoom: 16, padding: [80, 80, 80, 80] }); show(target); }
+  map.on("pointermove", (event) => {
+    const hit = map.forEachFeatureAtPixel(event.pixel, (feat) => panels.has(features[feat.get("index")].id) || undefined);
+    map.getTargetElement().style.cursor = hit ? "pointer" : "";
+  });
+
+  // by default the object with the highest risk; an #id address opens that object
+  const first = location.hash.slice(1);
+  const chosen = panels.has(first) ? first : JSON.parse(document.getElementById("selected").textContent);
+  if (panels.has(chosen)) select(chosen, false);
+  else if (olFeatures.length) map.getView().fit(shapes.getExtent(), { padding: padding() });
+  addEventListener("hashchange", () => select(location.hash.slice(1), true));
 })();
 </script>
 {% endblock %}

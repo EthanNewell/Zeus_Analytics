@@ -32,9 +32,9 @@
 
 `analysis.services.run_analysis(actor=..., case_ids=None)` проверяет права, считает каждое правило по каждой записи (или по записям указанных объектов) и сохраняет `AnalysisRun` и неизменяемые `RuleOutcome`. Повторный запуск создаёт новые результаты, старые остаются.
 
-`RuleOutcome`: `run`, `record`, `rule_code`, `rule_version`, `status` (`triggered`, `not_triggered`, `insufficient_data`, `not_applicable`), `priority` (`low`, `normal`, `high`), `explanation`, `metrics` (подпись, значение), `used_fields`, `missing_fields` (обязательны для `insufficient_data`), `expected_status` (из разметки автора), `is_demonstration`.
+`RuleOutcome`: `run`, `record`, `rule_code`, `rule_version`, `status` (`triggered`, `not_triggered`, `insufficient_data`), `priority` (`low`, `normal`, `high`), `explanation`, `metrics` (подпись, значение), `used_fields`, `missing_fields` (обязательны для `insufficient_data`), `expected_status` (из разметки автора), `is_demonstration`.
 
-Правило — функция в `analysis/rules`, зарегистрированная в `RULES` с версией; читает только исходные факты, расчётные колонки таблицы не использует. Итог объекта (`Case.attention`) считает `analysis.services.summarize`: высокий — подтверждённая связь (И6), повтор лица (И10) или два основных индикатора; требует проверки — один основной; контекстный — только И3; недостаточно данных; сигналов нет. Контекстный индикатор сам не поднимает приоритет.
+Правило — функция в `analysis/rules`, зарегистрированная в `RULES` с версией; читает только исходные факты, расчётные колонки таблицы не использует. Риск объекта (`Case.attention`) считает `analysis.services.summarize`: наибольший вес (`Indicator.risk`) среди сработавших индикаторов — высокий, средний или низкий; если ничего не сработало, но данных не хватило, — «нет данных»; иначе «сигналов нет». Веса взяты из таблицы исследования «Индикаторы и источники данных Р1 и Р2».
 
 ## Карточка и история — №5
 

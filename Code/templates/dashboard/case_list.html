@@ -1,58 +1,61 @@
-{% extends "base.html" %}{% load kp %}
-{% block title %}Реестр · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-cases.jpg" kicker="Объекты проверки" title="Реестр" lede="Сначала объекты с высоким приоритетом. Строка открывает карточку: основания для проверки, исходные факты и недостающие сведения." short=True %}{% endblock %}
+{% extends "base.html" %}{% load static kp %}
+{% block title %}Объекты · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/objects.css' %}">{% endblock %}
 {% block content %}
-<section class="section">
-  <form method="get" class="filters" role="search">
-    <nav class="seg" aria-label="Итог анализа">
-      <a href="?{% if filters.query %}q={{ filters.query|urlencode }}&{% endif %}indicator={{ filters.indicator }}&region={{ filters.region|urlencode }}&review={{ filters.review }}" data-lbl="Все" {% if not filters.attention %}aria-current="true"{% endif %}>Все</a>
-      {% for value, label in attention_choices %}
-      <a href="?{% if filters.query %}q={{ filters.query|urlencode }}&{% endif %}attention={{ value }}&indicator={{ filters.indicator }}&region={{ filters.region|urlencode }}&review={{ filters.review }}" data-lbl="{{ label }}" {% if filters.attention == value %}aria-current="true"{% endif %}>{{ label }}</a>
-      {% endfor %}
-    </nav>
-    {% if filters.attention %}<input type="hidden" name="attention" value="{{ filters.attention }}">{% endif %}
-    <div class="filters-row">
-      <label class="sr-only" for="q">Поиск</label>
-      <input class="input" id="q" name="q" value="{{ filters.query }}" placeholder="Кадастровый номер, адрес, правообладатель" maxlength="200">
-      <select class="input" name="indicator" aria-label="Индикатор">
-        <option value="">Все индикаторы</option>
-        {% for item in indicators %}<option value="{{ item.code }}" {% if filters.indicator == item.code %}selected{% endif %}>{{ item.code_display }} / {{ item.short }}</option>{% endfor %}
-      </select>
-      <select class="input" name="region" aria-label="Регион">
-        <option value="">Все регионы</option>
-        {% for region in regions %}<option {% if filters.region == region %}selected{% endif %}>{{ region }}</option>{% endfor %}
-      </select>
-      <select class="input" name="review" aria-label="Проверка сотрудника">
-        <option value="">Любой итог проверки</option>
-        {% for value, label in review_choices %}<option value="{{ value }}" {% if filters.review == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      <button class="btn btn-primary" type="submit" data-lbl="Показать">Показать</button>
-    </div>
-  </form>
-
-  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--s4);flex-wrap:wrap;padding-block:var(--s7) var(--s4)">
-    <h2 class="h1">Найдено: {{ page_obj.paginator.count }}</h2>
-    {% if perms.cases.export_cases %}<a class="btn" data-lbl="Выгрузить CSV" href="{% url 'dashboard:case_export' %}?{{ query_string }}">Выгрузить CSV</a>{% endif %}
+<h1 class="sr-only">Объекты: реестр</h1>
+<div class="obj-head">
+  <nav class="switch" aria-label="Вид">
+    <a href="{% url 'dashboard:case_list' %}" aria-current="true"><svg class="icon"><use href="#i-list"/></svg>Список</a>
+    <a href="{% url 'dashboard:map' %}"><svg class="icon"><use href="#i-map"/></svg>Карта</a>
+  </nav>
+  <div class="obj-tools">
+    <span class="obj-found" data-found>Найдено: {{ page_obj.paginator.count }}</span>
+    {% if perms.cases.export_cases %}<a class="btn btn-ghost" href="{% url 'dashboard:case_export' %}?{{ query_string }}"><svg class="icon"><use href="#i-doc"/></svg>Выгрузить CSV</a>{% endif %}
   </div>
+</div>
+
+<nav class="tabs obj-tabs" aria-label="Риск и решение">
+  {% for tab in tabs %}<a href="{{ tab.url }}" data-attention="{{ tab.attention }}" data-review="{{ tab.review }}" {% if tab.current %}aria-current="true"{% endif %}>{{ tab.label }} <span class="n">{{ tab.count }}</span></a>{% endfor %}
+</nav>
+
+<form method="get" class="filters obj-filters" role="search">
+  {% if filters.attention %}<input type="hidden" name="attention" value="{{ filters.attention }}">{% endif %}
+  <label class="sr-only" for="q">Поиск</label>
+  <div class="obj-search"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input class="input" id="q" name="q" value="{{ filters.query }}" placeholder="Кадастровый номер, адрес, правообладатель" maxlength="200"></div>
+  <select class="input" name="indicator" aria-label="Индикатор">
+    <option value="">Все индикаторы</option>
+    {% for item in indicators %}<option value="{{ item.code }}" {% if filters.indicator == item.code %}selected{% endif %}>{{ item.code_display }} · {{ item.short }}</option>{% endfor %}
+  </select>
+  <select class="input" name="region" aria-label="Регион">
+    <option value="">Все регионы</option>
+    {% for region in regions %}<option {% if filters.region == region %}selected{% endif %}>{{ region }}</option>{% endfor %}
+  </select>
+  <select class="input" name="review" aria-label="Итог проверки">
+    <option value="">Любой итог проверки</option>
+    {% for value, label in review_choices %}<option value="{{ value }}" {% if filters.review == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit">Показать</button>
+</form>
+
+<section class="card obj-table" aria-label="Список объектов">
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>Объект</th><th>Индикаторы</th><th>Итог анализа</th><th class="hide-s">Регион</th><th class="hide-s">Проверка сотрудника</th><th></th></tr></thead>
+      <thead><tr><th>Объект</th><th>Индикаторы</th><th>Риск</th><th>Регион</th><th>Решение сотрудника</th><th class="arrow"><span class="sr-only">Открыть</span></th></tr></thead>
       <tbody>{% for case in page_obj %}{% with review=reviews|get_item:case.pk %}
         <tr class="row">
-          <td><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title }}</a><span class="sub">{{ case.reference }}{% if case.object_kind %} / {{ case.object_kind }}{% endif %}{% if case.is_demonstration %} / демонстрация{% endif %}</span></td>
-          <td data-label="Индикаторы"><div class="codes">{% for code in case.triggered_list %}<span class="code">{{ code|code_display }}</span>{% empty %}<span class="soft">—</span>{% endfor %}</div></td>
-          <td data-label="Итог"><span class="state small">{% attention_level case.attention %}{{ case.get_attention_display }}</span></td>
-          <td class="hide-s small" data-label="Регион">{{ case.region|default:"—" }}</td>
-          <td class="hide-s small nowrap" data-label="Проверка"><span>{% if review %}{{ review.get_outcome_display }}<span class="sub">{{ review.created_at|date:"d.m.Y" }} / {{ review.author.username }}</span>{% else %}<span class="soft">не проверялся</span>{% endif %}</span></td>
+          <td class="obj-name"><a class="row-link" href="{% url 'dashboard:case_detail' case.id %}">{{ case.title }}</a><span class="sub">{{ case.cadastral_number|default:case.reference }}{% if case.object_kind %} · {{ case.object_kind }}{% endif %}</span></td>
+          <td data-label="Индикаторы"><div class="codes">{% for chip in chips|get_item:case.pk %}<span class="code{% if chip.risk %} {{ chip.risk }}{% endif %}" title="{{ chip.short }}{% if chip.risk %}: сработал{% endif %}">{{ chip.code }}</span>{% empty %}<span class="soft">—</span>{% endfor %}</div></td>
+          <td data-label="Риск"><span class="risk {{ case.attention }}">{{ case.get_attention_display }}</span></td>
+          <td data-label="Регион">{{ case.region|default:"—" }}</td>
+          <td data-label="Решение">{% if review %}<span class="risk {{ review.outcome }}">{{ review.get_outcome_display }}</span><span class="sub">{{ review.created_at|date:"d.m.Y" }} · {{ review.author.username }}</span>{% else %}<span class="soft">не проверялся</span>{% endif %}</td>
           <td class="arrow"><svg class="icon"><use href="#i-arrow"/></svg></td>
         </tr>
       {% endwith %}{% empty %}<tr><td colspan="6" class="empty">Ничего не найдено. Измените фильтры или загрузите таблицы индикаторов.</td></tr>{% endfor %}</tbody>
     </table>
   </div>
-  {% if page_obj.has_other_pages %}<nav class="pager eyebrow" aria-label="Страницы">
-    <span>{% if page_obj.has_previous %}<a href="?{{ query_string }}&page={{ page_obj.previous_page_number }}"><svg class="icon"><use href="#i-back"/></svg> Назад</a>{% endif %}</span>
-    <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-    <span>{% if page_obj.has_next %}<a href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Далее <svg class="icon"><use href="#i-arrow"/></svg></a>{% endif %}</span>
+  {% if page_obj.has_other_pages %}<nav class="pager" aria-label="Страницы">
+    <span class="soft">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    <span class="actions">{% if page_obj.has_previous %}<a class="btn btn-ghost" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}"><svg class="icon"><use href="#i-back"/></svg>Назад</a>{% endif %}{% if page_obj.has_next %}<a class="btn btn-ghost" href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Далее<svg class="icon"><use href="#i-arrow"/></svg></a>{% endif %}</span>
   </nav>{% endif %}
 </section>
 {% endblock %}

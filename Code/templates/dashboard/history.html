@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}История изменений · Код прозрачности{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
+{% block content %}
+<h1 class="sr-only">История изменений</h1>
+<div class="pg-bar">
+  <nav class="switch" aria-label="Вид событий">
+    {% for tab in tabs %}<a href="{% url 'dashboard:history' %}{% if tab.kind %}?kind={{ tab.kind }}{% endif %}"{% if tab.kind == kind %} aria-current="true"{% endif %}>{{ tab.label }} <span class="soft">{{ tab.count }}</span></a>{% endfor %}
+  </nav>
+  {% if perms.cases.import_cases or perms.cases.run_analysis %}<div class="actions">
+    {% if perms.cases.import_cases %}<a class="btn btn-ghost" href="{% url 'imports:upload' %}"><svg class="icon" style="width:18px;height:18px"><use href="#i-upload"/></svg>Загрузить таблицу</a>{% endif %}
+    {% if perms.cases.run_analysis %}<form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:history' %}"><button class="btn" type="submit"><svg class="icon" style="width:18px;height:18px"><use href="#i-analysis"/></svg>Запустить анализ</button></form>{% endif %}
+  </div>{% endif %}
+</div>
+<div class="pg-page">
+  {% for day in days %}
+  <section class="card" aria-labelledby="day-{{ forloop.counter }}">
+    <div class="pg-split">
+      <div class="pg-side">
+        <h2 class="t-head" id="day-{{ forloop.counter }}">{% if day.label %}{{ day.label }}{% else %}{{ day.date|date:"j E" }}{% endif %}</h2>
+        <span class="t-period">{{ day.date|date:"j E Y, l" }} / событий: {{ day.events|length }}</span>
+      </div>
+      <div class="pg-events">
+        {% for event in day.events %}
+        <a class="pg-event" href="{{ event.url }}">
+          <span class="notif-dot {{ event.tone }}" aria-hidden="true"><svg class="icon" style="width:16px;height:16px"><use href="#i-{{ event.kind }}"/></svg></span>
+          <span class="pg-event-text"><span class="t-compact">{{ event.title }}</span><span class="t-label soft">{{ event.text }}</span></span>
+          <span class="t-period pg-event-time">{{ event.when|time:"H:i" }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% empty %}
+  <section class="card"><p class="soft">Событий пока нет. Здесь появятся загрузки таблиц, запуски анализа и решения сотрудников.</p></section>
+  {% endfor %}
+</div>
+{% endblock %}

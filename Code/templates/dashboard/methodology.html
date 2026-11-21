@@ -1,77 +1,198 @@
-{% extends "base.html" %}{% load kp %}
+{% extends "base.html" %}{% load static kp %}
 {% block title %}Методика · Код прозрачности{% endblock %}
-{% block top %}{% include "_band.html" with img="img/band-method.jpg" kicker="Как работает сервис" title="Методика" lede="Каждый индикатор — отдельное правило с версией. Правило берёт исходные факты и заново считает значения, которые в таблице заданы формулой. Результат правила: один из четырёх статусов, объяснение и список недостающих сведений." short=True %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Статусы правила</span><h2 class="h1">Четыре ответа правила</h2></div>
-    <div class="block-body">
-      <ul class="list">
-        <li><span class="state">{% attention_level 'normal' %}<span class="tag tag-blue">Сработал</span></span><span class="body-s">Условие правила выполнено. Индикатор — повод для проверки.</span></li>
-        <li><span class="state">{% attention_level 'none' %}<span class="tag">Не сработал</span></span><span class="body-s">Условие правила не выполнено на имеющихся сведениях.</span></li>
-        <li><span class="state">{% attention_level 'insufficient' %}<span class="tag">Недостаточно данных</span></span><span class="body-s">Сведений для вывода не хватает. Нет данных — значит, не проверено.</span></li>
-        <li><span class="state">{% attention_level 'not_run' %}<span class="tag">Не применим</span></span><span class="body-s">Правило не относится к объекту.</span></li>
-      </ul>
+<h1 class="sr-only">Аналитика: методика работы с сервисом</h1>
+{% include "dashboard/_analytics_bar.html" %}
+<div class="pg-page">
+  <nav class="pg-steps" aria-label="Этапы работы">
+    <a class="card pg-step-link card-link" href="#step-1"><span class="pg-n">1</span><span class="t-compact">Загрузка таблиц</span></a>
+    <a class="card pg-step-link card-link" href="#step-2"><span class="pg-n">2</span><span class="t-compact">Проверка правилами</span></a>
+    <a class="card pg-step-link card-link" href="#step-3"><span class="pg-n">3</span><span class="t-compact">Риск объекта</span></a>
+    <a class="card pg-step-link card-link" href="#step-4"><span class="pg-n">4</span><span class="t-compact">Решение сотрудника</span></a>
+    <a class="card pg-step-link card-link" href="#step-5"><span class="pg-n">5</span><span class="t-compact">Выгрузка результатов</span></a>
+  </nav>
+
+  <section class="card" id="step-1" aria-labelledby="step-1-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <div class="pg-step-head"><span class="pg-n">1</span><span class="t-mono">Этап 1</span></div>
+        <h2 class="t-head" id="step-1-h">Загрузка таблиц исследования</h2>
+        <p class="pg-lead">Сотрудник с правом загрузки добавляет таблицы индикаторов в разделе «История изменений». Одна таблица — один индикатор.</p>
+        {% if perms.cases.import_cases %}<div class="actions"><a class="btn btn-ghost" href="{% url 'imports:upload' %}"><svg class="icon" style="width:18px;height:18px"><use href="#i-upload"/></svg>Загрузить таблицу</a></div>{% endif %}
+      </div>
+      <div class="pg-main">
+        <div class="pg-part">
+          <h3 class="t-mono">Что проверяется при загрузке</h3>
+          <ul class="pg-list">
+            <li>Формат: .xlsx или .csv (UTF-8 или cp1251), до 2 МиБ и 500 строк.</li>
+            <li>Тип таблицы определяется по заголовкам: совпасть должны не меньше 80 % колонок одного из семи индикаторов.</li>
+            <li>Даты, числа, координаты контура и полигоны зон проверяются в каждой строке.</li>
+            <li>При любой ошибке файл не сохраняется. Сервис показывает строку, поле и причину.</li>
+            <li>Повторная загрузка обновляет записи без дублей. Объект находится по кадастровому номеру, поэтому записи разных таблиц об одном участке попадают в одну карточку.</li>
+          </ul>
+        </div>
+        <div class="pg-part">
+          <h3 class="t-mono">Как отмечается происхождение ячеек</h3>
+          <ul class="pg-legend">
+            <li><span class="pg-sw real" aria-hidden="true"></span><span><b>Реальное.</b> Ячейка с жёлтой заливкой: автор исследования взял значение из опубликованных документов и реестров.</span></li>
+            <li><span class="pg-sw synth" aria-hidden="true"></span><span><b>Синтетическое.</b> Остальные заполненные ячейки таблицы Excel.</span></li>
+            <li><span class="pg-sw calc" aria-hidden="true"></span><span><b>Расчёт.</b> Ячейка с формулой. Правило такие ячейки не читает и считает значение заново.</span></li>
+            <li><span class="pg-sw unknown" aria-hidden="true"></span><span><b>Уточнить.</b> Таблица CSV: заливки в ней нет, происхождение не определить.</span></li>
+            <li><span class="pg-sw missing" aria-hidden="true"></span><span><b>Нет данных.</b> Пустая ячейка или слова «нет данных», «нет даты». Прочерк «—» означает, что события не было.</span></li>
+          </ul>
+          <p class="t-label soft">Колонка «Соответствие индикатору» — ответ автора исследования. Она хранится отдельно как разметка для сверки.</p>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Итог по объекту</span><h2 class="h1">Приоритет проверки</h2><p class="small soft">Объекты разложены по пяти уровням приоритета; вероятность коррупции сервис не считает.</p></div>
-    <div class="block-body">
-      <ul class="list">
-        <li><span class="state">{% attention_level 'high' %}<span class="eyebrow">Высокий приоритет</span></span><span class="body-s">Подтверждённая связь с должностным лицом (И6), повтор лица (И10) или два основных индикатора сразу.</span></li>
-        <li><span class="state">{% attention_level 'normal' %}<span class="eyebrow">Требует проверки</span></span><span class="body-s">Сработал один основной индикатор.</span></li>
-        <li><span class="state">{% attention_level 'low' %}<span class="eyebrow">Контекстный признак</span></span><span class="body-s">Сработал только И3. Он показывает, как могла быть получена выгода; приоритет не повышает.</span></li>
-        <li><span class="state">{% attention_level 'insufficient' %}<span class="eyebrow">Недостаточно данных</span></span><span class="body-s">Ни одно правило не сработало, хотя бы одному не хватило сведений.</span></li>
-        <li><span class="state">{% attention_level 'none' %}<span class="eyebrow">Сигналов нет</span></span><span class="body-s">Ни одно правило не сработало на имеющихся данных.</span></li>
-      </ul>
+  </section>
+
+  <section class="card" id="step-2" aria-labelledby="step-2-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <div class="pg-step-head"><span class="pg-n">2</span><span class="t-mono">Этап 2</span></div>
+        <h2 class="t-head" id="step-2-h">Проверка правилами</h2>
+        <p class="pg-lead">Каждый индикатор — отдельное правило с версией. Правило читает исходные факты записи. Значения, которые в таблице заданы формулой, оно считает заново.</p>
+        {% if perms.cases.run_analysis %}<div class="actions"><form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:analytics' %}"><button class="btn" type="submit">Запустить анализ</button></form></div>{% endif %}
+      </div>
+      <div class="pg-main">
+        <div class="pg-part">
+          <h3 class="t-mono">Ответ правила по записи</h3>
+          <ul class="pg-list pg-dots">
+            <li><span class="risk pg-trig">Сработал</span><span>Условие правила выполнено. Индикатор — повод для проверки.</span></li>
+            <li><span class="risk pg-none">Не сработал</span><span>Условие правила не выполнено на имеющихся сведениях.</span></li>
+            <li><span class="risk insufficient">Нет данных</span><span>Сведений для вывода не хватает. Правило перечисляет, каких именно. Нет данных — значит, не проверено.</span></li>
+          </ul>
+        </div>
+        <div class="pg-part">
+          <h3 class="t-mono">Семь правил</h3>
+          <div class="pg-rules">
+            {% for row in rows %}
+            <details class="pg-rule">
+              <summary><span class="code">{{ row.indicator.code_display }}</span><span>{{ row.indicator.title }}</span><span class="t-period pg-hide-s">v{{ row.rule.version }} / {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span><svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+              <div class="pg-rule-body">
+                <div><span class="t-period">Вопрос</span><p>{{ row.indicator.question }}</p></div>
+                <div><span class="t-period">Условие и порог</span><p>{{ row.indicator.threshold }}</p></div>
+                <div><span class="t-period">Ограничения</span><p>{{ row.indicator.limitations }}</p></div>
+              </div>
+            </details>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Происхождение</span><h2 class="h1">Метки происхождения</h2></div>
-    <div class="block-body"><div class="legend body-s"><span class="org o-real">реальное по маркировке автора (жёлтая ячейка)</span><span class="org o-synth">синтетическое</span><span class="org o-calc">расчёт в исходной таблице</span><span class="org o-unknown">происхождение уточнить (CSV без разметки)</span><span class="org o-missing">нет данных</span></div></div>
-  </div>
-</section>
-<section class="section">
-  {% for row in rows %}
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">{{ row.indicator.code_display }} / v{{ row.rule.version }} / {% if row.indicator.kind == 'context' %}контекстный{% else %}основной{% endif %}</span><h2 class="h2">{{ row.indicator.title }}</h2><span class="code code-wrap">{{ row.indicator.tz_rule }}</span></div>
-    <div class="block-body cols-3">
-      <div><span class="eyebrow">Вопрос</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.question }}</p></div>
-      <div><span class="eyebrow">Условие и порог</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.threshold }}</p></div>
-      <div><span class="eyebrow">Ограничения</span><p class="body-s" style="margin-top:var(--s2)">{{ row.indicator.limitations }}</p></div>
+  </section>
+
+  <section class="card" id="step-3" aria-labelledby="step-3-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <div class="pg-step-head"><span class="pg-n">3</span><span class="t-mono">Этап 3</span></div>
+        <h2 class="t-head" id="step-3-h">Риск объекта</h2>
+        <p class="pg-lead">Риск объекта — наибольший вес среди сработавших индикаторов. Вес каждого индикатора взят из таблицы исследования «Индикаторы и источники данных Р1 и Р2». Риск задаёт порядок проверки; вероятность коррупции сервис не считает.</p>
+      </div>
+      <div class="pg-main">
+        <div class="pg-part">
+          <h3 class="t-mono">Вес индикаторов</h3>
+          <div class="tbl-wrap"><table class="tbl pg-stack">
+            <thead><tr><th>Вес</th><th>Индикаторы</th></tr></thead>
+            <tbody>{% for level in weights %}<tr>
+              <td class="pg-full pg-top" style="width:220px"><span class="risk {{ level.level }}">{{ level.label }}</span></td>
+              <td class="pg-full"><ul class="pg-list">{% for item in level.indicators %}<li><span class="code">{{ item.code_display }}</span> {{ item.short }}</li>{% endfor %}</ul></td>
+            </tr>{% endfor %}</tbody>
+          </table></div>
+        </div>
+        <div class="pg-part">
+          <h3 class="t-mono">Как считается риск</h3>
+          <ul class="pg-list pg-dots">
+            <li><span class="risk high">Высокий, средний, низкий</span><span>Сработал хотя бы один индикатор. Риск равен наибольшему весу среди сработавших. Пример: сработали И1 и И10 — риск высокий.</span></li>
+            <li><span class="risk insufficient">Нет данных</span><span>Ни одно правило не сработало, и хотя бы одному не хватило сведений.</span></li>
+            <li><span class="risk pg-none">Сигналов нет</span><span>Ни одно правило не сработало на имеющихся сведениях.</span></li>
+          </ul>
+        </div>
+      </div>
     </div>
-  </div>
-  {% endfor %}
-</section>
-<section class="section" id="tz">
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Правила ТЗ</span><h2 class="h1">Соответствие Р1.2, Р1.6, Р1.8</h2><p class="small soft">Полная таблица: docs/indicator-mapping.md</p></div>
-    <div class="block-body tbl-wrap"><table class="tbl">
-      <thead><tr><th>Правило ТЗ</th><th>Чем покрыто</th><th>Статус</th></tr></thead>
-      <tbody>
-        <tr><td>Р1.6 — приобретение связанным лицом до начала процедуры</td><td data-label="Покрыто"><div class="codes"><span class="code">И6</span><span class="code">И1</span><span class="code">И10</span></div></td><td data-label="Статус" class="small">Реализовано как И6; одна фамилия — «недостаточно данных»</td></tr>
-        <tr><td>Р1.8 — последующая реализация выгоды, контекст</td><td data-label="Покрыто"><div class="codes"><span class="code">И3</span></div></td><td data-label="Статус" class="small">Реализовано как И3; приоритет не повышает</td></tr>
-        <tr><td>Р1.2 — новый ВРИ не соответствует регламенту</td><td data-label="Покрыто"><span class="soft">—</span></td><td data-label="Статус" class="small">Нет данных: в таблицах нет истории ВРИ и редакций ПЗЗ. И2 проверяет другое условие</td></tr>
-      </tbody>
-    </table></div>
-  </div>
-</section>
-<section class="section" id="quality">
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Контрольный набор</span><h2 class="h1">Сверка с разметкой исследования</h2>{% if run %}<span class="num-xl">{{ run.agreed_count }}/{{ run.compared_count }}</span>{% endif %}</div>
-    <div class="block-body">
-      <p class="body-s j">В каждой таблице исследования есть колонка с ответом автора. Правила считают ответ заново по исходным фактам, сервис сравнивает оба ответа. Сверка показывает работу правил на тестовых примерах. Качество выявления коррупции на реальных данных она не измеряет.{% if run and run.agreed_count != run.compared_count %} Расхождения заложены в правило: при совпадении одной фамилии сервис отвечает «недостаточно данных», пока связь не подтверждена документами.{% endif %}</p>
-      <div class="tbl-wrap"><table class="tbl quality">
-        <thead><tr><th>Индикатор</th><th>Совпадение</th><th class="r">Совпало</th></tr></thead>
-        <tbody>{% for row in rows %}<tr>
-          <td><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</td>
-          <td style="vertical-align:middle">{% if row.compared %}<div class="bar"><span class="b-trig" style="width:{{ row.agreed|percent:row.compared }}%"></span></div>{% endif %}</td>
-          <td class="r nowrap" data-label="Совпало">{% if row.compared %}{{ row.agreed }} из {{ row.compared }}{% else %}—{% endif %}</td>
-        </tr>
-        {% for outcome in row.mismatches %}<tr class="mismatch-row"><td colspan="3"><div class="notice small"><span class="eyebrow">Расхождение / {{ outcome.record.title|truncatechars:60 }}</span><p style="margin-top:var(--s2)">Ответ автора: «{{ outcome.record.author_mark }}». Ответ правила: {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p></div></td></tr>{% endfor %}
-        {% endfor %}</tbody>
-      </table></div>
+  </section>
+
+  <section class="card" id="step-4" aria-labelledby="step-4-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <div class="pg-step-head"><span class="pg-n">4</span><span class="t-mono">Этап 4</span></div>
+        <h2 class="t-head" id="step-4-h">Решение сотрудника</h2>
+        <p class="pg-lead">Сотрудник открывает карточку объекта, проверяет основания и документы и записывает решение с обоснованием. Решение принимает сотрудник.</p>
+        <div class="actions"><a class="btn btn-ghost" href="{% url 'dashboard:case_list' %}">Открыть реестр <svg class="icon" style="width:18px;height:18px"><use href="#i-arrow"/></svg></a></div>
+      </div>
+      <div class="pg-main">
+        <div class="pg-part">
+          <h3 class="t-mono">Три решения</h3>
+          <ul class="pg-list pg-dots">
+            <li><span class="risk confirmed">Подтверждено</span><span>Основания для проверки подтвердились. Объект уходит из вкладок риска во вкладку «Подтверждено».</span></li>
+            <li><span class="risk not_confirmed">Не подтверждено</span><span>Основания не подтвердились. Объект уходит из вкладок риска во вкладку «Не подтверждено».</span></li>
+            <li><span class="risk needs_information">Нужны сведения</span><span>Для решения не хватает документов. Объект остаётся во вкладке своего риска, на главной он в счётчике «В работе».</span></li>
+          </ul>
+          <p class="t-label soft">Каждое решение — новая запись с автором и временем. Исходные факты при этом не меняются. Все решения видны в разделе «История изменений».</p>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
+
+  <section class="card" id="step-5" aria-labelledby="step-5-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <div class="pg-step-head"><span class="pg-n">5</span><span class="t-mono">Этап 5</span></div>
+        <h2 class="t-head" id="step-5-h">Выгрузка результатов</h2>
+        <p class="pg-lead">Реестр выгружается в файл CSV с теми фильтрами, что выбраны на экране. Выгрузка доступна сотрудникам с правом выгрузки.</p>
+        {% if perms.cases.export_cases %}<div class="actions"><a class="btn btn-ghost" href="{% url 'dashboard:case_export' %}">Выгрузить CSV</a></div>{% endif %}
+      </div>
+      <div class="pg-main">
+        <div class="pg-part">
+          <h3 class="t-mono">Колонки файла</h3>
+          <ul class="codes"><li class="code">Идентификатор</li><li class="code">Объект</li><li class="code">Кадастровый номер</li><li class="code">Регион</li><li class="code">Итог анализа</li><li class="code">Сработавшие индикаторы</li><li class="code">Объяснение</li><li class="code">Результат проверки сотрудника</li><li class="code">Дата проверки</li><li class="code">Проверил</li><li class="code">Демонстрационные данные</li></ul>
+          <p class="t-label soft">Разделитель — точка с запятой, кодировка UTF-8: файл открывается в Excel. В колонке «Объяснение» — ответы сработавших правил по последнему анализу.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="tz" aria-labelledby="tz-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <span class="t-mono">Правила ТЗ</span>
+        <h2 class="t-head" id="tz-h">Соответствие правилам Р1.2, Р1.6, Р1.8</h2>
+        <p class="pg-lead">Набор правил построен на семи таблицах исследования. Полная таблица соответствия — docs/indicator-mapping.md.</p>
+      </div>
+      <div class="pg-main">
+        <div class="tbl-wrap"><table class="tbl pg-stack">
+          <thead><tr><th>Правило ТЗ</th><th>Чем покрыто</th><th>Статус</th></tr></thead>
+          <tbody>
+            <tr><td class="pg-full">Р1.6 — приобретение связанным лицом до начала процедуры</td><td class="pg-full" data-label="Чем покрыто"><div class="codes"><span class="code">И6</span><span class="code">И1</span><span class="code">И10</span></div></td><td class="pg-full" data-label="Статус"><span class="risk pg-trig pg-wrap">Реализовано как И6. Одна совпавшая фамилия — «нет данных»</span></td></tr>
+            <tr><td class="pg-full">Р1.8 — последующая реализация выгоды, контекст</td><td class="pg-full" data-label="Чем покрыто"><div class="codes"><span class="code">И3</span></div></td><td class="pg-full" data-label="Статус"><span class="risk pg-trig pg-wrap">Реализовано как И3, вес низкий</span></td></tr>
+            <tr><td class="pg-full">Р1.2 — новый ВРИ не соответствует регламенту</td><td class="pg-full" data-label="Чем покрыто"><span class="soft">—</span></td><td class="pg-full" data-label="Статус"><span class="risk insufficient pg-wrap">Нет данных: в таблицах нет истории ВРИ и редакций ПЗЗ. И2 проверяет другое условие</span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="quality" aria-labelledby="quality-h">
+    <div class="pg-split">
+      <div class="pg-side">
+        <span class="t-mono">Контрольный набор</span>
+        <h2 class="t-head" id="quality-h">Сверка с разметкой исследования</h2>
+        {% if run %}<p class="t-kpi">{{ run.agreed_count }} <span class="pg-of">из {{ run.compared_count }}</span></p>{% endif %}
+        <p class="pg-lead">В каждой таблице исследования есть колонка с ответом автора. Правила считают ответ заново по исходным фактам, сервис сравнивает оба ответа. Сверка показывает работу правил на тестовых примерах. Качество выявления коррупции на реальных данных она не измеряет.{% if run and run.agreed_count != run.compared_count %} Расхождения заложены в правило: при совпадении одной фамилии сервис отвечает «нет данных», пока связь не подтверждена документами.{% endif %}</p>
+      </div>
+      <div class="pg-main">
+        <div class="tbl-wrap"><table class="tbl pg-stack">
+          <thead><tr><th>Индикатор</th><th>Совпадение</th></tr></thead>
+          <tbody>{% for row in rows %}<tr>
+            <td class="pg-full"><span class="code">{{ row.indicator.code_display }}</span> {{ row.indicator.short }}</td>
+            <td class="pg-full" style="width:45%">{% if row.compared %}<span class="pg-agree"><span class="pg-meter"><i style="width:{{ row.agreed|percent:row.compared }}%"></i></span><span class="nowrap">{{ row.agreed }} из {{ row.compared }}</span></span>{% else %}<span class="soft">нет разметки</span>{% endif %}</td>
+          </tr>
+          {% for outcome in row.mismatches %}<tr class="pg-mismatch"><td colspan="2" class="pg-full"><div class="notice"><span class="t-period">Расхождение / {{ outcome.record.title|truncatechars:60 }}</span><p>Ответ автора: «{{ outcome.record.author_mark }}». Ответ правила: {{ outcome.status|status_label|lower }}. {{ outcome.explanation }}</p></div></td></tr>{% endfor %}
+          {% endfor %}</tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+</div>
 {% endblock %}

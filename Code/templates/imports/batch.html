@@ -1,43 +1,61 @@
-{% extends "base.html" %}{% load kp %}
+{% extends "base.html" %}{% load static kp %}
 {% block title %}{{ batch.file_name }} · Код прозрачности{% endblock %}
-{% block top %}
-<section class="case-head"><div class="wrap case-head-in wide">
-  <div style="display:grid;gap:var(--s5)">
-    <a class="eyebrow" href="{% url 'imports:upload' %}"><svg class="icon"><use href="#i-back"/></svg> Загрузка</a>
-    <span class="eyebrow">Загрузка {{ batch.created_at|date:"d.m.Y H:i" }} / {{ batch.uploaded_by.username }}{% if indicator %} / {{ indicator.code_display }}{% endif %}</span>
-    <h1 class="display-l break">{{ batch.file_name }}</h1>
-    <div class="stats">
-      <div class="stat"><span class="eyebrow">Строк принято</span><span class="num-xl">{{ batch.rows_total }}</span><span class="small">записей в файле</span></div>
-      <div class="stat"><span class="eyebrow">Новых / обновлено</span><span class="num-xl">{{ batch.rows_created }}/{{ batch.rows_updated }}</span><span class="small">без дублей при повторе</span></div>
-      <div class="stat"><span class="eyebrow">Реальных ячеек</span><span class="num-xl">{{ batch.real_cells }}</span><span class="org o-real small">по маркировке автора</span></div>
-      <div class="stat"><span class="eyebrow">Синтетических</span><span class="num-xl">{{ batch.synthetic_cells }}</span><span class="org o-synth small">или без маркировки</span></div>
-    </div>
-    {% if perms.cases.run_analysis %}<form method="post" action="{% url 'analysis:run' %}" style="display:grid">{% csrf_token %}<button class="btn btn-primary" type="submit" data-lbl="Запустить анализ">Запустить анализ</button></form>{% endif %}
-  </div>
-</div></section>
-{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/pages.css' %}">{% endblock %}
 {% block content %}
-<section class="section">
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Откуда набор</span><h2 class="h1">Паспорт набора</h2></div>
-    <dl class="block-body kv cols-3">
-      <div><dt class="eyebrow">Индикатор</dt><dd>{% if indicator %}{{ indicator.code_display }} / {{ indicator.short }}{% endif %}</dd></div>
-      <div><dt class="eyebrow">Контрольная сумма SHA-256</dt><dd class="small">{{ batch.sha256|truncatechars:24 }}</dd></div>
-      {% if batch.sources_note %}<div><dt class="eyebrow">Источники</dt><dd class="small">{{ batch.sources_note|linebreaksbr }}</dd></div>{% endif %}
-      {% if batch.notes %}<div style="grid-column:1/-1"><dt class="eyebrow">Примечания автора</dt><dd><ul class="list">{% for line in batch.notes.splitlines %}<li class="body-s">{{ line }}</li>{% endfor %}</ul></dd></div>{% endif %}
-    </dl>
+<div class="pg-bar">
+  <a class="pill" href="{% url 'imports:upload' %}"><svg class="icon"><use href="#i-back"/></svg>Загрузка таблиц</a>
+  {% if perms.cases.run_analysis %}<div class="actions"><form method="post" action="{% url 'analysis:run' %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:analytics' %}"><button class="btn" type="submit"><svg class="icon" style="width:18px;height:18px"><use href="#i-analysis"/></svg>Запустить анализ</button></form></div>{% endif %}
+</div>
+<div class="pg-page">
+  <section class="card">
+    <div><div class="t-mono">Загрузка {{ batch.created_at|date:"d.m.Y H:i" }} / {{ batch.uploaded_by.username }}{% if indicator %} / {{ indicator.code_display }} {{ indicator.short }}{% endif %}</div></div>
+    <h1 class="t-value break">{{ batch.file_name }}</h1>
+  </section>
+  <div class="grid g-4">
+    <div class="card kpi">
+      <div><div class="t-mono">Строк принято</div><div class="t-period">записей в файле</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ batch.rows_total }}</span></div>
+    </div>
+    <div class="card kpi">
+      <div><div class="t-mono">Новых / обновлено</div><div class="t-period">без дублей при повторе</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ batch.rows_created }} <span class="pg-of">/ {{ batch.rows_updated }}</span></span></div>
+    </div>
+    <div class="card kpi">
+      <div><div class="t-mono">Реальных ячеек</div><div class="t-period">жёлтая заливка в таблице</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ batch.real_cells }}</span></div>
+    </div>
+    <div class="card kpi">
+      <div><div class="t-mono">Синтетических ячеек</div><div class="t-period">остальные заполненные</div></div>
+      <div class="kpi-row"><span class="t-kpi">{{ batch.synthetic_cells }}</span></div>
+    </div>
   </div>
-  <div class="block">
-    <div class="block-rail"><span class="eyebrow">Записи</span><h2 class="h1">Что загружено</h2></div>
-    <div class="block-body tbl-wrap"><table class="tbl">
-      <thead><tr><th>Строка</th><th>Запись</th><th>Объекты</th><th class="hide-s">Разметка автора</th></tr></thead>
-      <tbody>{% for record in records %}<tr>
-        <td data-label="Строка">{{ record.row_number }}</td>
-        <td class="small">{{ record.title|truncatechars:80 }}{% if record.is_demonstration %}<span class="sub">демонстрация</span>{% endif %}</td>
-        <td data-label="Объекты"><div class="codes">{% for case in record.cases.all %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div></td>
-        <td class="hide-s small" data-label="Разметка автора">{{ record.author_mark|default:"—" }}</td>
-      </tr>{% endfor %}</tbody>
-    </table></div>
+  <div class="grid g-side pg-even">
+    <div class="stack">
+      <section class="card" aria-labelledby="pass-h">
+        <div class="card-head"><div><h2 class="t-mono" id="pass-h">Паспорт набора</h2><div class="t-period">откуда набор и что о нём известно</div></div></div>
+        <dl class="pg-kv">
+          <div><dt>Индикатор</dt><dd>{% if indicator %}{{ indicator.code_display }} / {{ indicator.short }}{% else %}{{ batch.indicator_display }}{% endif %}</dd></div>
+          <div><dt>Формат</dt><dd>{{ batch.file_format }}{% if batch.sheet %}, лист «{{ batch.sheet }}»{% endif %}</dd></div>
+          <div><dt>SHA-256</dt><dd class="t-label">{{ batch.sha256 }}</dd></div>
+          {% if batch.sources_note %}<div><dt>Источники</dt><dd>{{ batch.sources_note|cut:"Источники данных: "|linebreaksbr }}</dd></div>{% endif %}
+          {% if batch.notes %}<div><dt>Примечания автора</dt><dd><ul class="pg-list">{% for line in batch.notes.splitlines %}{% if line.strip %}<li>{{ line }}</li>{% endif %}{% endfor %}</ul></dd></div>{% endif %}
+        </dl>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card" aria-labelledby="rec-h">
+        <div class="card-head"><div><h2 class="t-mono" id="rec-h">Записи набора</h2><div class="t-period">строка таблицы, запись и её объекты</div></div></div>
+        <div class="tbl-wrap"><table class="tbl pg-stack">
+          <thead><tr><th>Строка</th><th>Запись</th><th>Объекты</th><th>Разметка автора</th></tr></thead>
+          <tbody>{% for record in records %}<tr>
+            <td data-label="Строка">{{ record.row_number }}</td>
+            <td class="pg-full">{{ record.title|truncatechars:90 }}{% if record.is_demonstration %}<span class="sub">демонстрация</span>{% endif %}</td>
+            <td data-label="Объекты"><div class="codes">{% for case in record.cases.all %}<a class="code" href="{% url 'dashboard:case_detail' case.id %}">{{ case.reference }}</a>{% endfor %}</div></td>
+            <td class="pg-full" data-label="Разметка автора">{{ record.author_mark|default:"—" }}</td>
+          </tr>{% empty %}<tr><td colspan="4" class="empty">Записей в наборе нет.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </section>
+    </div>
   </div>
-</section>
+</div>
 {% endblock %}

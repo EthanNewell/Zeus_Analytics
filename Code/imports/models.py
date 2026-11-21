@@ -28,5 +28,9 @@ class ImportBatch(models.Model):
         verbose_name = "загрузка"
         verbose_name_plural = "загрузки"
 
+    @property
+    def indicator_display(self):
+        return "И" + self.indicator[1:] if self.indicator.startswith("I") else self.indicator
+
     def __str__(self):
         return f"{self.file_name} ({self.created_at:%d.%m.%Y %H:%M})"

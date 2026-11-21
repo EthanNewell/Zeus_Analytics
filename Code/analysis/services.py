@@ -7,7 +7,7 @@ from django.db import transaction
 from cases.indicators import INDICATORS
 from cases.models import ATTENTION_ORDER, Attention, Case, Record
 
-from .contracts import Priority, RuleStatus
+from .contracts import RuleStatus
 from .models import AnalysisRun, RuleOutcome
 from .rules import RULES, AnalysisContext, expected_status
 
@@ -116,17 +116,17 @@ def run_analysis(*, actor, case_ids=None):
     return run
 
 
+RISK_ORDER = (Attention.HIGH, Attention.MEDIUM, Attention.LOW)
+
+
 def summarize(outcomes):
-    """Case attention from its rule outcomes. Context indicators never raise it to high."""
+    """Case risk: the highest weight among its triggered indicators (cases.indicators.risk)."""
     triggered = [outcome for outcome in outcomes if outcome.status == RuleStatus.TRIGGERED]
     codes = sorted({outcome.rule_code for outcome in triggered}, key=lambda code: int(code[1:]))
-    main = {code for code in codes if INDICATORS[code].kind == "main"}
-    if any(outcome.priority == Priority.HIGH for outcome in triggered) or len(main) >= 2:
-        return Attention.HIGH, codes
-    if main:
-        return Attention.NORMAL, codes
-    if triggered:
-        return Attention.LOW, codes
+    risks = {INDICATORS[code].risk for code in codes}
+    for level in RISK_ORDER:
+        if level.value in risks:
+            return level, codes
     if any(outcome.status == RuleStatus.INSUFFICIENT_DATA for outcome in outcomes):
         return Attention.INSUFFICIENT, codes
     return Attention.NONE, codes
