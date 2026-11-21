@@ -8,51 +8,65 @@
   render.mjs снимает 30 кадров в секунду и сводит их с music.wav. Разделы и такты —
   timeline.json (100 BPM, такт 2,4 с), общие с музыкой: смены сцен приходятся на сильные доли.
 
+  Вид — система интерфейса сервиса (Code/docs/design-system.md, токены Code/static/css/app.css):
+  светлый фон #EFF3F7, белые карточки с радиусом 20 без обводки, тёмный #222B33 для текста
+  и тёмных сцен, Onest, метки Geist Mono, риск — точка и слово (высокий, средний, низкий).
+
   Одна сетка на все сцены. Поля 80 px со всех сторон; сверху строка подписи 1760 × 120
   (слева раздел и заголовок, справа текст), под ней через 40 px тело 1760 × 760.
-  Половины тела — 848 | 64 | 848. Сервис показан чёткими снимками страниц (capture.mjs),
-  камера ездит по ним; линий-украшений и наложений нет.
+  Половины тела — 848 | 64 | 848, карточки внутри с полем 40. Сервис показан чёткими снимками
+  страниц (capture.mjs), камера ездит по ним; линий-украшений и наложений нет.
 -->
 <style>
-@font-face { font-family: "SG"; src: url("../../Code/static/fonts/science-gothic-cyrillic.woff2") format("woff2");
-  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
-@font-face { font-family: "SG"; src: url("../../Code/static/fonts/science-gothic-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-  U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
-@font-face { font-family: "SG"; src: url("../../Code/static/fonts/science-gothic-symbols.woff2") format("woff2");
-  unicode-range: U+2074, U+2080, U+2192, U+2244-2248, U+2260, U+2264-2265; font-weight: 100 900; font-stretch: 50% 200%; font-display: block; }
+@font-face { font-family: "Onest"; src: url("../../Code/static/fonts/onest-cyrillic-ext-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F; }
+@font-face { font-family: "Onest"; src: url("../../Code/static/fonts/onest-cyrillic-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Onest"; src: url("../../Code/static/fonts/onest-latin-ext-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Onest"; src: url("../../Code/static/fonts/onest-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Onest"; src: url("../../Code/static/fonts/onest-symbols-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+2190-2199, U+2218-2219, U+2300-243F, U+25A0-27BF; }
+@font-face { font-family: "Geist Mono"; src: url("../../Code/static/fonts/geist-mono-cyrillic-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Geist Mono"; src: url("../../Code/static/fonts/geist-mono-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
-:root { --blue: #0000e8; --grey: #ededed; }
+/* Токены — как в Code/static/css/app.css. */
+:root { --canvas: #eff3f7; --card: #ffffff; --control: #f1f4f4; --nav: #dae2ea; --outline: #c3cfda; --text: #222b33;
+  --text-2: rgba(34, 43, 51, 0.5); --high: #f92e2e; --medium: #ff941a; --low: #039a00; --positive: #039a00; --cat-2: #b6d3f0;
+  --mono: "Geist Mono", ui-monospace, monospace; --sans: "Onest", Arial, sans-serif; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--blue); }
-body { font-family: "SG", Arial, sans-serif; font-weight: 250; font-stretch: 72%; -webkit-font-smoothing: antialiased; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+body { font-family: var(--sans); font-weight: 400; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
 
 .scene { position: absolute; inset: 0; overflow: hidden; display: none; }
 .scene.on { display: block; }
-.blue { background: var(--blue); color: #fff; --ink: #fff; --soft: rgba(255,255,255,.72); --hair: rgba(255,255,255,.24); --fill: rgba(255,255,255,.14); --chip: #fff; --chip-ink: var(--blue); }
-.grey { background: var(--grey); color: #000; --ink: #000; --soft: rgba(0,0,0,.62); --hair: rgba(0,0,0,.14); --fill: #fff; --chip: var(--blue); --chip-ink: #fff; }
+/* Тёмная сцена (#222B33) и светлая (фон сервиса). */
+.dark { background: var(--text); color: #fff; --ink: #fff; --soft: rgba(255,255,255,.6); --hair: rgba(255,255,255,.12); --surface: #2e3842; --chip: #3c4752; }
+.light { background: var(--canvas); color: var(--text); --ink: var(--text); --soft: var(--text-2); --hair: rgba(34,43,51,.08); --surface: var(--card); --chip: var(--control); }
 
-.eyebrow { font-weight: 400; font-size: 18px; letter-spacing: .2em; text-transform: uppercase; line-height: 1.2; }
-.h { font-weight: 200; font-stretch: 62%; text-transform: uppercase; line-height: 1; letter-spacing: -.004em; }
-.txt { font-size: 26px; line-height: 1.4; font-weight: 250; text-wrap: balance; }
-.num { font-weight: 100; font-variant-numeric: tabular-nums; line-height: .82; letter-spacing: -.01em; }
-.chip { display: inline-block; font-weight: 400; font-size: 18px; letter-spacing: .12em; padding: 6px 10px 5px; background: var(--chip); color: var(--chip-ink); line-height: 1; }
+.eyebrow { font-family: var(--mono); font-weight: 500; font-size: 18px; letter-spacing: .04em; text-transform: uppercase; line-height: 1.3; }
+.h { font-weight: 500; line-height: 1.08; letter-spacing: -.015em; }
+.txt { font-size: 26px; line-height: 1.4; font-weight: 400; text-wrap: balance; }
+.num { font-weight: 300; line-height: .9; letter-spacing: -.03em; }
+.chip { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--chip); color: var(--ink); font-size: 20px; line-height: 1; white-space: nowrap; }
+.risk { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; font-size: 22px; }
+.risk::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--outline); flex: none; }
+.risk.high::before { background: var(--high); } .risk.medium::before { background: var(--medium); } .risk.low::before { background: var(--low); }
 .mask { overflow: hidden; display: block; }
 .mask > * { display: block; }
 .mask > .num { line-height: 1; }
+/* Карточка: белая (на тёмной сцене — на тон светлее фона), радиус 20, без обводки. */
+.card { position: absolute; background: var(--surface); border-radius: 20px; overflow: hidden; }
 
 /* Строка подписи и тело — общие для всех сцен. */
 .cap { position: absolute; left: 80px; top: 80px; width: 1760px; height: 120px; display: grid; grid-template-columns: 848px 848px; column-gap: 64px; }
 .cap .l { display: grid; gap: 14px; align-content: end; }
+.cap .l .eyebrow { color: var(--soft); }
 .cap .r { position: relative; }
 .cap .r .tx { position: absolute; left: 0; right: 0; bottom: 0; }
-.cap .h { font-size: 64px; }
+.cap .h { font-size: 60px; }
 .body { position: absolute; left: 80px; top: 240px; width: 1760px; height: 760px; }
 .L { position: absolute; left: 0; top: 0; width: 848px; height: 760px; }
 .R { position: absolute; left: 912px; top: 0; width: 848px; height: 760px; }
 
-/* Окно сервиса: белая страница на сером поле, без обводки. */
-.panel { position: absolute; inset: 0; background: #fff; overflow: hidden; }
+/* Окно сервиса: страница в карточке на фоне сервиса. */
+.panel { position: absolute; inset: 0; background: #fff; overflow: hidden; border-radius: 20px; }
 .panel img { position: absolute; left: 0; top: 0; max-width: none; }
 .cursor { position: absolute; width: 30px; height: 30px; left: 0; top: 0; z-index: 5; transform-origin: 3px 3px; opacity: 0; }
 
@@ -118,8 +132,9 @@ function captionAt(scene, t) {
 const KH = BODY_H / BODY_W;
 function cam(x, y, w) { return { x, y, w }; }
 function fitBox(b, pad = 24, wMin = 0) {
-  const w = Math.max(b.w + pad * 2, (b.h + pad * 2) / KH, wMin);
-  return cam(b.x + b.w / 2 - w / 2, b.y + b.h / 2 - (w * KH) / 2, w);
+  const w = Math.min(1280, Math.max(b.w + pad * 2, (b.h + pad * 2) / KH, wMin));
+  // the camera stays on the page: a narrow block near the edge is framed with its neighbours
+  return cam(Math.max(0, Math.min(1280 - w, b.x + b.w / 2 - w / 2)), b.y + b.h / 2 - (w * KH) / 2, w);
 }
 function camAt(stops, t) {            // stops: [{at, cam, dur}]
   let c = stops[0].cam;
@@ -132,7 +147,7 @@ function camAt(stops, t) {            // stops: [{at, cam, dur}]
 function panel(scene) {
   const p = el(`<div class="panel"></div>`);
   scene.querySelector(".body").appendChild(p);
-  const svg = `<svg class="cursor" viewBox="0 0 30 30"><path d="M3 3 L3 24 L8.6 18.8 L12.4 27.2 L16 25.6 L12.3 17.4 L19.8 17.4 Z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  const svg = `<svg class="cursor" viewBox="0 0 30 30"><path d="M3 3 L3 24 L8.6 18.8 L12.4 27.2 L16 25.6 L12.3 17.4 L19.8 17.4 Z" fill="#222b33" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
   p.appendChild(el(svg));
   return p;
 }
@@ -171,33 +186,51 @@ const mid = (b) => ({ x: b.x + Math.min(b.w / 2, 160), y: b.y + b.h / 2 });
 // ------------------------------------------------------------------ сцены
 const SC = {};
 
+// Рисунок со страницы входа сервиса (Code/templates/registration/login.html), продлённый в ширину полосы:
+// исходный рисунок 300 × 180 стоит в середине (сдвиг 290, 9), слева и справа продолжены те же связи участков.
+function art() {
+  const grid = Array.from({ length: 30 }, (_, k) => `M${k * 30 + 5} 0V198`).join("");
+  const side = "M0 30 70 22 150 48 230 40 300 24M0 120 60 105 140 128 210 96 290 79M90 0 110 60 70 198M180 198 210 96M40 198 60 105M250 0 230 40"
+    + "M590 48 680 30 760 62 880 40M590 139 700 120 790 160 880 140M590 159 640 198M700 0 680 30M760 62 790 160M830 0 880 90";
+  return `<svg class="art" viewBox="0 0 880 198" preserveAspectRatio="xMidYMid slice" style="position:absolute;left:0;top:0;width:100%;height:100%">
+    <path vector-effect="non-scaling-stroke" d="${grid}M0 54H880M0 99H880M0 144H880" stroke="#ffffff" stroke-opacity=".16" stroke-width="1.4" stroke-dasharray="1.4 9"/>
+    <path vector-effect="non-scaling-stroke" d="${side}" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1.6"/>
+    <g transform="translate(290 9)">
+      <path vector-effect="non-scaling-stroke" d="M10 15 68 22 92 52 182 76 300 39M0 70 20 95 88 85 115 127 205 102 300 130M110 0 105 52M182 0 190 35 239 21M240 20 237 95 300 150M115 127 92 172M205 102 230 145M160 180 205 102" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1.6"/>
+      <path vector-effect="non-scaling-stroke" d="M88 52 155 66 182 103 115 127 88 85Z" fill="#6f8fd0" fill-opacity=".38" stroke="#a9c3f2" stroke-width="2.6"/>
+      <path vector-effect="non-scaling-stroke" d="M155 66 190 35 239 21M155 66 115 127" fill="none" stroke="#dce8ff" stroke-width="2.2" stroke-dasharray="9 9"/>
+      <circle vector-effect="non-scaling-stroke" cx="155" cy="66" r="4.2" fill="#222b33" stroke="#c2f0b6" stroke-width="2.6"/><circle cx="155" cy="66" r="1.6" fill="#c2f0b6"/>
+    </g>
+  </svg>`;
+}
+
 SC.title = {
-  kind: "blue",
+  kind: "dark",
   build(s) {
     caption(s, { ey: "Хакатон «Код прозрачности» · 2026", ti: "Риски в кадастре", tx: "Рабочее место специалиста по профилактике коррупции в земельных отношениях" });
     s.querySelector(".body").innerHTML = `
       <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Земельные решения</h1></div>
         <div class="mask"><h1 class="h big">по данным реестров</h1></div></div>
-      <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/hero.jpg" style="position:absolute;left:0;width:100%;object-fit:cover" alt="" /></div>`;
+      <div class="band card" style="left:0;right:0;bottom:0">${art()}</div>`;
   },
-  layout(s) { fitPair(s, 0); },
+  layout(s) { fitPair(s); },
   frame(s, t) {
     captionAt(s, t);
     const [l1, l2] = $$(s, ".big");
     line(l1, t, BEAT * 2, Infinity, 1); line(l2, t, BEAT * 3, Infinity, 1);
     const band = $(s, ".band"), a = outQ(prog(t, BEAT * 5, 1.4));
-    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
-    const img = band.querySelector("img");
-    img.style.top = `${-420 + 160 * inOut(t / (4 * BAR))}px`; img.style.height = "1760px";
+    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0 round 20px)`;
+    $(s, ".art").style.transform = `scale(${1.08 - 0.08 * inOut(t / (4 * BAR))})`;
   },
 };
 
-// Две строки одинакового кегля: длинная — во всю ширину; под ними полоса гравюры до низа тела.
+// Две строки одного кегля без растягивания: 150 px или меньше, если длинная строка не помещается;
+// под ними карточка с рисунком до низа тела.
 function fitPair(s) {
   const big = $$(s, ".big");
-  big.forEach((e) => { e.style.fontSize = "200px"; e.style.whiteSpace = "nowrap"; e.style.display = "inline-block"; });
+  big.forEach((e) => { e.style.fontSize = "150px"; e.style.whiteSpace = "nowrap"; e.style.display = "inline-block"; });
   const w = Math.max(...big.map((e) => e.getBoundingClientRect().width));
-  const size = Math.floor(200 * BODY_W / w);
+  const size = Math.min(150, Math.floor(150 * BODY_W / w));
   big.forEach((e) => { e.style.fontSize = size + "px"; e.style.display = "block"; });
   const h = $(s, ".fit").getBoundingClientRect().height;
   const band = $(s, ".band");
@@ -206,17 +239,17 @@ function fitPair(s) {
 }
 
 SC.problem = {
-  kind: "blue",
+  kind: "light",
   build(s) {
     caption(s, { ey: "01 / проблема", ti: "Восемь источников", tx: "Сведения об одном объекте хранятся в восьми источниках. Основание для проверки даёт сопоставление дат и лиц." });
     const names = ["НСПД", "ЕГРН", "ЕГРЮЛ", "ГИС «Торги»", "Кадастровая оценка", "Акты субъектов РФ", "Сайты муниципалитетов", "Протоколы комиссий"];
     s.querySelector(".body").innerHTML = `
-      <div class="L"><div class="num cnt" style="font-size:520px;position:absolute;left:-14px;top:0">0</div>
-        <div style="position:absolute;left:0;bottom:0"><div class="mask"><p class="txt lab" style="font-size:40px">источников на один объект</p></div></div></div>
-      <div class="R"><div class="rows" style="grid-template-rows:repeat(8,1fr)">${names.map((n, i) =>
-        `<div style="grid-template-columns:80px 1fr"><span class="eyebrow" style="opacity:.6">${String(i + 1).padStart(2, "0")}</span><span class="txt" style="font-size:32px">${n}</span></div>`).join("")}</div>
-        <div class="one" style="position:absolute;left:0;right:0;bottom:0;background:#fff;color:var(--blue);display:grid;align-content:end;padding:40px">
-          <p class="eyebrow">Код прозрачности</p><p class="h" style="font-size:96px;margin-top:16px">карточка объекта</p></div></div>`;
+      <div class="L card"><div class="num cnt" style="font-size:480px;position:absolute;left:24px;top:28px">0</div>
+        <div style="position:absolute;left:40px;bottom:40px"><div class="mask"><p class="txt lab" style="font-size:36px">источников на один объект</p></div></div></div>
+      <div class="R card"><div class="rows" style="grid-template-rows:repeat(8,1fr);left:40px;right:40px">${names.map((n, i) =>
+        `<div style="grid-template-columns:80px 1fr"><span class="eyebrow" style="color:var(--soft)">${String(i + 1).padStart(2, "0")}</span><span class="txt" style="font-size:30px">${n}</span></div>`).join("")}</div>
+        <div class="one" style="position:absolute;left:0;right:0;bottom:0;background:var(--text);color:#fff;border-radius:20px;display:grid;align-content:end;gap:16px;padding:40px">
+          <p class="eyebrow" style="color:rgba(255,255,255,.6)">Код прозрачности</p><p class="h" style="font-size:88px">Карточка объекта</p></div></div>`;
   },
   frame(s, t) {
     captionAt(s, t);
@@ -240,14 +273,23 @@ SC.problem = {
 };
 
 SC.mechanisms = {
-  kind: "blue",
+  kind: "light",
   build(s) {
-    caption(s, { ey: "02 / что ищем", ti: "Три механизма риска", tx: "Семь правил исследования объединены в три механизма. У каждого правила свой сигнал и свой расчёт." });
-    const items = [["m1", "#1 / И1, И3, И6", "Сделка перед решением"], ["m2", "#2 / И2, И4, И10", "Решение в пользу владельца"], ["m3", "#3 / И8", "Граница с изломом"]];
-    s.querySelector(".body").innerHTML = `<div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px">${items.map(([img, ey, ti]) => `
-      <figure class="m" style="position:relative;display:grid;grid-template-rows:1fr 150px">
-        <div style="overflow:hidden;position:relative"><img src="../../Code/static/img/${img}.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="" /></div>
-        <div style="display:grid;align-content:end;gap:14px"><div class="mask"><p class="eyebrow">${ey}</p></div><div class="mask"><p class="h" style="font-size:52px">${ti}</p></div></div>
+    caption(s, { ey: "02 / что ищем", ti: "Три механизма риска", tx: "Семь правил исследования объединены в три механизма. У каждого правила свой расчёт и свой вес: высокий, средний или низкий." });
+    const W = { high: "высокий", medium: "средний", low: "низкий" };
+    const items = [
+      ["#1 / И1, И3, И6", "Сделка перед решением", "Участок покупают незадолго до смены категории, покупатель связан с участником решения, после решения участок продают с выгодой.",
+        [["И1", "Покупка до смены категории", "medium"], ["И3", "Выгода после смены категории", "low"], ["И6", "Связанное лицо до процедуры", "medium"]]],
+      ["#2 / И2, И4, И10", "Решение в пользу владельца", "Зону ПЗЗ меняют ради участков одного владельца, торги проходят с единственным участником, одно должностное лицо повторяется.",
+        [["И2", "Правка ПЗЗ / генплана", "medium"], ["И4", "Единственный участник торгов", "high"], ["И10", "Повтор должностного лица", "high"]]],
+      ["#3 / И8", "Граница с изломом", "Контур участка с узким выступом, вырезом или прирезанной полосой. Коэффициент заполнения считается по координатам.",
+        [["И8", "Аномалия границ", "medium"]]]];
+    s.querySelector(".body").innerHTML = `<div style="position:absolute;left:0;top:0;width:100%;height:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:16px">${items.map(([ey, ti, lead, list]) => `
+      <figure class="m card" style="position:relative;display:grid;grid-template-rows:auto 1fr;padding:40px">
+        <div style="display:grid;gap:16px;align-content:start"><div class="mask"><p class="eyebrow" style="color:var(--soft)">${ey}</p></div><div class="mask"><p class="h" style="font-size:48px">${ti}</p></div><p class="txt lead" style="font-size:24px;color:var(--soft);text-wrap:pretty">${lead}</p></div>
+        <ul style="list-style:none;align-self:end;display:grid">${list.map(([c, n, r], k) => `
+          <li class="ind" style="display:grid;grid-template-columns:72px 1fr;gap:8px 16px;padding:18px 0;${k ? "border-top:1px solid var(--hair)" : ""}">
+            <span><span class="chip">${c}</span></span><span class="txt" style="font-size:24px">${n}</span><span></span><span class="risk ${r}">${W[r]}</span></li>`).join("")}</ul>
       </figure>`).join("")}</div>`;
   },
   frame(s, t) {
@@ -255,16 +297,17 @@ SC.mechanisms = {
     $$(s, ".m").forEach((m, i) => {
       const at = TW + BEAT * 2 + i * BEAT * 2.5;
       const a = outQ(prog(t, at, 1));
-      const box = m.firstElementChild;
-      box.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
-      box.querySelector("img").style.transform = `scale(${1.18 - 0.12 * a + 0.05 * inOut(prog(t, TW + BAR * 2.5, BAR * 1.5))})`;
+      m.style.opacity = a;
+      m.style.transform = `translateY(${(1 - a) * 60}px)`;
       $$(m, ".mask > *").forEach((e, k) => line(e, t, at + 0.35 + k * 0.1));
+      $(m, ".lead").style.opacity = outQ(prog(t, at + 0.6, 0.6));
+      $$(m, ".ind").forEach((r, k) => { const b = outQ(prog(t, at + 0.8 + k * 0.25, 0.6)); r.style.opacity = b; r.style.transform = `translateY(${(1 - b) * 16}px)`; });
     });
   },
 };
 
 SC.login = {
-  kind: "grey",
+  kind: "light",
   build(s) {
     caption(s, { ey: "03 / вход", ti: "Доступ по ролям", tx: "У специалиста, проверяющего и руководителя разные права. Учётные записи выдаёт администратор." });
     s._p = panel(s);
@@ -287,13 +330,13 @@ SC.login = {
 };
 
 SC.data = {
-  kind: "grey",
+  kind: "light",
   build(s) {
-    const st = [["70", "записей"], ["50", "объектов"], ["31", "сигнал"], ["16 мс", "медиана анализа"]];
+    const st = [["70", "записей"], ["50", "объектов"], ["31", "сработало"], ["16 мс", "медиана анализа"]];
     caption(s, { ey: "04 / данные", ti: "Загрузка таблиц", tx: [
       { at: 0, text: "Семь таблиц исследования, составленных вручную. Повторная загрузка не дублирует записи: 0 новых из 10." },
-      { at: TW + BAR * 3, sub: "70 записей, 50 объектов, 31 сигнал; медиана анализа — 16 мс.", html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
-        `<div style="display:grid;gap:12px"><div class="mask"><div class="num stat" data-v="${v}" style="font-size:72px">0</div></div><div class="mask"><p class="eyebrow">${l}</p></div></div>`).join("")}</div>` }] });
+      { at: TW + BAR * 3, sub: "70 записей, 50 объектов, 31 сработавшее правило; медиана анализа — 16 мс.", html: `<div style="display:grid;grid-template-columns:repeat(4,1fr);column-gap:32px">${st.map(([v, l]) =>
+        `<div style="display:grid;gap:12px"><div class="mask"><div class="num stat" data-v="${v}" style="font-size:56px;white-space:nowrap">0</div></div><div class="mask"><p class="eyebrow">${l}</p></div></div>`).join("")}</div>` }] });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -313,9 +356,9 @@ SC.data = {
 };
 
 SC.registry = {
-  kind: "grey",
+  kind: "light",
   build(s) {
-    caption(s, { ey: "05 / реестр", ti: "Реестр по приоритету", tx: "Восемь объектов с высоким приоритетом. Объекты разложены по пяти уровням приоритета; вероятность коррупции сервис не считает." });
+    caption(s, { ey: "05 / реестр", ti: "Реестр по риску", tx: "Вкладки: высокий, средний, низкий риск и нет данных. Риск — наибольший вес среди сработавших индикаторов." });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -327,10 +370,10 @@ SC.registry = {
 };
 
 SC.card = {
-  kind: "grey",
+  kind: "light",
   build(s) {
     caption(s, { ey: "06 / карточка", ti: "Почему объект в реестре", tx: [
-      { at: 0, text: "Аксайский район, 61:02:0600010:2843. Сработали три правила из четырёх, у каждого свой расчёт." },
+      { at: 0, text: "Аксайский район, 61:02:0600010:2843. Сработали три правила из четырёх, риск объекта высокий." },
       { at: TW + BAR * 1.5, text: "И6. Покупка за 75 дней до процедуры. Сервис нашёл ИНН участника решения среди учредителей." },
       { at: TW + BAR * 3.5, text: "И10. Повтор того же лица в 4 эпизодах: их объекты есть в таблицах других правил." },
       { at: TW + BAR * 5, text: "И1. Категорию земли сменили через 271 день после регистрации права." },
@@ -344,29 +387,30 @@ SC.card = {
       { at: TW + BAR * 1.5 - 0.4, cam: fitBox(b.i6, 32) },
       { at: TW + BAR * 3.5 - 0.4, cam: fitBox(b.i10, 32) },
       { at: TW + BAR * 5 - 0.4, cam: fitBox(b.i1, 32) },
-      { at: TW + BAR * 6.75 - 0.4, cam: fitBox({ x: 64, y: b.chrono.y - 24, w: 1152, h: b.chrono.h + 48 }, 0) }], t);
+      { at: TW + BAR * 6.75 - 0.4, cam: fitBox(b.chrono, 24) }], t);
     return page(s._p, "card", c);
   },
 };
 
 SC.timeline = {
-  kind: "blue",
+  kind: "light",
   build(s) {
     caption(s, { ey: "07 / хронология", ti: "События из трёх таблиц", tx: "Участок куплен за 75 дней до начала процедуры. Категорию сменили через 271 день после регистрации права." });
     const ev = [["14.03.2024", "Присвоен кадастровый номер", "И1", ""], ["22.05.2025", "Регистрация права покупателя", "И1, И6", ""],
       ["05.08.2025", "Начало процедуры", "И6", "+75 дн."],
       ["17.02.2026", "Смена категории", "И1", "+271 дн."], ["17.02.2026", "Новая кадастровая стоимость", "И3", ""], ["15.05.2026", "Раздел участка", "И3", ""]];
+    const TLW = 788;                     // ширина шкалы: половина карточки за вычетом полей
     const d0 = Date.parse("2024-01-01"), d1 = Date.parse("2026-07-01");
-    const X = (d) => { const [dd, mm, yy] = d.split("."); return (Date.parse(`${yy}-${mm}-${dd}`) - d0) / (d1 - d0) * 848; };
+    const X = (d) => { const [dd, mm, yy] = d.split("."); return (Date.parse(`${yy}-${mm}-${dd}`) - d0) / (d1 - d0) * TLW; };
     s._X = X;
-    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:64px repeat(6,1fr)">
-      <div style="grid-template-columns:848px 848px;column-gap:64px;align-items:start"><span class="eyebrow" style="opacity:.6">дата / событие / правило</span>
-        <span style="position:relative;height:22px">${["2024", "2025", "2026"].map((y) => `<span class="eyebrow yr" style="position:absolute;left:${X("01.01." + y)}px;top:0">${y}</span>`).join("")}</span></div>
-      ${ev.map(([d, txt, code, gap]) => `<div class="ev" style="grid-template-columns:848px 848px;column-gap:64px">
-        <span style="display:grid;grid-template-columns:200px 1fr;align-items:center"><span class="eyebrow">${d}</span><span class="txt" style="font-size:30px">${txt} <span class="chip" style="margin-left:10px;vertical-align:4px">${code}</span></span></span>
-        <span style="position:relative;height:16px"><i class="bar" style="position:absolute;left:0;top:7px;height:2px;background:var(--hair);width:0"></i>
-          <i class="dot" style="position:absolute;top:0;width:16px;height:16px;background:#fff;left:${X(d) - 8}px"></i>
-          ${gap ? `<span class="eyebrow gap" style="position:absolute;left:${X(d) + 24}px;top:-2px;white-space:nowrap">${gap}</span>` : ""}</span></div>`).join("")}</div>`;
+    s.querySelector(".body").innerHTML = `<div class="card" style="left:0;top:0;width:100%;height:100%"><div class="rows" style="grid-template-rows:72px repeat(6,1fr);left:40px;right:40px">
+      <div style="grid-template-columns:${TLW}px ${TLW}px;column-gap:64px;align-items:center"><span class="eyebrow" style="color:var(--soft)">дата / событие / правило</span>
+        <span style="position:relative;height:22px">${["2024", "2025", "2026"].map((y) => `<span class="eyebrow yr" style="position:absolute;left:${X("01.01." + y)}px;top:0;color:var(--soft)">${y}</span>`).join("")}</span></div>
+      ${ev.map(([d, txt, code, gap]) => `<div class="ev" style="grid-template-columns:${TLW}px ${TLW}px;column-gap:64px">
+        <span style="display:grid;grid-template-columns:190px 1fr;align-items:center"><span class="eyebrow">${d}</span><span class="txt" style="font-size:28px">${txt} <span class="chip" style="margin-left:10px;vertical-align:3px">${code}</span></span></span>
+        <span style="position:relative;height:16px"><i class="bar" style="position:absolute;left:0;top:6px;height:4px;border-radius:2px;background:var(--nav);width:0"></i>
+          <i class="dot" style="position:absolute;top:0;width:16px;height:16px;border-radius:50%;background:var(--text);left:${X(d) - 8}px"></i>
+          ${gap ? `<span class="eyebrow gap" style="position:absolute;left:${X(d) + 24}px;top:-3px;white-space:nowrap">${gap}</span>` : ""}</span></div>`).join("")}</div></div>`;
     s._ev = ev;
   },
   frame(s, t) {
@@ -388,11 +432,11 @@ SC.timeline = {
 };
 
 SC.review = {
-  kind: "grey",
+  kind: "light",
   build(s) {
-    caption(s, { ey: "08 / проверка", ti: "Вывод сотрудника", tx: [
-      { at: 0, text: "Сотрудник отмечает вывод и пишет, какие документы открыл и что проверил." },
-      { at: TW + BAR * 4, text: "Запись хранится с автором и временем. Факты и сигнал системы не меняются." }] });
+    caption(s, { ey: "08 / решение", ti: "Решение сотрудника", tx: [
+      { at: 0, text: "Сотрудник выбирает решение «Подтверждено», «Не подтверждено» или «Нужны сведения» и пишет, что проверил." },
+      { at: TW + BAR * 4, text: "Объект с окончательным решением уходит во вкладку «Подтверждено» или «Не подтверждено». Факты не меняются." }] });
     s._p = panel(s);
   },
   frame(s, t) {
@@ -417,77 +461,80 @@ SC.review = {
 };
 
 SC.geometry = {
-  kind: "blue",
+  kind: "dark",
   build(s) {
     caption(s, { ey: "09 / геометрия", ti: "Граница с изломом", tx: "Участок 61:02:0120105:331. По координатам контура он занимает 59 % описанного прямоугольника." });
+    const GW = 768;                      // ширина шкалы внутри карточки
     s.querySelector(".body").innerHTML = `
-      <div class="L"><div class="num fill" style="font-size:300px;position:absolute;left:-8px;top:0">0,000</div>
-        <div style="position:absolute;left:0;top:280px"><div class="mask"><p class="txt" style="font-size:34px">коэффициент заполнения</p></div></div>
-        <div class="gs" style="position:absolute;left:0;right:0;bottom:184px;display:grid;grid-template-columns:1fr 1fr;column-gap:32px">
-          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:96px">1 418 м²</div></div><div class="mask"><p class="eyebrow">площадь участка</p></div></div>
-          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:96px">2 393 м²</div></div><div class="mask"><p class="eyebrow">описанный прямоугольник</p></div></div></div>
-        <div style="position:absolute;left:0;right:0;bottom:0;height:120px">
-          <p class="eyebrow" style="position:absolute;left:0;top:0">0</p><p class="eyebrow thr" style="position:absolute;top:0;transform:translateX(-50%);white-space:nowrap">порог 0,85</p><p class="eyebrow" style="position:absolute;right:0;top:0">1</p>
-          <div style="position:absolute;left:0;right:0;top:56px;height:24px;background:var(--fill)"></div>
-          <div class="gfill" style="position:absolute;left:0;top:56px;height:24px;background:#fff;width:0"></div>
-          <div class="thrline" style="position:absolute;top:44px;width:4px;height:48px;background:#fff"></div></div></div>
-      <div class="R"><svg class="geo" width="848" height="760"></svg></div>`;
-    const thr = 848 * 0.85;
+      <div class="L card"><div class="num fill" style="font-size:280px;position:absolute;left:30px;top:30px">0,000</div>
+        <div style="position:absolute;left:40px;top:300px"><div class="mask"><p class="txt" style="font-size:32px;color:var(--soft)">коэффициент заполнения</p></div></div>
+        <div class="gs" style="position:absolute;left:40px;right:40px;bottom:180px;display:grid;grid-template-columns:1fr 1fr;column-gap:32px">
+          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:88px">1 418 м²</div></div><div class="mask"><p class="eyebrow" style="color:var(--soft)">площадь участка</p></div></div>
+          <div style="display:grid;gap:14px"><div class="mask"><div class="num" style="font-size:88px">2 393 м²</div></div><div class="mask"><p class="eyebrow" style="color:var(--soft)">описанный прямоугольник</p></div></div></div>
+        <div style="position:absolute;left:40px;right:40px;bottom:40px;height:100px">
+          <p class="eyebrow" style="position:absolute;left:0;top:0;color:var(--soft)">0</p><p class="eyebrow thr" style="position:absolute;top:0;transform:translateX(-50%);white-space:nowrap">порог 0,85</p><p class="eyebrow" style="position:absolute;right:0;top:0;color:var(--soft)">1</p>
+          <div style="position:absolute;left:0;right:0;top:52px;height:24px;border-radius:12px;background:var(--chip)"></div>
+          <div class="gfill" style="position:absolute;left:0;top:52px;height:24px;border-radius:12px;background:#b6d3f0;width:0"></div>
+          <div class="thrline" style="position:absolute;top:40px;width:4px;height:48px;border-radius:2px;background:#fff"></div></div></div>
+      <div class="R card"><svg class="geo" width="848" height="760"></svg></div>`;
+    const thr = GW * 0.85;
     s.querySelector(".thr").style.left = thr + "px";
     s.querySelector(".thrline").style.left = thr - 2 + "px";
+    s._GW = GW;
   },
   frame(s, t) {
     captionAt(s, t);
     $$(s, ".gs .mask > *").forEach((e, k) => line(e, t, TW + BAR * 2.4 + k * 0.1));
     const fill = 0.593 * inOut(prog(t, TW + BAR * 1.4, BAR * 1.2));
     $(s, ".fill").textContent = fmt(fill, 3);
-    $(s, ".gfill").style.width = 848 * fill + "px";
+    $(s, ".gfill").style.width = s._GW * fill + "px";
     if (!SHAPE) return;
     const pts = SHAPE.polygon, rect = SHAPE.rectangle;
     const all = rect.concat(pts), xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
     const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
-    const k = Math.min(848 / (maxx - minx), 760 / (maxy - miny));
+    const room = 80;                     // поле карточки вокруг контура
+    const k = Math.min((848 - 2 * room) / (maxx - minx), (760 - 2 * room) / (maxy - miny));
     const ox = (848 - (maxx - minx) * k) / 2, oy = (760 - (maxy - miny) * k) / 2;
     const P = ([x, y]) => [ox + (x - minx) * k, oy + (maxy - y) * k];
     const d = (arr) => arr.map(P).map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ") + " Z";
     const draw = inOut(prog(t, TW + 0.3, BAR * 0.9)), rdraw = inOut(prog(t, TW + BAR * 1.1, BAR * 0.6));
     const area = outQ(prog(t, TW + BAR * 0.9, 0.8));
     $(s, ".geo").innerHTML =
-      `<path d="${d(rect)}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-dasharray="12 10" opacity="${rdraw}"/>` +
-      `<path d="${d(pts)}" fill="rgba(255,255,255,${0.28 * area})" stroke="#fff" stroke-width="4" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="${1000 * (1 - draw)}"/>`;
+      `<path d="${d(rect)}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-dasharray="12 10" opacity="${rdraw}"/>` +
+      `<path d="${d(pts)}" fill="rgba(111,143,208,${0.38 * area})" stroke="#a9c3f2" stroke-width="4" stroke-linejoin="round" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="${1000 * (1 - draw)}"/>`;
   },
 };
 
 SC.map = {
-  kind: "grey",
+  kind: "light",
   build(s) {
-    caption(s, { ey: "10 / карта", ti: "Контуры на карте", tx: "Участки и изменённые зоны из таблиц. Чем плотнее заливка, тем выше приоритет; клик открывает карточку." });
+    caption(s, { ey: "10 / карта", ti: "Контуры на карте", tx: "Участки и изменённые зоны из таблиц. Цвет контура показывает риск объекта; клик открывает карточку." });
     s._p = panel(s);
   },
   frame(s, t) {
     captionAt(s, t);
     const m = BOX.map.map;
-    const c = camAt([{ cam: cam(0, 0, 1280) }, { at: TW + 1.0, cam: cam(0, m.y + m.h / 2 - 276, 1280), dur: 2.0 }, { at: TW + 3.6, cam: cam(140, m.y + 60, 1100), dur: 3.4 }], t);
+    const c = camAt([{ cam: cam(0, 0, 1280) }, { at: TW + 2.4, cam: cam(573, 250, 700), dur: 3.4 }], t);
     return page(s._p, "map", c);
   },
 };
 
 SC.quality = {
-  kind: "blue",
+  kind: "light",
   build(s) {
     caption(s, { ey: "11 / проверка качества", ti: "Сверка с разметкой", tx: "Правила проверены на тех же 70 записях, что размечены в исследовании." });
     const rows = [["И1", "Покупка до смены категории", 10], ["И2", "Правка ПЗЗ / генплана", 10], ["И3", "Выгода после смены категории", 10],
       ["И4", "Единственный участник торгов", 10], ["И6", "Связанное лицо до процедуры", 9], ["И8", "Аномалия границ", 10], ["И10", "Повтор должностного лица", 10]];
     s._rows = rows;
     s.querySelector(".body").innerHTML = `
-      <div class="L"><div class="rows" style="grid-template-rows:repeat(7,1fr)">${rows.map(([c, n]) => `
-        <div class="q" style="grid-template-columns:96px 1fr 180px 100px;column-gap:24px"><span><span class="chip">${c}</span></span><span class="txt">${n}</span>
-          <span style="position:relative;height:12px;background:var(--fill)"><b style="position:absolute;left:0;top:0;bottom:0;background:#fff;display:block;width:0"></b></span>
-          <span class="txt v" style="text-align:right;font-variant-numeric:tabular-nums">0</span></div>`).join("")}</div></div>
-      <div class="R"><div class="num total" style="font-size:400px;position:absolute;left:-12px;top:0">0</div>
-        <div style="position:absolute;left:0;top:350px"><div class="mask"><p class="txt" style="font-size:34px">из 70 записей совпали</p></div></div>
-        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;gap:16px">
-          <div class="mask"><p class="txt f1">Сработало 31 · не сработало 35 · недостаточно данных 4</p></div>
+      <div class="L card"><div class="rows" style="grid-template-rows:repeat(7,1fr);left:40px;right:40px">${rows.map(([c, n]) => `
+        <div class="q" style="grid-template-columns:80px 1fr 150px 92px;column-gap:20px"><span><span class="chip">${c}</span></span><span class="txt" style="font-size:24px">${n}</span>
+          <span style="position:relative;height:12px;border-radius:6px;background:var(--chip);overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--positive);display:block;width:0"></b></span>
+          <span class="txt v" style="font-size:24px;text-align:right">0</span></div>`).join("")}</div></div>
+      <div class="R card"><div class="num total" style="font-size:380px;position:absolute;left:24px;top:28px">0</div>
+        <div style="position:absolute;left:40px;top:360px"><div class="mask"><p class="txt" style="font-size:32px;color:var(--soft)">из 70 записей совпали</p></div></div>
+        <div style="position:absolute;left:40px;right:40px;bottom:40px;display:grid;gap:16px">
+          <div class="mask"><p class="txt f1">Сработало 31 · не сработало 35 · нет данных 4</p></div>
           <div class="mask"><p class="txt f2" style="color:var(--soft)">Одно расхождение в И6: совпала только фамилия. Независимой разметки нет.</p></div></div></div>`;
   },
   frame(s, t) {
@@ -509,18 +556,18 @@ SC.quality = {
 };
 
 SC.principles = {
-  kind: "grey",
+  kind: "light",
   build(s) {
-    caption(s, { ey: "12 / принципы", ti: "Как читать сигнал", tx: "Система показывает основания для проверки и не делает выводов о нарушении." });
+    caption(s, { ey: "12 / принципы", ti: "Как читать риск", tx: "Система показывает основания для проверки и не делает выводов о нарушении." });
     const items = ["Индикатор — повод для проверки", "Нет данных — значит, не проверено", "У каждого значения есть источник", "Решение принимает сотрудник"];
-    s.querySelector(".body").innerHTML = `<div class="rows" style="grid-template-rows:repeat(4,1fr)">${items.map((x, i) => `
-      <div style="grid-template-columns:120px 1fr"><span class="eyebrow">${String(i + 1).padStart(2, "0")}</span><div class="mask"><p class="h pr" style="white-space:nowrap">${x}</p></div></div>`).join("")}</div>`;
+    s.querySelector(".body").innerHTML = `<div class="card" style="left:0;top:0;width:100%;height:100%"><div class="rows" style="grid-template-rows:repeat(4,1fr);left:40px;right:40px">${items.map((x, i) => `
+      <div style="grid-template-columns:120px 1fr"><span class="eyebrow" style="color:var(--soft)">${String(i + 1).padStart(2, "0")}</span><div class="mask"><p class="h pr" style="white-space:nowrap">${x}</p></div></div>`).join("")}</div></div>`;
   },
   layout(s) {
     const ps = $$(s, ".pr");
     ps.forEach((e) => { e.style.fontSize = "100px"; e.style.display = "inline-block"; });
     const w = Math.max(...ps.map((e) => e.getBoundingClientRect().width));
-    const size = Math.min(150, Math.floor(100 * (BODY_W - 120) / w));
+    const size = Math.min(104, Math.floor(100 * (BODY_W - 80 - 120) / w));
     ps.forEach((e) => { e.style.fontSize = size + "px"; e.style.display = "block"; });
   },
   frame(s, t) {
@@ -534,13 +581,13 @@ SC.principles = {
 };
 
 SC.outro = {
-  kind: "blue",
+  kind: "dark",
   build(s) {
     caption(s, { ey: "Код прозрачности · 2026", ti: "Zeus Analytics", tx: [{ at: 0, sub: "Код github.com/EthanNewell/Zeus_Analytics, демо oskarasadullin.github.io/kod-prozrachnosti.", html: `<div class="mask"><p class="txt">github.com/EthanNewell/Zeus_Analytics</p></div><div class="mask"><p class="txt">oskarasadullin.github.io/kod-prozrachnosti</p></div>` }] });
     s.querySelector(".body").innerHTML = `
       <div class="fit" style="position:absolute;left:0;top:0;width:1760px"><div class="mask"><h1 class="h big">Индикатор —</h1></div>
         <div class="mask"><h1 class="h big">повод для проверки</h1></div></div>
-      <div class="band" style="position:absolute;left:0;right:0;bottom:0;overflow:hidden"><img src="../../Code/static/img/band-cases.jpg" style="position:absolute;left:0;width:100%;height:auto" alt="" /></div>`;
+      <div class="band card" style="left:0;right:0;bottom:0">${art()}</div>`;
   },
   layout(s) { fitPair(s); },
   frame(s, t) {
@@ -548,8 +595,8 @@ SC.outro = {
     const [l1, l2] = $$(s, ".big");
     line(l1, t, TW + 0.3, Infinity, 1); line(l2, t, TW + 0.3 + BEAT, Infinity, 1);
     const band = $(s, ".band"), a = outQ(prog(t, TW + BEAT * 3, 1.4));
-    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0)`;
-    band.querySelector("img").style.top = `${-300 + 140 * inOut(t / (4 * BAR + 4))}px`;
+    band.style.clipPath = `inset(${(1 - a) * 100}% 0 0 0 round 20px)`;
+    $(s, ".art").style.transform = `scale(${1 + 0.08 * inOut(t / (4 * BAR + 4))})`;
     const veil = $(s, ".veil");
     veil.style.opacity = inOut(prog(t, TW + 4 * BAR - 0.4, 3));
   },
@@ -565,10 +612,10 @@ for (const sec of TL.sections) {
   const s = el(`<section class="scene ${def.kind}" id="${sec.id}"><div class="body"></div></section>`);
   stage.appendChild(s);
   def.build(s);
-  if (sec.id === "outro") s.appendChild(el(`<div class="veil" style="position:absolute;inset:0;background:var(--blue);opacity:0;z-index:9"></div>`));
+  if (sec.id === "outro") s.appendChild(el(`<div class="veil" style="position:absolute;inset:0;background:var(--text);opacity:0;z-index:9"></div>`));
 }
 // Шрифт грузится только когда нужен: подгрузить все наборы до замера строк по ширине.
-const ready = Promise.all(["Риски", "Zeus", "→≈"].map((x) => document.fonts.load('200 100px "SG"', x))).then(() => document.fonts.ready).then(() => {
+const ready = Promise.all(['400 100px "Onest"', '500 100px "Onest"', '300 100px "Onest"', '500 18px "Geist Mono"'].map((f) => document.fonts.load(f, "Риски Zeus 0123 →²"))).then(() => document.fonts.ready).then(() => {
   for (const sec of TL.sections) {
     const s = document.getElementById(sec.id);
     if (SC[sec.id].layout) { s.classList.add("on"); SC[sec.id].layout(s); s.classList.remove("on"); }

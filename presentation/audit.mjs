@@ -23,7 +23,8 @@ const report = await page.evaluate(() => {
     // Самый нижний видимый край содержимого внутри области (текст, картинка, линия).
     if (area) {
       const a = area.getBoundingClientRect();
-      let bottom = a.top;
+      // Область-карточка (своя заливка) сама доходит до низа.
+      let bottom = getComputedStyle(area).backgroundColor !== "rgba(0, 0, 0, 0)" ? a.bottom : a.top;
       area.querySelectorAll("*").forEach((el) => {
         const r = el.getBoundingClientRect();
         if (!r.width || !r.height) return;
@@ -35,6 +36,11 @@ const report = await page.evaluate(() => {
       });
       const gap = Math.round(a.bottom - bottom);
       if (gap > 12) problems.push(`пустота внизу области ${gap} px`);
+      // Шапка не выходит выше поля 80 px.
+      slide.querySelectorAll(".head *").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.height && r.top < s.top + 79) problems.push(`шапка выше поля: ${el.tagName}.${el.className} на ${Math.round(s.top + 80 - r.top)}`);
+      });
       const head = slide.querySelector(".head");
       if (head) out.push({ n: i + 1, headTop: Math.round(head.getBoundingClientRect().top - s.top), areaTop: Math.round(a.top - s.top), areaBottom: Math.round(a.bottom - s.top), problems });
       else out.push({ n: i + 1, problems });

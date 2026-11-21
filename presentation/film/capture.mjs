@@ -21,6 +21,12 @@ mkdirSync(out, { recursive: true });
 const W = 1280, H = 720;
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
+// the floating search bar would sit in the middle of every full-page shot, on every page
+await context.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
+  const style = document.createElement("style");
+  style.textContent = ".search-fab { display: none !important; }";
+  document.head.appendChild(style);
+}));
 const page = await context.newPage();
 const boxes = {};
 
@@ -68,7 +74,7 @@ await page.waitForLoadState("networkidle");
 
 // 2. Обзор.
 await go("/");
-await shot("overview", { marks: { queue: "table" } });
+await shot("overview", { marks: { prio: ".prio" } });
 
 // 3. Загрузка таблицы и паспорт набора.
 await go("/imports/");
@@ -89,7 +95,7 @@ await page.locator("a.row-link").first().click();
 await page.waitForLoadState("networkidle");
 const cardUrl = page.url();
 const cardMarks = {
-  head: "h1", i6: "article|И6", i10: "article|И10", i1: "article|И1 ", chrono: "ol.timeline", review: "#review",
+  head: ".obj-cad", i6: ".obj-why|И6 ", i10: ".obj-why|И10", i1: ".obj-why|И1 ", chrono: "section:has(#time-h)", review: "#review",
 };
 await shot("card", { marks: cardMarks });
 
@@ -99,9 +105,9 @@ const review = page.locator("#review");
 let rk = 0;
 const rshot = () => review.screenshot({ path: resolve(out, `review-${String(rk++).padStart(2, "0")}.png`), animations: "disabled" });
 await rshot();
-await page.locator("#review label", { hasText: "подтверждены" }).first().click();
+await page.locator("#review label").filter({ hasText: /^\s*Подтверждено\s*$/ }).first().click();
 await rshot();
-const note = "Открыты выписка ЕГРН, протокол комиссии и сведения ЕГРЮЛ. Связь по ИНН подтверждена, нужен запрос документов об участии в решении.";
+const note = "Открыты выписка ЕГРН, протокол комиссии и сведения ЕГРЮЛ. Связь по ИНН подтверждена, лицо подписало заключение по ходатайству.";
 await page.locator("#review textarea").click();
 for (let i = 0; i < note.length; i += 4) {
   await page.keyboard.type(note.slice(i, i + 4));
@@ -109,7 +115,7 @@ for (let i = 0; i < note.length; i += 4) {
 }
 boxes.reviewSteps = rk;
 await page.evaluate(() => document.activeElement.blur());
-await shot("review-filled", { marks: { review: "#review", submit: "#review button[type=submit]", choice: "#review label|подтверждены", text: "#review textarea" } });
+await shot("review-filled", { marks: { review: "#review", submit: "#review button[type=submit]", choice: "#review label|Подтверждено", text: "#review textarea" } });
 await page.locator("#review button[type=submit]").click();
 await page.waitForLoadState("networkidle");
 await page.goto(cardUrl, { waitUntil: "networkidle" });
@@ -120,16 +126,16 @@ await go("/cases/?q=61:02:0120105:331");
 await page.locator("a.row-link").first().click();
 await page.waitForLoadState("networkidle");
 await page.evaluate(() => document.fonts.ready);
-await shot("geometry", { marks: { head: "h1", i8: "article|И8", shape: ".outline-plate" } });
+await shot("geometry", { marks: { head: ".obj-cad", i8: ".obj-why|И8", shape: ".outline-plate" } });
 
 // 8. Карта.
 await go("/map/");
 await page.waitForTimeout(2500);
-await shot("map", { marks: { map: ".map-grid" } });
+await shot("map", { full: false, marks: { map: ".map-stage" } });
 
 // 9. Методика и сверка.
 await go("/method/");
-await shot("method", { marks: { quality: ".quality" } });
+await shot("method", { marks: { quality: "#quality" } });
 
 await browser.close();
 writeFileSync(resolve(out, "boxes.json"), JSON.stringify(boxes, null, 1));

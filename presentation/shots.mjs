@@ -17,21 +17,21 @@ if (!process.env.AKSAI || !process.env.TAIL) throw new Error("задайте AKS
 
 const shots = [
   // [файл, страница, селектор, ширина окна]
-  ["findings", AKSAI, ".finding", 1180],
-  ["timeline", AKSAI, "ol.timeline", 1408],
-  ["outline", TAIL, ".case-head", 1040],
-  ["shape", TAIL, ".outline-plate", 1408],
-  // карта занимает 80 % высоты окна: при окне 1408 × 652 кадр выходит в пропорции области слайда
-  ["map", "map/", ".map-grid", 1408, 652],
-  ["registry", "cases/", "table", 1408],
-  ["quality", "method/", ".quality", 1408],
+  ["findings", AKSAI, ".obj-why", 1000],
+  ["timeline", AKSAI, "section:has(#time-h)", 1408],
+  ["outline", TAIL, "section:has(#obj-h)", 1408],
+  ["shape", TAIL, ".outline-plate svg", 1408],
+  // карта — весь экран страницы «Объекты · Карта» в пропорции области слайда
+  ["map", "map/", "body", 1408, 652],
+  ["registry", "cases/", ".card:has(table)", 1408],
+  ["quality", "method/", "#quality", 1408],
 ];
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 for (const [name, path, selector, width, height = 900] of shots) {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2 });
   await page.goto(base + path, { waitUntil: "networkidle" });
-  await page.addStyleTag({ content: ":root { --gut: 0px !important; } .hdr, header, .toasts, .case-head a.eyebrow { display: none !important; } * { transition: none !important; }" });
+  await page.addStyleTag({ content: ".search-fab, .toasts { display: none !important; } * { transition: none !important; }" });
   await page.waitForTimeout(name === "map" ? 5000 : 600);
   const el = await page.$(selector);
   if (!el) { console.log("нет", name, selector); await page.close(); continue; }
