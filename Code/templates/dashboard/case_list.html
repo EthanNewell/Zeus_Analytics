@@ -9,6 +9,7 @@
     <a href="{% url 'dashboard:map' %}"><svg class="icon"><use href="#i-map"/></svg>Карта</a>
   </nav>
   <div class="obj-tools">
+    {% if perms.cases.add_evidence %}<button type="button" class="btn" id="open-upload">Загрузить документ</button>{% endif %}
     <span class="obj-found" data-found>Найдено: {{ page_obj.paginator.count }}</span>
     {% if perms.cases.export_cases %}<a class="btn btn-ghost" href="{% url 'dashboard:case_export' %}?{{ query_string }}"><svg class="icon"><use href="#i-doc"/></svg>Выгрузить CSV</a>{% endif %}
   </div>
@@ -58,4 +59,10 @@
     <span class="actions">{% if page_obj.has_previous %}<a class="btn btn-ghost" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}"><svg class="icon"><use href="#i-back"/></svg>Назад</a>{% endif %}{% if page_obj.has_next %}<a class="btn btn-ghost" href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Далее<svg class="icon"><use href="#i-arrow"/></svg></a>{% endif %}</span>
   </nav>{% endif %}
 </section>
+{% if registry_documents %}
+<section class="card registry-documents"><h2>Загруженные документы</h2>
+<ul>{% for doc in registry_documents %}<li><a href="{% url 'dashboard:evidence_download' doc.id %}">{{ doc.download_name }}</a>{% if doc.document_type %} · {{ doc.document_type }}{% endif %}{% if doc.source_reference %} · {{ doc.source_reference }}{% endif %}{% if doc.description %}<p>{{ doc.description }}</p>{% endif %}</li>{% endfor %}</ul></section>
+{% endif %}
+{% if perms.cases.add_evidence %}{% include "dashboard/_upload_documents.html" %}{% endif %}
 {% endblock %}
+{% block scripts %}{% if perms.cases.add_evidence %}<script defer src="{% static 'js/document-upload.js' %}"></script>{% endif %}{% endblock %}

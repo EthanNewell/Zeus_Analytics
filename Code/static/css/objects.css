@@ -127,3 +127,31 @@
   .obj-table .codes { flex-wrap: wrap; }
   .map-facts div { align-items: flex-start; }
 }
+
+.doc-dialog { position: fixed; inset: 0; margin: auto; width: min(800px, calc(100% - 24px)); max-height: min(920px, 92dvh); padding: 0; border: 0; border-radius: 24px; color: #222b33; background: white; }
+.doc-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.doc-dialog form { display: flex; flex-direction: column; max-height: inherit; }
+.doc-dialog header, .doc-dialog footer { padding: 16px 24px; }
+.doc-dialog header { display: flex; align-items: center; justify-content: space-between; }
+.doc-dialog h2 { font-size: 20px; font-weight: 500; margin: 0; }
+.doc-dialog header button, .doc-file button { background: transparent; border: 0; font-size: 28px; cursor: pointer; }
+.doc-scroll { padding: 0 24px; overflow: auto; }
+.doc-drop { display: grid; justify-items: center; text-align: center; padding: clamp(14px, 3vh, 32px); gap: 12px; border: 1px dashed #d4d9de; border-radius: 16px; }
+.doc-drop.over { background: #eef5ff; }
+.doc-drop img { width: min(224px, 40%); height: auto; }
+.doc-drop p { margin: 0; color: #616a73; }
+.doc-choose { position: relative; cursor: pointer; border-radius: 28px; padding: 10px 22px; color: #356bb5; background: #f3f7fb; }
+.doc-choose:focus-within { outline: 2px solid #3975cc; }
+.doc-choose input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.doc-dialog fieldset { display: grid; gap: 12px; margin: 20px 0 0; border: 0; padding: 0; min-width: 0; }
+.doc-dialog select, .doc-dialog textarea { background: #f8f9f9; color: #303942; padding: 16px; border: 0; border-radius: 12px; font: inherit; width: 100%; }
+.doc-dialog textarea { min-height: clamp(70px, 14vh, 196px); resize: vertical; }
+.doc-file { display: grid; grid-template-columns: 1fr auto; padding: 12px 16px; border: 1px solid #edf0f2; border-radius: 12px; overflow-wrap: anywhere; }
+.doc-file[hidden] { display: none; }
+.doc-file small { grid-column: 1; }
+.doc-file button { grid-area: 1 / 2 / 3; }
+.doc-dialog footer button { width: 100%; border: 0; border-radius: 48px; background: #3975cc; color: white; min-height: 54px; font: inherit; cursor: pointer; }
+.doc-dialog footer button:disabled { opacity: .48; }
+.doc-error { color: #ad231c; }
+.registry-documents { margin-top: 20px; padding: 20px; overflow-wrap: anywhere; }
+.registry-documents li + li { margin-top: 8px; }

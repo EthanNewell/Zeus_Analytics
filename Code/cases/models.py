@@ -124,12 +124,18 @@ class Record(models.Model):
 
 
 def evidence_upload_path(instance, filename):
-    return f"evidence/{instance.case_id}/{uuid.uuid4().hex}{Path(filename).suffix[:12]}"
+    return (
+        f"evidence/{instance.case_id or 'registry'}/{uuid.uuid4().hex}{Path(filename).suffix[:12]}"
+    )
 
 
 class Evidence(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    case = models.ForeignKey(Case, on_delete=models.PROTECT, related_name="evidence")
+    case = models.ForeignKey(
+        Case, on_delete=models.PROTECT, related_name="evidence", null=True, blank=True
+    )
+    document_type = models.CharField("тип документа", max_length=100, blank=True)
+    description = models.TextField("дополнительная информация", max_length=2000, blank=True)
     title = models.CharField("название", max_length=200)
     file = models.FileField("файл", upload_to=evidence_upload_path, blank=True)
     download_name = models.CharField("имя для скачивания", max_length=200, default="document")

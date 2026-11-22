@@ -10,11 +10,7 @@
 </head>
 <body class="auth-page">
   <main class="auth-shell">
-    <aside class="brand-panel" aria-label="Код прозрачности">
-      <div class="brand-name"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>Код прозрачности</div>
-      <img class="parcel-diagram" alt="" width="360" height="208" src="{% static 'brand/parcels.svg' %}">
-      <p class="workplace">Рабочее место<br>специалиста</p>
-    </aside>
+    <div class="brand-panel"><img src="{% static 'brand/login.webp' %}" alt="Зевс. Прозрачность в каждом изменении. Интеллектуальная система мониторинга земельных объектов." fetchpriority="high"></div>
     <div class="auth-content">
       {% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}
       <form method="post" action="{% url 'accounts:login' %}">

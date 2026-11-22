@@ -362,3 +362,11 @@ a.row-item:hover { background: var(--control); }
   .login-art, .login-title { display: none; }
   .login-form { padding: var(--s6) var(--s5); }
 }
+
+.site-logo { display: inline-flex; flex: 0 0 auto; align-items: center; }
+.site-logo img { width: clamp(88px, 8vw, 152px); height: auto; }
+.top .who { justify-content: flex-end; }
+@media (max-width: 1280px) {
+  .top { flex-wrap: wrap; }
+  .top .nav { order: 3; width: 100%; }
+}

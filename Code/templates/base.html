@@ -18,12 +18,7 @@
   <div class="app">
     {% with name=request.resolver_match.url_name ns=request.resolver_match.namespace %}
     <header class="top">
-      <div class="who">
-        <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
-        <span class="who-name">{{ user.get_full_name|default:user.username }}</span>
-        {% if user_role %}<span class="who-sep" aria-hidden="true"></span><span class="who-role">{{ user_role }}</span>{% endif %}
-        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" title="Выйти" aria-label="Выйти"><svg class="icon"><use href="#i-exit"/></svg></button></form>
-      </div>
+      <a class="site-logo" href="{% url 'dashboard:overview' %}" aria-label="Зевс — главная"><img src="{% static 'brand/zeus.svg' %}" width="152" height="39" alt="Зевс"></a>
       <nav class="nav" aria-label="Разделы">
         <a class="nav-item" href="{% url 'dashboard:overview' %}" {% if name == 'overview' %}aria-current="page"{% endif %}>Главная</a>
         <a class="nav-item" href="{% url 'dashboard:case_list' %}" {% if name == 'case_list' or name == 'case_detail' or name == 'map' %}aria-current="page"{% endif %}>Объекты{% if queue_open %} <span class="badge">{{ queue_open }}</span>{% endif %}</a>
@@ -46,6 +41,12 @@
           </div>
         </div>
       </nav>
+      <div class="who">
+        <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
+        <span class="who-name">{{ user.get_full_name|default:user.username }}</span>
+        {% if user_role %}<span class="who-sep" aria-hidden="true"></span><span class="who-role">{{ user_role }}</span>{% endif %}
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" title="Выйти" aria-label="Выйти"><svg class="icon"><use href="#i-exit"/></svg></button></form>
+      </div>
     </header>
     {% endwith %}
     <main>{% block content %}{% endblock %}</main>

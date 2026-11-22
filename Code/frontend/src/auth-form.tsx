@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server"
-import { ArrowRight, Eye, EyeOff, CircleAlert } from "lucide-react"
+import { Eye, EyeOff, CircleAlert } from "lucide-react"
 import { Button } from "./components/ui/button"
 import { Input } from "./components/ui/input"
 import { Field, FieldError, FieldGroup, FieldLabel } from "./components/ui/field"
@@ -10,9 +10,9 @@ function CredentialField({ password = false }: { password?: boolean }) {
   const name = password ? "password" : "username"
   const id = "id_" + name
   return <Field className="credential">
-    <FieldLabel htmlFor={id}>{password ? "Пароль" : "Логин"}</FieldLabel>
+    <FieldLabel htmlFor={id}>{password ? "Пароль" : "Почта"}</FieldLabel>
     <div className="input-wrap">
-      <Input type={password ? "password" : "text"} id={id} name={name} required
+      <Input type={password ? "password" : "text"} id={id} name={name} required placeholder={password ? "введите ваш пароль" : "введите вашу почту"}
         aria-invalid={`{% if form.${name}.errors %}true{% else %}false{% endif %}` as "true"}
         aria-describedby={id + "_error"}
         maxLength={password ? undefined : 150} autoComplete={password ? "current-password" : "username"}
@@ -26,15 +26,16 @@ function CredentialField({ password = false }: { password?: boolean }) {
 
 function AuthCard() {
   return <Card className="auth-card">
-    <CardHeader><h1>Вход в систему</h1>
-      <CardDescription>Используйте учётную запись, выданную администратором.</CardDescription>
+    <CardHeader><h1>Войти в аккаунт</h1>
+      <CardDescription>Используйте корпоративную учётную запись для доступа к платформе, аналитике объектов и инструментам мониторинга</CardDescription>
     </CardHeader>
     <CardContent>
       {"{% if form.non_field_errors %}"}
       <Alert variant="destructive" className="form-alert"><CircleAlert/><AlertDescription>{"{{ form.non_field_errors }}"}</AlertDescription></Alert>
       {"{% endif %}"}
       <FieldGroup><CredentialField/><CredentialField password/></FieldGroup>
-      <Button className="submit-button" type="submit">Войти<ArrowRight aria-hidden="true"/></Button>
+      <Button className="submit-button" type="submit">войти</Button>
+      <details className="account-help"><summary>Еще нет аккаунта? <u>Создать</u></summary><p>Корпоративную учётную запись создаёт администратор вашей организации.</p></details>
     </CardContent>
   </Card>
 }

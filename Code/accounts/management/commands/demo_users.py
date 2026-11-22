@@ -1,5 +1,6 @@
 import secrets
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
@@ -41,3 +42,10 @@ class Command(BaseCommand):
                 shown = "(пароль не менялся)"
             user.groups.set([Group.objects.get(name=role.group)])
             self.stdout.write(f"{role.label}: {username} / {shown}")
+        if getattr(settings, "ENABLE_SYNTHETIC_LOGIN", False):
+            user, created = User.objects.get_or_create(username="12345")
+            if created:
+                user.set_password("12345")
+                user.save(update_fields=["password"])
+                user.groups.add(Group.objects.get(name="Head"))
+                self.stdout.write("Демонстрационная учётная запись 12345 создана.")

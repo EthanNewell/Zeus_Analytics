@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .documents import upload_documents
 
 app_name = "dashboard"
 urlpatterns = [
@@ -9,6 +10,7 @@ urlpatterns = [
     path("history/", views.history, name="history"),
     path("search.json", views.search_index, name="search_index"),
     path("cases/", views.cases, name="case_list"),
+    path("cases/documents/", upload_documents, name="upload_documents"),
     path("cases/<uuid:case_id>/", views.case_detail, name="case_detail"),
     path("cases/<uuid:case_id>/reviews/", views.review_create, name="review_create"),
     path("cases/<uuid:case_id>/evidence/", views.evidence_create, name="evidence_create"),

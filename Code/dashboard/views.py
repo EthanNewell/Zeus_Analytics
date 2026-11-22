@@ -277,9 +277,14 @@ def search_index(request):
                 {
                     "group": "document",
                     "title": evidence.title,
-                    "note": evidence.case.cadastral_number or "документ",
-                    "url": reverse("dashboard:case_detail", args=[evidence.case_id]),
-                    "search": f"{evidence.title} {evidence.case.title} документ".lower(),
+                    "note": (
+                        evidence.case.cadastral_number if evidence.case else evidence.document_type
+                    )
+                    or "документ",
+                    "url": reverse("dashboard:case_detail", args=[evidence.case_id])
+                    if evidence.case_id
+                    else reverse("dashboard:evidence_download", args=[evidence.pk]),
+                    "search": f"{evidence.title} {evidence.case.title if evidence.case else evidence.source_reference} документ".lower(),
                 }
             )
     for event in recent_events(40):
@@ -388,6 +393,9 @@ def cases(request):
         "dashboard/case_list.html",
         {
             "page_obj": page,
+            "registry_documents": Evidence.objects.filter(case__isnull=True)[:30]
+            if request.user.has_perm("cases.view_evidence")
+            else [],
             "filters": filters,
             "query_string": query_string.urlencode(),
             "reviews": reviews,
