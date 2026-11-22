@@ -13,3 +13,5 @@ media/
 backups/
 deploy/tls/
 .DS_Store
+
+node_modules/
