@@ -26,7 +26,7 @@ from django.contrib.auth.models import Permission
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client, override_settings
 
-from accounts.management.commands.demo_users import GUEST
+from accounts.demo import GUEST
 from cases.models import Case, Origin, Record
 
 PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:ич|вна|чна|тична|оглы|кызы)"  # «-ич» ловит и «Ильич», «Кузьмич»

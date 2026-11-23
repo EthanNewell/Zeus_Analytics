@@ -11,9 +11,9 @@
 
 Вход (кадр «вход»): `templates/registration/login.html`, карточка формы собрана на shadcn/ui
 (`frontend/`, сборка кладёт `static/auth/`), слева картинка `static/brand/login.webp` из Figma.
-Демонстрационная запись `12345` / `12345` (роль «Руководитель», имя «Алексей М.») создаётся
-командой `demo_users`, когда включено `ENABLE_SYNTHETIC_LOGIN` (локально всегда, на стенде —
-переменной окружения `ENABLE_SYNTHETIC_LOGIN=1`).
+Демонстрационная запись `12345` / `12345` (роль «Руководитель», имя «Алексей М.») появляется
+сама при каждом `migrate` (`accounts/demo.py`); выключить для настоящих пользователей —
+`ENABLE_SYNTHETIC_LOGIN=0`.
 
 Окно «Загрузить документ» (кадры «док», «док2»): одно на все страницы
 (`dashboard/_upload_documents.html`, `static/js/document-upload.js`, приём —

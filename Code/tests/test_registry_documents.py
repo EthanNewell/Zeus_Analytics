@@ -65,3 +65,27 @@ class RegistryDocumentsTests(TestCase):
         client = Client(enforce_csrf_checks=True)
         client.force_login(get_user_model().objects.get(username="12345"))
         self.assertEqual(client.post(url).status_code, 403)
+
+
+class DemoAccountTests(TestCase):
+    def test_migrate_alone_gives_the_open_demo_account(self):
+        from django.db.models.signals import post_migrate
+
+        from accounts.demo import GUEST
+
+        with override_settings(ENABLE_SYNTHETIC_LOGIN=True):
+            post_migrate.send(sender=self._cases_config(), app_config=self._cases_config())
+        guest = get_user_model().objects.get(username=GUEST["username"])
+        self.assertTrue(guest.check_password("12345"))
+        self.assertEqual(guest.get_full_name(), "Алексей М.")
+        self.assertTrue(guest.has_perm("cases.export_cases"))
+        with override_settings(ENABLE_SYNTHETIC_LOGIN=False):
+            guest.delete()
+            post_migrate.send(sender=self._cases_config(), app_config=self._cases_config())
+        self.assertFalse(get_user_model().objects.filter(username="12345").exists())
+
+    @staticmethod
+    def _cases_config():
+        from django.apps import apps
+
+        return apps.get_app_config("cases")

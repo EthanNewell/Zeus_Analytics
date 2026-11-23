@@ -7,3 +7,6 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# tests create the accounts they need; the open demo account only where a test turns it on
+ENABLE_SYNTHETIC_LOGIN = False

@@ -25,8 +25,9 @@ DEBUG = False
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 APP_VERSION = os.environ.get("APP_VERSION", "2026.11.22")
-# the open demonstration account 12345 / 12345 (`demo_users`); on for a demo stand, off by default
-ENABLE_SYNTHETIC_LOGIN = os.environ.get("ENABLE_SYNTHETIC_LOGIN", "").lower() in (
+# the open demonstration account 12345 / 12345 (accounts/demo.py), made by every migrate;
+# ENABLE_SYNTHETIC_LOGIN=0 turns it off for a stand with real users
+ENABLE_SYNTHETIC_LOGIN = os.environ.get("ENABLE_SYNTHETIC_LOGIN", "1").lower() in (
     "1",
     "true",
     "yes",
