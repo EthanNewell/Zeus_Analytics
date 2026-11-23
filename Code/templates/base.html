@@ -18,7 +18,7 @@
   <div class="app">
     {% with name=request.resolver_match.url_name ns=request.resolver_match.namespace %}
     <header class="top">
-      <a class="brand" href="{% url 'dashboard:overview' %}" aria-label="Зевс — на главную">{% include "_brand.html" %}</a>
+      <a class="brand" href="{% url 'dashboard:overview' %}" aria-label="Зевс — на главную"><img src="{% static 'brand/zeus.svg' %}" width="152" height="39" alt="Зевс"></a>
       <nav class="nav" aria-label="Разделы">
         <a class="nav-item" href="{% url 'dashboard:overview' %}" {% if name == 'overview' %}aria-current="page"{% endif %}>Главная</a>
         <a class="nav-item" href="{% url 'dashboard:case_list' %}" {% if name == 'case_list' or name == 'case_detail' or name == 'map' %}aria-current="page"{% endif %}>Объекты{% if queue_open %} <span class="badge">{{ queue_open }}</span>{% endif %}</a>
@@ -51,7 +51,7 @@
     {% endwith %}
     <main>{% block content %}{% endblock %}</main>
   </div>
-  {% if document_form %}{% include "_upload.html" %}{% endif %}
+  {% if perms.cases.view_case and perms.cases.add_evidence %}{% include "dashboard/_upload_documents.html" %}{% endif %}
   <button class="search-fab" type="button" data-search-open><svg class="icon"><use href="#i-search"/></svg>Найти объект, документ или событие…</button>
   <div class="scrim" data-scrim></div>
   <div class="palette" data-palette data-index="{% url 'dashboard:search_index' %}" role="dialog" aria-label="Поиск">
@@ -66,6 +66,7 @@
   </div>
   {% endblock %}
   <script src="{% static 'js/app.js' %}"></script>
+  {% if perms.cases.view_case and perms.cases.add_evidence %}<script defer src="{% static 'js/document-upload.js' %}"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

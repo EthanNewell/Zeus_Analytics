@@ -64,11 +64,10 @@ class ApplicationTests(TestCase):
 
     def test_demo_account_12345_opens_the_main_page_with_full_rights(self):
         from django.core.management import call_command
+        from django.test import override_settings
 
-        call_command("demo_users", stdout=StringIO())
-        page = self.client.get(reverse("accounts:login"))
-        self.assertContains(page, "Войти в аккаунт")
-        self.assertContains(page, "введите вашу почту")
+        with override_settings(ENABLE_SYNTHETIC_LOGIN=True):
+            call_command("demo_users", stdout=StringIO())
         response = self.client.post(
             reverse("accounts:login"), {"username": "12345", "password": "12345"}
         )

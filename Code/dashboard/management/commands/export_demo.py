@@ -38,24 +38,22 @@ ATTR_RE = re.compile(r'''(\s(?:href|src|action|data-index)=")([^"#]*)(#[^"]*)?"'
 # документов сервис сам не показывает. «Выйти» в копии ведёт на статичную страницу входа, а её
 # форма проверяется в браузере: демонстрационная запись 12345 / 12345 открывает главную.
 POST_FORM_RE = re.compile(
-    r'<form\b(?![^>]*class="login-form")[^>]*method="post"[^>]*>.*?</form>', re.S | re.I
+    r'<form\b(?![^>]*accounts/login/)[^>]*method="post"[^>]*>.*?</form>', re.S | re.I
 )
 LOGOUT_RE = re.compile(
     r'<form\b[^>]*action="[^"]*accounts/logout/"[^>]*>.*?(<button[^>]*>)(.*?)</button></form>', re.S
 )
 LOGIN_SCRIPT = """
 <script>
-(function () {
-  const form = document.querySelector("form.login-form");
-  if (!form) return;
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (form.username.value.trim() === "12345" && form.password.value === "12345") { location.href = "%s"; return; }
-    let note = form.querySelector(".login-error");
-    if (!note) { note = document.createElement("p"); note.className = "login-error"; note.setAttribute("role", "alert"); form.querySelector(".login-head").after(note); }
-    note.textContent = "Неверная почта или пароль.";
-  });
-})();
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.querySelector('[name="password"]')) return;
+  event.preventDefault();
+  if (form.username.value.trim() === "12345" && form.password.value === "12345") { location.href = "%s"; return; }
+  let note = form.querySelector(".demo-login-error");
+  if (!note) { note = document.createElement("p"); note.className = "demo-login-error"; note.setAttribute("role", "alert"); note.style.cssText = "color:#ad231c;margin:12px 0 0;text-align:center"; form.append(note); }
+  note.textContent = "Неверная почта или пароль.";
+}, true);
 </script>
 """
 READER = "демо-просмотр"

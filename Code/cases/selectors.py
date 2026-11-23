@@ -258,7 +258,7 @@ def recent_events(limit=None):
                 "tone": "info",
                 "title": "Загружен документ",
                 "text": ", ".join(
-                    part for part in (evidence.title, evidence.get_kind_display(), where) if part
+                    part for part in (evidence.title, evidence.document_type, where) if part
                 )[:220],
                 "when": evidence.added_at,
                 "url": evidence_url(evidence),

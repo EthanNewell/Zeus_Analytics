@@ -1,5 +1,6 @@
 import secrets
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
@@ -45,9 +46,11 @@ class Command(BaseCommand):
                 shown = "(пароль не менялся)"
             user.groups.set([Group.objects.get(name=role.group)])
             self.stdout.write(f"{role.label}: {username} / {shown}")
-        guest, _ = User.objects.get_or_create(username=GUEST["username"])
-        guest.first_name, guest.last_name = GUEST["name"]
-        guest.set_password(GUEST["password"])
-        guest.save()
-        guest.groups.set([Group.objects.get(name=GUEST["group"])])
-        self.stdout.write(f"Демонстрационная запись: {GUEST['username']} / {GUEST['password']}")
+        if getattr(settings, "ENABLE_SYNTHETIC_LOGIN", False):
+            guest, created = User.objects.get_or_create(username=GUEST["username"])
+            guest.first_name, guest.last_name = GUEST["name"]
+            if created:
+                guest.set_password(GUEST["password"])
+            guest.save()
+            guest.groups.set([Group.objects.get(name=GUEST["group"])])
+            self.stdout.write(f"Демонстрационная запись: {GUEST['username']} / {GUEST['password']}")

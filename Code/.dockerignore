@@ -12,3 +12,5 @@ staticfiles
 backups
 deploy/tls
 tests
+
+frontend/

@@ -1,0 +1,25 @@
+{% load static %}
+<dialog class="doc-dialog" id="document-upload" aria-labelledby="upload-title">
+  <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:upload_documents' %}">
+    {% csrf_token %}
+    <input type="hidden" name="case" value="">
+    <header><h2 id="upload-title">Загрузить документ</h2><button type="button" data-dismiss aria-label="Закрыть">×</button></header>
+    <div class="doc-scroll">
+      <div class="doc-drop">
+        <img src="{% static 'brand/documents.png' %}" width="224" height="110" alt="">
+        <strong>Перетащи файлы или выбери на компьютере</strong>
+        <p>Форматы PDF, DOCX, XLSX, JPG, PNG, TIFF</p>
+        <label class="doc-choose">выбрать файл<input type="file" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.tif,.tiff" aria-label="Выбрать файлы"></label>
+      </div>
+      <div data-documents></div>
+      <template id="document-fields"><fieldset>
+        <div class="doc-file" hidden><strong></strong><small></small><button type="button" aria-label="Убрать файл">×</button></div>
+        <select name="document_type" aria-label="Тип документа"><option value="">тип документа</option><option>Выписка из ЕГРН</option><option>Решение об изменении ВРИ</option><option>Договор</option><option>Другой документ</option></select>
+        <select name="source_reference" aria-label="Источник"><option value="">источник</option><option>Росреестр</option><option>Муниципалитет</option><option>Собственный документ</option><option>Другой источник</option></select>
+        <textarea name="description" aria-label="Дополнительная информация по документу" placeholder="дополнительная информация по документу" maxlength="2000"></textarea>
+      </fieldset></template>
+      <p role="alert" class="doc-error"></p>
+    </div>
+    <footer><button type="submit" disabled>загрузить</button></footer>
+  </form>
+</dialog>

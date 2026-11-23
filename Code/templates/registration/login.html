@@ -1,43 +1,24 @@
-{% extends "base.html" %}
-{% block title %}Вход · Код прозрачности{% endblock %}
-{% block body_class %}page-login{% endblock %}
-{% block shell %}
-{# frame «вход» of the team's Figma file: the art card on the left half, the form centred on the right #}
-<main class="login">
-  <section class="login-art" aria-label="Зевс">
-    <svg class="login-bolt" viewBox="0 0 1000 1040" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs>
-        <filter id="glow-wide" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="70"/></filter>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="32"/></filter>
-        <filter id="core" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
-      </defs>
-      <path d="M705 15 220 575h330L385 1020l455-590H555z" fill="#6fd0ff" opacity=".6" filter="url(#glow-wide)"/>
-      <path d="M705 15 220 575h330L385 1020l455-590H555z" fill="#b8f2ff" opacity=".8" filter="url(#glow)"/>
-      <path d="M680 80 285 545h300L440 930l335-470H520z" fill="#ffffff" opacity=".92" filter="url(#core)"/>
-    </svg>
-    <a class="brand login-brand" href="{% url 'accounts:login' %}" aria-label="Зевс">{% include "_brand.html" %}</a>
-    <div class="login-claim">
-      <p class="login-claim-title">Прозрачность в каждом изменении</p>
-      <p class="login-claim-text">Интеллектуальная система мониторинга земельных объектов, выявления потенциальных коррупционных рисков и анализа изменений на основе данных и документов</p>
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход · Код прозрачности</title>
+  <link rel="stylesheet" href="{% static 'auth/login.css' %}">
+  <script type="module" src="{% static 'auth/login.js' %}"></script>
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <div class="brand-panel"><img src="{% static 'brand/login.webp' %}" alt="Зевс. Прозрачность в каждом изменении. Интеллектуальная система мониторинга земельных объектов." fetchpriority="high"></div>
+    <div class="auth-content">
+      {% for message in messages %}<p role="status">{{ message }}</p>{% endfor %}
+      <form method="post" action="{% url 'accounts:login' %}">
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {% include 'registration/_auth_card.html' %}
+      </form>
     </div>
-  </section>
-  <div class="login-side">
-    <form method="post" action="{% url 'accounts:login' %}" class="login-form">
-      {% csrf_token %}
-      <div class="login-head">
-        <h1>Войти в аккаунт</h1>
-        <p>Используйте корпоративную учётную запись для доступа к&nbsp;платформе, аналитике объектов и инструментам мониторинга</p>
-      </div>
-      {% if form.non_field_errors %}<p class="login-error" role="alert">Неверная почта или пароль.</p>{% endif %}
-      <div class="login-field"><label for="id_username">Почта</label><input class="login-input" type="text" name="username" id="id_username" autocomplete="username" inputmode="email" placeholder="введите вашу почту" required value="{{ form.username.value|default:'' }}"></div>
-      <div class="login-field"><label for="id_password">Пароль</label><input class="login-input" type="password" name="password" id="id_password" autocomplete="current-password" placeholder="введите ваш пароль" required></div>
-      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <button class="login-submit" type="submit">войти</button>
-      <details class="login-new">
-        <summary>Еще нет аккаунта? <span>Создать</span></summary>
-        <p>Учётные записи выдаёт администратор. Для знакомства с сервисом есть демонстрационная запись: почта 12345, пароль 12345.</p>
-      </details>
-    </form>
-  </div>
-</main>
-{% endblock %}
+  </main>
+</body>
+</html>

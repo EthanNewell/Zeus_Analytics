@@ -131,3 +131,6 @@
   .obj-table .codes { flex-wrap: wrap; }
   .map-facts div { align-items: flex-start; }
 }
+
+.registry-documents { margin-top: 20px; padding: 20px; overflow-wrap: anywhere; }
+.registry-documents li + li { margin-top: 8px; }

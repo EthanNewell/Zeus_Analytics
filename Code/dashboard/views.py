@@ -5,13 +5,11 @@ from itertools import groupby
 
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
-from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from analysis.contracts import RuleStatus
@@ -33,11 +31,11 @@ from cases.selectors import (
     recent_events,
     svg_outline,
 )
-from cases.services import add_evidence, add_review
+from cases.services import add_review
 from cases.sources import sources_with_usage
 from imports.models import ImportBatch
 
-from .forms import DocumentForm, ReviewForm
+from .forms import ReviewForm
 
 STATUS_LABELS = {
     RuleStatus.TRIGGERED: "Сработал",
@@ -280,16 +278,16 @@ def search_index(request):
                     "group": "document",
                     "title": evidence.title,
                     "note": (evidence.case.cadastral_number if evidence.case else "")
-                    or evidence.get_kind_display().lower()
+                    or evidence.document_type.lower()
                     or "документ",
                     "url": evidence_url(evidence),
                     "search": " ".join(
                         [
                             evidence.title,
                             evidence.case.title if evidence.case else "",
-                            evidence.get_kind_display(),
+                            evidence.document_type,
                             evidence.source_reference,
-                            evidence.note,
+                            evidence.description,
                             "документ",
                         ]
                     ).lower(),
@@ -403,6 +401,9 @@ def cases(request):
         "dashboard/case_list.html",
         {
             "page_obj": page,
+            "registry_documents": Evidence.objects.filter(case__isnull=True)[:30]
+            if request.user.has_perm("cases.view_evidence")
+            else [],
             "filters": filters,
             "query_string": query_string.urlencode(),
             "reviews": reviews,
@@ -490,40 +491,6 @@ def review_create(request, case_id):
     return render(
         request, "dashboard/case_detail.html", detail_context(request, case, form), status=400
     )
-
-
-@permission_required(["cases.view_case", "cases.add_evidence"], raise_exception=True)
-@require_POST
-def document_upload(request):
-    """The upload window posts here from any page: a card links the file to its object."""
-    form = DocumentForm(request.POST, request.FILES)
-    case = None
-    back = request.POST.get("next", "")
-    if not url_has_allowed_host_and_scheme(back, {request.get_host()}, request.is_secure()):
-        back = reverse("dashboard:case_list")
-    if form.is_valid():
-        if form.cleaned_data["case"]:
-            case = get_object_or_404(Case, pk=form.cleaned_data["case"])
-        try:
-            add_evidence(
-                actor=request.user,
-                case=case,
-                file=form.cleaned_data["file"],
-                kind=form.cleaned_data["kind"],
-                source_reference=form.source_name(),
-                note=form.cleaned_data["note"],
-            )
-        except ValidationError as error:
-            messages.error(request, " ".join(error.messages))
-        else:
-            messages.success(
-                request, "Документ загружен" + (" и добавлен к объекту." if case else ".")
-            )
-            if case:
-                return redirect(reverse("dashboard:case_detail", args=[case.id]) + "#documents")
-    else:
-        messages.error(request, "Выберите файл в формате PDF, DOCX, XLSX, JPG, PNG или TIFF.")
-    return redirect(back)
 
 
 @permission_required("cases.view_case", raise_exception=True)
