@@ -124,13 +124,30 @@ class Record(models.Model):
 
 
 def evidence_upload_path(instance, filename):
-    return f"evidence/{instance.case_id}/{uuid.uuid4().hex}{Path(filename).suffix[:12]}"
+    folder = instance.case_id or "common"
+    return f"evidence/{folder}/{uuid.uuid4().hex}{Path(filename).suffix[:12]}"
+
+
+class DocumentKind(models.TextChoices):
+    """The one list of document types offered by the upload window."""
+
+    EGRN = "egrn", "Выписка из ЕГРН"
+    ACT = "act", "Правовой акт органа власти"
+    CONTRACT = "contract", "Договор или протокол торгов"
+    VALUATION = "valuation", "Документ кадастровой оценки"
+    LETTER = "letter", "Обращение или ответ на запрос"
+    OTHER = "other", "Другой документ"
 
 
 class Evidence(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    case = models.ForeignKey(Case, on_delete=models.PROTECT, related_name="evidence")
+    # a document may come without an object: it is kept in the common list until it is linked
+    case = models.ForeignKey(
+        Case, on_delete=models.PROTECT, related_name="evidence", null=True, blank=True
+    )
     title = models.CharField("название", max_length=200)
+    kind = models.CharField("тип документа", max_length=32, choices=DocumentKind, blank=True)
+    note = models.TextField("дополнительная информация", max_length=2000, blank=True)
     file = models.FileField("файл", upload_to=evidence_upload_path, blank=True)
     download_name = models.CharField("имя для скачивания", max_length=200, default="document")
     origin = models.CharField(

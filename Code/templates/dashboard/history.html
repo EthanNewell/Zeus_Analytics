@@ -24,7 +24,7 @@
         {% for event in day.events %}
         <a class="pg-event" href="{{ event.url }}">
           <span class="notif-dot {{ event.tone }}" aria-hidden="true"><svg class="icon" style="width:16px;height:16px"><use href="#i-{{ event.kind }}"/></svg></span>
-          <span class="pg-event-text"><span class="t-compact">{{ event.title }}</span><span class="t-label soft">{{ event.text }}</span></span>
+          <span class="pg-event-text break"><span class="t-compact">{{ event.title }}</span><span class="t-label soft">{{ event.text }}</span></span>
           <span class="t-period pg-event-time">{{ event.when|time:"H:i" }}</span>
         </a>
         {% endfor %}

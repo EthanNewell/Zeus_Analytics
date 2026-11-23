@@ -16,15 +16,25 @@ def add_review(*, actor, case, outcome, comment):
     return review
 
 
-EVIDENCE_TYPES = {".pdf", ".png", ".jpg", ".jpeg", ".docx", ".xlsx", ".txt"}
+# the formats named in the upload window: PDF, DOCX, XLSX, JPG, PNG, TIFF
+EVIDENCE_TYPES = {".pdf", ".docx", ".xlsx", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 EVIDENCE_MAX_BYTES = 5 * 1024 * 1024
 
 
 @transaction.atomic
 def add_evidence(
-    *, actor, case, title, url="", file=None, source_reference="", origin=Origin.UNKNOWN
+    *,
+    actor,
+    case=None,
+    title="",
+    url="",
+    file=None,
+    source_reference="",
+    origin=Origin.UNKNOWN,
+    kind="",
+    note="",
 ):
-    """Attach a document file or a link to a case; facts and signals stay untouched."""
+    """Keep a document file or a link, linked to a case or common; facts and signals stay as they are."""
     if not actor.is_active or not actor.has_perms(["cases.view_case", "cases.add_evidence"]):
         raise PermissionDenied
     if not url and not file:
@@ -35,15 +45,18 @@ def add_evidence(
     if file:
         suffix = Path(file.name).suffix.lower()
         if suffix not in EVIDENCE_TYPES:
-            raise ValidationError("Допустимы PDF, PNG, JPG, DOCX, XLSX и TXT.")
+            raise ValidationError("Допустимы PDF, DOCX, XLSX, JPG, PNG и TIFF.")
         if file.size > EVIDENCE_MAX_BYTES:
             raise ValidationError("Файл больше 5 МБ.")
         download_name = Path(file.name).name[:200]
+        title = title or download_name
     if origin not in (Origin.UNKNOWN, Origin.SYNTHETIC, Origin.AUTHOR_MARKED_REAL):
         origin = Origin.UNKNOWN
     evidence = Evidence(
         case=case,
-        title=title.strip()[:200],
+        title=(title.strip() or url.strip() or "Документ")[:200],
+        kind=kind,
+        note=note.strip()[:2000],
         url=url.strip(),
         source_reference=source_reference.strip()[:500],
         origin=origin,

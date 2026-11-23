@@ -6,7 +6,7 @@ from django.db.models import Q
 
 from .facts import PRESENT, date_in_text
 from .indicators import INDICATORS
-from .models import DECIDED, Attention, Case, Review, ReviewOutcome
+from .models import DECIDED, Attention, Case, Evidence, Review, ReviewOutcome
 
 REVIEW_FILTERS = {
     "none": "Без проверки",
@@ -198,8 +198,19 @@ def svg_outline(points, size=240, pad=16):
     return "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in coords) + " Z"
 
 
+def evidence_url(evidence):
+    """Where a document opens: its object's card, or the file itself when it has no object."""
+    from django.urls import reverse
+
+    if evidence.case_id:
+        return reverse("dashboard:case_detail", args=[evidence.case_id]) + "#documents"
+    if evidence.file:
+        return reverse("dashboard:evidence_download", args=[evidence.id])
+    return evidence.url or reverse("dashboard:history")
+
+
 def recent_events(limit=None):
-    """The one event feed: reviews, imports and analysis runs, newest first.
+    """The one event feed: reviews, uploads (tables and documents) and analysis runs, newest first.
 
     Feeds the bell, the «История изменений» page and the search palette. Each event is a dict:
     kind, tone (high | medium | ok | info), title, text, when, url.
@@ -235,6 +246,22 @@ def recent_events(limit=None):
                 "text": f"{batch.file_name}: строк {batch.rows_total}, новых {batch.rows_created}, обновлено {batch.rows_updated}",
                 "when": batch.created_at,
                 "url": reverse("imports:batch", args=[batch.id]),
+            }
+        )
+    for evidence in Evidence.objects.select_related("added_by", "case").filter(
+        added_at__isnull=False
+    )[:50]:
+        where = (evidence.case.cadastral_number or evidence.case.title) if evidence.case else ""
+        events.append(
+            {
+                "kind": "import",
+                "tone": "info",
+                "title": "Загружен документ",
+                "text": ", ".join(
+                    part for part in (evidence.title, evidence.get_kind_display(), where) if part
+                )[:220],
+                "when": evidence.added_at,
+                "url": evidence_url(evidence),
             }
         )
     for run in AnalysisRun.objects.select_related("started_by").order_by("-started_at")[:20]:

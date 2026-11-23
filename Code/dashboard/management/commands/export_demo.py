@@ -35,8 +35,29 @@ SKIP = ("/admin", "/accounts/logout", "/health", "/evidence/", "/analysis/", "/s
 ATTR_RE = re.compile(r'''(\s(?:href|src|action|data-index)=")([^"#]*)(#[^"]*)?"''')
 
 # Демо обходит сайт от имени читателя без прав записи: формы загрузки, анализа, проверки и
-# документов сервис сам не показывает. Остаётся форма «Выйти» — в статичной копии она не нужна.
-POST_FORM_RE = re.compile(r'<form\b[^>]*method="post"[^>]*>.*?</form>', re.S | re.I)
+# документов сервис сам не показывает. «Выйти» в копии ведёт на статичную страницу входа, а её
+# форма проверяется в браузере: демонстрационная запись 12345 / 12345 открывает главную.
+POST_FORM_RE = re.compile(
+    r'<form\b(?![^>]*class="login-form")[^>]*method="post"[^>]*>.*?</form>', re.S | re.I
+)
+LOGOUT_RE = re.compile(
+    r'<form\b[^>]*action="[^"]*accounts/logout/"[^>]*>.*?(<button[^>]*>)(.*?)</button></form>', re.S
+)
+LOGIN_SCRIPT = """
+<script>
+(function () {
+  const form = document.querySelector("form.login-form");
+  if (!form) return;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (form.username.value.trim() === "12345" && form.password.value === "12345") { location.href = "%s"; return; }
+    let note = form.querySelector(".login-error");
+    if (!note) { note = document.createElement("p"); note.className = "login-error"; note.setAttribute("role", "alert"); form.querySelector(".login-head").after(note); }
+    note.textContent = "Неверная почта или пароль.";
+  });
+})();
+</script>
+"""
 READER = "демо-просмотр"
 READER_PERMISSIONS = ("view_case", "view_evidence", "view_review", "export_cases")
 ROW_RE = re.compile(r'<tr class="row">.*?</tr>', re.S)
@@ -257,7 +278,7 @@ class Command(BaseCommand):
         return f"{path}/index.html" if path else "index.html"
 
     def crawl(self, client, out, prefix):
-        queue, seen = ["/"], set()
+        queue, seen = ["/", "/accounts/login/"], set()
         while queue:
             url = self.canonical(queue.pop(0))
             if url in seen:
@@ -303,8 +324,20 @@ class Command(BaseCommand):
                 path = self.target(absolute).removesuffix("index.html")
                 return f'{attr}{prefix}{path}{anchor}"'
 
+            html = LOGOUT_RE.sub(
+                lambda m: (
+                    m.group(1)
+                    .replace("<button", '<a href="/accounts/login/"', 1)
+                    .replace(' type="submit"', "")
+                    + m.group(2)
+                    + "</a>"
+                ),
+                html,
+            )
             html = ATTR_RE.sub(rewrite, html)
             html = POST_FORM_RE.sub("", html)
+            if url == "/accounts/login/":
+                html = html.replace("</body>", LOGIN_SCRIPT % prefix + "</body>", 1)
             html = html.replace("</head>", '<meta name="robots" content="noindex">\n</head>', 1)
             file.write_text(html)
         return len([p for p in out.rglob("index.html")])

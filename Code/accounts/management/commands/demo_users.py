@@ -9,12 +9,16 @@ from django.db import transaction
 from accounts.roles import ROLES
 
 DEMO = {"Specialist": "specialist", "Controller": "controller", "Head": "head"}
+# the open demonstration account the sign-in page names: «почта» 12345, password 12345,
+# full rights of the head of department; its name is the one drawn in the Figma frames
+GUEST = {"username": "12345", "password": "12345", "group": "Head", "name": ("Алексей", "М.")}
 
 
 class Command(BaseCommand):
     help = (
         "Create one demo account per role. Existing accounts keep their password; a new one "
-        "gets the password from --password-<role> or a random one (printed once)."
+        "gets the password from --password-<role> or a random one (printed once). The open "
+        "demonstration account 12345 / 12345 is always (re)set."
     )
 
     def add_arguments(self, parser):
@@ -41,3 +45,9 @@ class Command(BaseCommand):
                 shown = "(пароль не менялся)"
             user.groups.set([Group.objects.get(name=role.group)])
             self.stdout.write(f"{role.label}: {username} / {shown}")
+        guest, _ = User.objects.get_or_create(username=GUEST["username"])
+        guest.first_name, guest.last_name = GUEST["name"]
+        guest.set_password(GUEST["password"])
+        guest.save()
+        guest.groups.set([Group.objects.get(name=GUEST["group"])])
+        self.stdout.write(f"Демонстрационная запись: {GUEST['username']} / {GUEST['password']}")

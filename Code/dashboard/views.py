@@ -11,6 +11,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from analysis.contracts import RuleStatus
@@ -26,6 +27,7 @@ from cases.selectors import (
     case_graph,
     case_list,
     case_story,
+    evidence_url,
     latest_reviews,
     queue_counts,
     recent_events,
@@ -35,7 +37,7 @@ from cases.services import add_evidence, add_review
 from cases.sources import sources_with_usage
 from imports.models import ImportBatch
 
-from .forms import EvidenceForm, ReviewForm
+from .forms import DocumentForm, ReviewForm
 
 STATUS_LABELS = {
     RuleStatus.TRIGGERED: "Сработал",
@@ -277,9 +279,20 @@ def search_index(request):
                 {
                     "group": "document",
                     "title": evidence.title,
-                    "note": evidence.case.cadastral_number or "документ",
-                    "url": reverse("dashboard:case_detail", args=[evidence.case_id]),
-                    "search": f"{evidence.title} {evidence.case.title} документ".lower(),
+                    "note": (evidence.case.cadastral_number if evidence.case else "")
+                    or evidence.get_kind_display().lower()
+                    or "документ",
+                    "url": evidence_url(evidence),
+                    "search": " ".join(
+                        [
+                            evidence.title,
+                            evidence.case.title if evidence.case else "",
+                            evidence.get_kind_display(),
+                            evidence.source_reference,
+                            evidence.note,
+                            "документ",
+                        ]
+                    ).lower(),
                 }
             )
     for event in recent_events(40):
@@ -293,8 +306,10 @@ def search_index(request):
             }
         )
     actions = [{"title": "Открыть реестр объектов", "url": reverse("dashboard:case_list")}]
+    if request.user.has_perm("cases.add_evidence"):
+        actions.append({"title": "Загрузить документ", "url": "#upload"})
     if request.user.has_perm("cases.import_cases"):
-        actions.append({"title": "Загрузить данные", "url": reverse("imports:upload")})
+        actions.append({"title": "Загрузить таблицу", "url": reverse("imports:upload")})
     actions.append({"title": "Как работать с сервисом", "url": reverse("dashboard:methodology")})
     return JsonResponse(
         {"items": items, "actions": actions}, json_dumps_params={"ensure_ascii": False}
@@ -421,7 +436,7 @@ def _card_view(request):
     )
 
 
-def detail_context(request, case, form=None, evidence_form=None):
+def detail_context(request, case, form=None):
     records = case.records.all()
     story = case_story(case, latest_outcomes(records))
     reviews = (
@@ -449,7 +464,6 @@ def detail_context(request, case, form=None, evidence_form=None):
         "outline": svg_outline(case.geometry),
         "grid": range(0, 241, 30),
         "review_form": form if form is not None else ReviewForm(),
-        "evidence_form": evidence_form if evidence_form is not None else EvidenceForm(),
         "reviews": reviews,
         "evidence": evidence,
         "status_labels": STATUS_LABELS,
@@ -480,23 +494,36 @@ def review_create(request, case_id):
 
 @permission_required(["cases.view_case", "cases.add_evidence"], raise_exception=True)
 @require_POST
-def evidence_create(request, case_id):
-    case = get_object_or_404(Case, pk=case_id)
-    form = EvidenceForm(request.POST, request.FILES)
+def document_upload(request):
+    """The upload window posts here from any page: a card links the file to its object."""
+    form = DocumentForm(request.POST, request.FILES)
+    case = None
+    back = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(back, {request.get_host()}, request.is_secure()):
+        back = reverse("dashboard:case_list")
     if form.is_valid():
+        if form.cleaned_data["case"]:
+            case = get_object_or_404(Case, pk=form.cleaned_data["case"])
         try:
-            add_evidence(actor=request.user, case=case, **form.cleaned_data)
+            add_evidence(
+                actor=request.user,
+                case=case,
+                file=form.cleaned_data["file"],
+                kind=form.cleaned_data["kind"],
+                source_reference=form.source_name(),
+                note=form.cleaned_data["note"],
+            )
         except ValidationError as error:
-            form.add_error(None, error)
+            messages.error(request, " ".join(error.messages))
         else:
-            messages.success(request, "Документ добавлен к объекту.")
-            return redirect(reverse("dashboard:case_detail", args=[case.id]) + "#documents")
-    return render(
-        request,
-        "dashboard/case_detail.html",
-        detail_context(request, case, evidence_form=form),
-        status=400,
-    )
+            messages.success(
+                request, "Документ загружен" + (" и добавлен к объекту." if case else ".")
+            )
+            if case:
+                return redirect(reverse("dashboard:case_detail", args=[case.id]) + "#documents")
+    else:
+        messages.error(request, "Выберите файл в формате PDF, DOCX, XLSX, JPG, PNG или TIFF.")
+    return redirect(back)
 
 
 @permission_required("cases.view_case", raise_exception=True)

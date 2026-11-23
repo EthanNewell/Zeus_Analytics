@@ -1,6 +1,7 @@
 from django import forms
 
-from cases.models import Review
+from cases.models import DocumentKind, Review
+from cases.sources import SOURCES
 
 
 class ReviewForm(forms.ModelForm):
@@ -23,42 +24,44 @@ class ReviewForm(forms.ModelForm):
         self.fields["outcome"].choices = Review._meta.get_field("outcome").choices
 
 
-class EvidenceForm(forms.Form):
-    ORIGINS = [
-        ("unknown", "Происхождение требует уточнения"),
-        ("author_marked_real", "Реальный документ из первоисточника"),
-        ("synthetic", "Синтетический пример"),
-    ]
-    title = forms.CharField(
-        label="Название",
-        max_length=200,
-        widget=forms.TextInput(
-            attrs={"class": "input", "placeholder": "Например: выписка ЕГРН от 12.02.2026"}
+class DocumentForm(forms.Form):
+    """The upload window: one file, its type, where it came from and a free note."""
+
+    file = forms.FileField(label="Файл")
+    kind = forms.ChoiceField(
+        label="Тип документа",
+        required=False,
+        choices=[("", "тип документа"), *DocumentKind.choices],
+        widget=forms.Select(attrs={"class": "input", "aria-label": "Тип документа"}),
+    )
+    source = forms.ChoiceField(
+        label="Источник",
+        required=False,
+        widget=forms.Select(attrs={"class": "input", "aria-label": "Источник"}),
+    )
+    note = forms.CharField(
+        label="Дополнительная информация",
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(
+            attrs={
+                "class": "input",
+                "rows": 5,
+                "placeholder": "дополнительная информация по документу",
+                "aria-label": "Дополнительная информация",
+            }
         ),
     )
-    url = forms.URLField(
-        label="Ссылка",
-        required=False,
-        max_length=500,
-        assume_scheme="https",
-        widget=forms.URLInput(attrs={"class": "input", "placeholder": "https://…"}),
-    )
-    file = forms.FileField(label="Файл", required=False)
-    source_reference = forms.CharField(
-        label="Источник и реквизиты",
-        required=False,
-        max_length=500,
-        widget=forms.TextInput(attrs={"class": "input", "placeholder": "Росреестр, запрос № …"}),
-    )
-    origin = forms.ChoiceField(
-        label="Происхождение",
-        choices=ORIGINS,
-        initial="unknown",
-        widget=forms.Select(attrs={"class": "input"}),
-    )
+    case = forms.UUIDField(required=False, widget=forms.HiddenInput)
 
-    def clean(self):
-        data = super().clean()
-        if not data.get("url") and not data.get("file"):
-            raise forms.ValidationError("Приложите файл или укажите ссылку.")
-        return data
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source"].choices = [
+            ("", "источник"),
+            *((source.key, source.name) for source in SOURCES),
+            ("other", "Другой источник"),
+        ]
+
+    def source_name(self):
+        key = self.cleaned_data.get("source")
+        return dict(self.fields["source"].choices).get(key, "") if key else ""

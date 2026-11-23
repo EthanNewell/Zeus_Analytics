@@ -36,6 +36,7 @@
       const label = button.firstChild;
       function render() {
         label.textContent = select.options[select.selectedIndex]?.textContent || "";
+        box.toggleAttribute("data-empty", !select.value);
         items.forEach((item, i) => {
           item.setAttribute("aria-selected", String(i === select.selectedIndex));
           item.toggleAttribute("data-active", i === active);
@@ -76,14 +77,69 @@
   setTimeout(hide, 7000);
 })();
 
+// Pop-up panels under a header button (bell, account): one open at a time, Esc and a click
+// outside close them.
 (function () {
-  const bell = document.querySelector("[data-bell]");
-  const panel = document.querySelector("[data-notif]");
-  if (!bell || !panel) return;
-  const set = (on) => { panel.toggleAttribute("data-open", on); bell.setAttribute("aria-expanded", String(on)); };
-  bell.addEventListener("click", (event) => { event.stopPropagation(); set(!panel.hasAttribute("data-open")); });
-  document.addEventListener("click", (event) => { if (!panel.contains(event.target)) set(false); });
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") set(false); });
+  const pairs = [...document.querySelectorAll("[data-pop]")].map((button) => [button, button.parentNode.querySelector("[data-pop-panel]")]);
+  const set = (pair, on) => { pair[1].toggleAttribute("data-open", on); pair[0].setAttribute("aria-expanded", String(on)); };
+  pairs.forEach((pair) => pair[0].addEventListener("click", (event) => {
+    event.stopPropagation();
+    const on = !pair[1].hasAttribute("data-open");
+    pairs.forEach((other) => set(other, other === pair && on));
+  }));
+  document.addEventListener("click", (event) => pairs.forEach((pair) => { if (!pair[1].contains(event.target)) set(pair, false); }));
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") pairs.forEach((pair) => set(pair, false)); });
+})();
+
+// The upload window: any [data-upload-open] button opens it (a card passes data-case), and so
+// does the address #upload (the search palette's suggestion). The file is checked here by
+// type and size before it is sent; the server checks it again.
+(function () {
+  const form = document.querySelector("[data-upload]");
+  if (!form) return;
+  const scrim = document.querySelector("[data-upload-scrim]");
+  const input = form.querySelector("[data-file]");
+  const drop = form.querySelector("[data-drop]");
+  const row = form.querySelector("[data-file-row]");
+  const error = form.querySelector("[data-file-error]");
+  const submit = form.querySelector("[data-upload-submit]");
+  const caseField = form.querySelector('[name="case"]');
+  const TYPES = /\.(pdf|docx|xlsx|jpe?g|png|tiff?)$/i, MAX = 5 * 1024 * 1024;
+  const size = (bytes) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} КБ` : `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
+  function show() {
+    const file = input.files[0];
+    let problem = "";
+    if (file && !TYPES.test(file.name)) problem = "Этот формат не принимается: нужен PDF, DOCX, XLSX, JPG, PNG или TIFF.";
+    else if (file && file.size > MAX) problem = "Файл больше 5 МБ.";
+    error.textContent = problem; error.hidden = !problem;
+    row.hidden = !file || !!problem;
+    drop.toggleAttribute("data-filled", !!file && !problem);
+    if (file && !problem) { form.querySelector("[data-file-name]").textContent = file.name; form.querySelector("[data-file-size]").textContent = size(file.size); }
+    submit.disabled = !file || !!problem;
+  }
+  function open(caseId) {
+    caseField.value = caseId || "";
+    form.setAttribute("data-open", ""); scrim.setAttribute("data-open", "");
+    document.documentElement.style.overflow = "hidden";
+    form.focus();
+  }
+  function close() {
+    form.removeAttribute("data-open"); scrim.removeAttribute("data-open");
+    document.documentElement.style.overflow = "";
+    if (location.hash === "#upload") history.replaceState(null, "", location.pathname + location.search);
+  }
+  document.querySelectorAll("[data-upload-open]").forEach((button) => button.addEventListener("click", () => open(button.dataset.case)));
+  form.querySelector("[data-upload-close]").addEventListener("click", close);
+  scrim.addEventListener("click", close);
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && form.hasAttribute("data-open") && !form.querySelector(".dd[data-open]")) close(); });
+  input.addEventListener("change", show);
+  form.querySelector("[data-file-clear]").addEventListener("click", (event) => { event.preventDefault(); input.value = ""; show(); });
+  ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.setAttribute("data-over", ""); }));
+  ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.removeAttribute("data-over")));
+  drop.addEventListener("drop", (event) => { event.preventDefault(); if (event.dataTransfer.files.length) { input.files = event.dataTransfer.files; show(); } });
+  form.addEventListener("submit", () => { submit.disabled = true; submit.textContent = "загружаем…"; });
+  const fromHash = () => { if (location.hash === "#upload") { document.querySelector("[data-palette]")?.removeAttribute("data-open"); document.querySelector("[data-scrim]")?.removeAttribute("data-open"); open(document.querySelector("[data-upload-open][data-case]")?.dataset.case); } };
+  window.addEventListener("hashchange", fromHash); fromHash();
 })();
 
 (function () {

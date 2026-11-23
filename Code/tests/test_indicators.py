@@ -739,59 +739,99 @@ class EvidenceAndSourcesTests(TestCase):
 
     def setUp(self):
         self.client.force_login(self.specialist)
-        self.url = reverse("dashboard:evidence_create", args=[self.case.id])
+        self.url = reverse("dashboard:document_upload")
 
-    def test_link_and_file_are_attached_with_author(self):
+    def test_document_is_kept_with_author_type_source_and_note(self):
         from cases.models import Evidence
 
+        pdf = SimpleUploadedFile("vypiska.pdf", b"%PDF-1.4 test", content_type="application/pdf")
         response = self.client.post(
             self.url,
-            {"title": "Выписка ЕГРН", "url": "https://rosreestr.gov.ru/x", "origin": "unknown"},
+            {
+                "file": pdf,
+                "kind": "egrn",
+                "source": "egrn",
+                "note": "Запрос № 7",
+                "case": str(self.case.id),
+                "next": "/cases/",
+            },
         )
         self.assertRedirects(
             response,
             reverse("dashboard:case_detail", args=[self.case.id]) + "#documents",
             fetch_redirect_response=False,
         )
-        pdf = SimpleUploadedFile("vypiska.pdf", b"%PDF-1.4 test", content_type="application/pdf")
-        self.client.post(
-            self.url, {"title": "Протокол комиссии", "file": pdf, "origin": "author_marked_real"}
+        item = Evidence.objects.get()
+        self.assertEqual(
+            (
+                item.case_id,
+                item.title,
+                item.kind,
+                item.source_reference,
+                item.note,
+                item.added_by_id,
+            ),
+            (
+                self.case.id,
+                "vypiska.pdf",
+                "egrn",
+                "Росреестр, сведения ЕГРН",
+                "Запрос № 7",
+                self.specialist.pk,
+            ),
         )
-        self.assertEqual(Evidence.objects.count(), 2)
-        self.assertEqual({e.added_by_id for e in Evidence.objects.all()}, {self.specialist.pk})
         detail = self.client.get(reverse("dashboard:case_detail", args=[self.case.id]))
-        self.assertContains(detail, "https://rosreestr.gov.ru/x")
-        self.assertContains(detail, "Протокол комиссии")
-        file_evidence = Evidence.objects.get(title="Протокол комиссии")
-        download = self.client.get(reverse("dashboard:evidence_download", args=[file_evidence.id]))
+        self.assertContains(detail, "Выписка из ЕГРН")
+        self.assertContains(detail, "Запрос № 7")
+        download = self.client.get(reverse("dashboard:evidence_download", args=[item.id]))
         self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4 test")
         self.assertIn("vypiska.pdf", download["Content-Disposition"])
 
-    def test_bad_attachments_are_rejected(self):
+    def test_document_without_object_goes_to_the_common_list(self):
         from cases.models import Evidence
 
-        cases = [
-            {"title": "Пусто"},
-            {"title": "Скрипт", "file": SimpleUploadedFile("x.exe", b"MZ")},
-            {"title": "Ссылка", "url": "javascript:alert(1)"},
-        ]
-        for data in cases:
-            with self.subTest(data=data["title"]):
-                self.assertEqual(
-                    self.client.post(self.url, {**data, "origin": "unknown"}).status_code, 400
+        scan = SimpleUploadedFile("plan.tiff", b"II*\x00", content_type="image/tiff")
+        response = self.client.post(self.url, {"file": scan, "next": "/cases/?attention=high"})
+        self.assertRedirects(response, "/cases/?attention=high", fetch_redirect_response=False)
+        item = Evidence.objects.get()
+        self.assertIsNone(item.case_id)
+        index = self.client.get(reverse("dashboard:search_index")).json()
+        self.assertIn(
+            reverse("dashboard:evidence_download", args=[item.id]),
+            [entry["url"] for entry in index["items"]],
+        )
+        history = self.client.get(reverse("dashboard:history"))
+        self.assertContains(history, "Загружен документ")
+
+    def test_bad_files_and_foreign_return_addresses_are_rejected(self):
+        from cases.models import Evidence
+
+        for name, body in (("x.exe", b"MZ"), ("notes.txt", b"text")):
+            with self.subTest(name=name):
+                response = self.client.post(
+                    self.url,
+                    {"file": SimpleUploadedFile(name, body), "next": "https://evil.example/"},
                 )
+                self.assertRedirects(
+                    response, reverse("dashboard:case_list"), fetch_redirect_response=False
+                )
+        self.assertEqual(self.client.post(self.url, {}).status_code, 302)
         self.assertFalse(Evidence.objects.exists())
 
+    def test_upload_window_is_on_pages_for_those_who_may_add(self):
+        page = self.client.get(reverse("dashboard:case_list"))
+        self.assertContains(page, "data-upload-open")
+        self.assertContains(page, "Загрузить документ")
+
     def test_guest_and_outsider_cannot_attach(self):
+        pdf = {"file": SimpleUploadedFile("a.pdf", b"%PDF")}
         self.client.logout()
-        self.assertEqual(
-            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 302
-        )
+        self.assertEqual(self.client.post(self.url, pdf).status_code, 302)
         User.objects.create_user("outsider", password="an-outsider-password")
         self.client.login(username="outsider", password="an-outsider-password")
-        self.assertEqual(
-            self.client.post(self.url, {"title": "x", "url": "https://a.b"}).status_code, 403
-        )
+        pdf = {"file": SimpleUploadedFile("a.pdf", b"%PDF")}
+        self.assertEqual(self.client.post(self.url, pdf).status_code, 403)
+        self.assertNotIn(b"data-upload", self.client.get(reverse("dashboard:case_list")).content)
 
     def test_sources_page_links_indicators_from_passports(self):
         from cases.sources import sources_with_usage

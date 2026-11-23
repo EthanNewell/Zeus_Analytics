@@ -1,6 +1,7 @@
 import csv
 import io
 import uuid
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -60,6 +61,22 @@ class ApplicationTests(TestCase):
         for name in ["dashboard:case_list", "dashboard:case_export", "imports:upload"]:
             with self.subTest(route=name):
                 self.assertEqual(self.client.get(reverse(name)).status_code, 403)
+
+    def test_demo_account_12345_opens_the_main_page_with_full_rights(self):
+        from django.core.management import call_command
+
+        call_command("demo_users", stdout=StringIO())
+        page = self.client.get(reverse("accounts:login"))
+        self.assertContains(page, "Войти в аккаунт")
+        self.assertContains(page, "введите вашу почту")
+        response = self.client.post(
+            reverse("accounts:login"), {"username": "12345", "password": "12345"}
+        )
+        self.assertRedirects(response, reverse("dashboard:overview"))
+        main = self.client.get(reverse("dashboard:overview"))
+        self.assertContains(main, "Алексей М.")
+        self.assertContains(main, "Руководитель")
+        self.assertEqual(self.client.get(reverse("imports:upload")).status_code, 200)
 
     def test_login_uses_local_next(self):
         destination = reverse("dashboard:case_detail", args=[self.case.id])

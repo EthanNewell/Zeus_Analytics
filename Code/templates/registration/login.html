@@ -1,42 +1,43 @@
-{% extends "base.html" %}{% load kp %}
+{% extends "base.html" %}
 {% block title %}Вход · Код прозрачности{% endblock %}
 {% block body_class %}page-login{% endblock %}
 {% block shell %}
+{# frame «вход» of the team's Figma file: the art card on the left half, the form centred on the right #}
 <main class="login">
-  <div class="login-card">
-    <div class="login-side">
-      <div class="login-brand"><svg class="icon" aria-hidden="true"><use href="#i-logo"/></svg>Код прозрачности</div>
-      <svg class="login-art" viewBox="0 0 300 180" aria-hidden="true">
-        <g stroke="#ffffff" stroke-opacity=".14" stroke-dasharray="1 5">{% for x in "0123456789"|make_list %}<path d="M{{ forloop.counter0|mul:30 }} 0V180"/>{% endfor %}<path d="M0 45H300M0 90H300M0 135H300"/></g>
-        <g fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="1.2"><path d="M10 15 68 22 92 52 182 76 300 39M0 70 20 95 88 85 115 127 205 102 300 130M110 0 105 52M182 0 190 35 239 21M240 20 237 95 300 150M115 127 92 172M205 102 230 145M160 180 205 102"/></g>
-        <path d="M88 52 155 66 182 103 115 127 88 85Z" fill="#6f8fd0" fill-opacity=".38" stroke="#a9c3f2" stroke-width="1.6"/>
-        <path d="M155 66 190 35 239 21M155 66 115 127" fill="none" stroke="#dce8ff" stroke-width="1.4" stroke-dasharray="4 4"/>
-        <circle cx="155" cy="66" r="7" fill="#222b33" stroke="#c2f0b6" stroke-width="1.6"/><circle cx="155" cy="66" r="2.6" fill="#c2f0b6"/>
-      </svg>
-      <p class="login-title">Рабочее место специалиста</p>
+  <section class="login-art" aria-label="Зевс">
+    <svg class="login-bolt" viewBox="0 0 1000 1040" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <filter id="glow-wide" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="70"/></filter>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="32"/></filter>
+        <filter id="core" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="16"/></filter>
+      </defs>
+      <path d="M705 15 220 575h330L385 1020l455-590H555z" fill="#6fd0ff" opacity=".6" filter="url(#glow-wide)"/>
+      <path d="M705 15 220 575h330L385 1020l455-590H555z" fill="#b8f2ff" opacity=".8" filter="url(#glow)"/>
+      <path d="M680 80 285 545h300L440 930l335-470H520z" fill="#ffffff" opacity=".92" filter="url(#core)"/>
+    </svg>
+    <a class="brand login-brand" href="{% url 'accounts:login' %}" aria-label="Зевс">{% include "_brand.html" %}</a>
+    <div class="login-claim">
+      <p class="login-claim-title">Прозрачность в каждом изменении</p>
+      <p class="login-claim-text">Интеллектуальная система мониторинга земельных объектов, выявления потенциальных коррупционных рисков и анализа изменений на основе данных и документов</p>
     </div>
+  </section>
+  <div class="login-side">
     <form method="post" action="{% url 'accounts:login' %}" class="login-form">
       {% csrf_token %}
       <div class="login-head">
-        <h1>Вход в систему</h1>
-        <p class="soft">Используйте учётную запись, выданную администратором.</p>
+        <h1>Войти в аккаунт</h1>
+        <p>Используйте корпоративную учётную запись для доступа к&nbsp;платформе, аналитике объектов и инструментам мониторинга</p>
       </div>
-      {% if form.non_field_errors %}<p class="notice error" role="alert">Неверный логин или пароль.</p>{% endif %}
-      <div class="field"><label for="id_username">Логин</label><input class="input" type="text" name="username" id="id_username" autocomplete="username" required autofocus value="{{ form.username.value|default:'' }}"></div>
-      <div class="field"><label for="id_password">Пароль</label>
-        <div class="pass"><input class="input" type="password" name="password" id="id_password" autocomplete="current-password" required><button class="pass-eye" type="button" aria-label="Показать пароль" data-eye><svg class="icon"><use href="#i-eye"/></svg></button></div>
-      </div>
+      {% if form.non_field_errors %}<p class="login-error" role="alert">Неверная почта или пароль.</p>{% endif %}
+      <div class="login-field"><label for="id_username">Почта</label><input class="login-input" type="text" name="username" id="id_username" autocomplete="username" inputmode="email" placeholder="введите вашу почту" required value="{{ form.username.value|default:'' }}"></div>
+      <div class="login-field"><label for="id_password">Пароль</label><input class="login-input" type="password" name="password" id="id_password" autocomplete="current-password" placeholder="введите ваш пароль" required></div>
       {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <button class="btn btn-wide" type="submit">Войти <svg class="icon"><use href="#i-arrow"/></svg></button>
+      <button class="login-submit" type="submit">войти</button>
+      <details class="login-new">
+        <summary>Еще нет аккаунта? <span>Создать</span></summary>
+        <p>Учётные записи выдаёт администратор. Для знакомства с сервисом есть демонстрационная запись: почта 12345, пароль 12345.</p>
+      </details>
     </form>
   </div>
 </main>
-<script>
-document.querySelector("[data-eye]").addEventListener("click", (event) => {
-  const input = document.getElementById("id_password");
-  const shown = input.type === "text";
-  input.type = shown ? "password" : "text";
-  event.currentTarget.setAttribute("aria-label", shown ? "Показать пароль" : "Скрыть пароль");
-});
-</script>
 {% endblock %}

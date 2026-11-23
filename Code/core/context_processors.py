@@ -22,4 +22,14 @@ def application(request):
         "last_run": last_run,
         "app_version": settings.APP_VERSION,
         "user_role": role_label(user) if user is not None and user.is_authenticated else "",
+        "document_form": _document_form(user) if signed_in else None,
     }
+
+
+def _document_form(user):
+    """The upload window is drawn on every page for those who may add documents."""
+    if not user.has_perms(["cases.view_case", "cases.add_evidence"]):
+        return None
+    from dashboard.forms import DocumentForm
+
+    return DocumentForm()

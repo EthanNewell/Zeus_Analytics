@@ -125,26 +125,11 @@
       <div class="card-head"><div><h2 class="t-mono" id="doc-h">Документы и основания</h2><div class="t-period">добавленные сотрудниками и из таблиц</div></div></div>
       {% if evidence or story.documents %}
       <ul class="rows">
-        {% for item in evidence %}<li class="row-item"><span class="soft t-label">Добавлен {{ item.added_at|date:"d.m.Y H:i" }}{% if item.added_by %} · {{ item.added_by.username }}{% endif %} · {{ item.origin|origin_short }}</span><span class="t-compact">{% if item.url %}<a class="arrow-link" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}<svg class="icon"><use href="#i-arrow"/></svg></a>{% else %}{{ item.title }}{% endif %}</span>{% if item.source_reference %}<span class="soft t-label">{{ item.source_reference }}</span>{% endif %}{% if item.file %}<a class="link" href="{% url 'dashboard:evidence_download' item.id %}">Скачать файл</a>{% endif %}</li>{% endfor %}
+        {% for item in evidence %}<li class="row-item"><span class="soft t-label">Добавлен {{ item.added_at|date:"d.m.Y H:i" }}{% if item.added_by %} · {{ item.added_by.username }}{% endif %} · {{ item.origin|origin_short }}</span><span class="t-compact">{% if item.url %}<a class="arrow-link" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}<svg class="icon"><use href="#i-arrow"/></svg></a>{% else %}{{ item.title }}{% endif %}</span>{% if item.kind or item.source_reference %}<span class="soft t-label">{{ item.get_kind_display }}{% if item.kind and item.source_reference %} · {% endif %}{{ item.source_reference }}</span>{% endif %}{% if item.note %}<span class="soft t-label">{{ item.note }}</span>{% endif %}{% if item.file %}<a class="link" href="{% url 'dashboard:evidence_download' item.id %}">Скачать файл</a>{% endif %}</li>{% endfor %}
         {% for doc in story.documents %}<li class="row-item"><span class="soft t-label">{{ doc.label }} · {{ doc.origin|origin_short }}</span><span class="t-compact break">{{ doc.value }}</span></li>{% endfor %}
       </ul>
       {% else %}<p class="soft">Документов пока нет.</p>{% endif %}
-      {% if perms.cases.add_evidence %}
-      <details class="obj-details" {% if evidence_form.errors %}open{% endif %}>
-        <summary><span>Добавить документ или ссылку</span><svg class="icon" aria-hidden="true"><use href="#i-chev"/></svg></summary>
-        <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:evidence_create' case.id %}" class="obj-form">{% csrf_token %}
-          {% if evidence_form.non_field_errors %}<p class="error">{{ evidence_form.non_field_errors|join:" " }}</p>{% endif %}
-          <div class="grid g-2 obj-form-grid">
-            <div class="field"><label for="{{ evidence_form.title.id_for_label }}">Название</label>{{ evidence_form.title }}{% for e in evidence_form.title.errors %}<span class="error">{{ e }}</span>{% endfor %}</div>
-            <div class="field"><label for="{{ evidence_form.url.id_for_label }}">Ссылка</label>{{ evidence_form.url }}{% for e in evidence_form.url.errors %}<span class="error">{{ e }}</span>{% endfor %}</div>
-            <div class="field"><label for="{{ evidence_form.source_reference.id_for_label }}">Источник и реквизиты</label>{{ evidence_form.source_reference }}</div>
-            <div class="field"><label for="{{ evidence_form.origin.id_for_label }}">Происхождение</label>{{ evidence_form.origin }}</div>
-          </div>
-          <div class="obj-file"><input id="doc-file" class="sr-only" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.txt"><label class="btn btn-ghost" for="doc-file"><svg class="icon"><use href="#i-upload"/></svg>Выбрать файл</label><span class="hint" id="doc-file-name">PDF, изображение, DOCX, XLSX или TXT до 5 МБ. Можно только ссылку</span></div>
-          <button class="btn btn-wide" type="submit">Добавить к объекту</button>
-        </form>
-      </details>
-      {% endif %}
+      {% if document_form %}<button class="btn btn-ghost btn-wide" type="button" data-upload-open data-case="{{ case.id }}"><svg class="icon"><use href="#i-upload"/></svg>Загрузить документ к объекту</button>{% endif %}
     </section>
   </div>
 

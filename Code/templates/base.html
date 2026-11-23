@@ -18,38 +18,40 @@
   <div class="app">
     {% with name=request.resolver_match.url_name ns=request.resolver_match.namespace %}
     <header class="top">
-      <div class="who">
-        <span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span>
-        <span class="who-name">{{ user.get_full_name|default:user.username }}</span>
-        {% if user_role %}<span class="who-sep" aria-hidden="true"></span><span class="who-role">{{ user_role }}</span>{% endif %}
-        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="icon-btn" type="submit" title="Выйти" aria-label="Выйти"><svg class="icon"><use href="#i-exit"/></svg></button></form>
-      </div>
+      <a class="brand" href="{% url 'dashboard:overview' %}" aria-label="Зевс — на главную">{% include "_brand.html" %}</a>
       <nav class="nav" aria-label="Разделы">
         <a class="nav-item" href="{% url 'dashboard:overview' %}" {% if name == 'overview' %}aria-current="page"{% endif %}>Главная</a>
         <a class="nav-item" href="{% url 'dashboard:case_list' %}" {% if name == 'case_list' or name == 'case_detail' or name == 'map' %}aria-current="page"{% endif %}>Объекты{% if queue_open %} <span class="badge">{{ queue_open }}</span>{% endif %}</a>
         <a class="nav-item" href="{% url 'dashboard:analytics' %}" {% if name == 'analytics' or name == 'officials' or name == 'sources' or name == 'methodology' %}aria-current="page"{% endif %}>Аналитика</a>
         <a class="nav-item" href="{% url 'dashboard:history' %}" {% if name == 'history' or ns == 'imports' %}aria-current="page"{% endif %}>История изменений</a>
-        <button class="nav-item" type="button" data-search-open><svg class="icon"><use href="#i-search"/></svg>Поиск по данным</button>
-        <div class="bell-wrap">
-          <button class="nav-item nav-bell" type="button" data-bell aria-expanded="false" aria-label="Уведомления"><svg class="icon"><use href="#i-bell"/></svg>{% if notifications %}<span class="badge">{{ notifications|length }}</span>{% endif %}</button>
-          <div class="notif" data-notif>
+        <div class="pop-wrap">
+          <button class="nav-item nav-bell" type="button" data-pop aria-expanded="false" aria-label="Уведомления"><svg class="icon"><use href="#i-bell"/></svg>{% if notifications %}<span class="badge">{{ notifications|length }}</span>{% endif %}</button>
+          <div class="notif" data-pop-panel>
             <div class="notif-head"><span>Уведомления</span><svg class="icon" aria-hidden="true"><use href="#i-check2"/></svg></div>
             <div class="notif-list">
               <span class="soft t-label">Последние события</span>
               {% for event in notifications %}
               <a class="notif-item" href="{{ event.url }}">
                 <span class="notif-dot {{ event.tone }}" aria-hidden="true"><svg class="icon"><use href="#i-{{ event.kind }}"/></svg></span>
-                <span><span class="t-compact">{{ event.title }}</span><span class="soft t-label notif-text">{{ event.text }}</span><br><span class="t-period">{{ event.when|date:"d.m.Y H:i" }}</span></span>
+                <span class="break"><span class="t-compact">{{ event.title }}</span><span class="soft t-label notif-text">{{ event.text }}</span><br><span class="t-period">{{ event.when|date:"d.m.Y H:i" }}</span></span>
               </a>
               {% empty %}<span class="soft">Событий пока нет.</span>{% endfor %}
             </div>
           </div>
         </div>
       </nav>
+      <div class="pop-wrap who-wrap">
+        <button class="who" type="button" data-pop aria-expanded="false" aria-label="Учётная запись"><span class="who-name">{{ user.get_full_name|default:user.username }}</span><span class="avatar" aria-hidden="true">{{ user.get_full_name|default:user.username|first|upper }}</span></button>
+        <div class="who-menu" data-pop-panel>
+          <div class="who-card"><span class="t-compact">{{ user.get_full_name|default:user.username }}</span>{% if user_role %}<span class="soft t-label">{{ user_role }}</span>{% endif %}</div>
+          <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="who-item" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-exit"/></svg>Выйти</button></form>
+        </div>
+      </div>
     </header>
     {% endwith %}
     <main>{% block content %}{% endblock %}</main>
   </div>
+  {% if document_form %}{% include "_upload.html" %}{% endif %}
   <button class="search-fab" type="button" data-search-open><svg class="icon"><use href="#i-search"/></svg>Найти объект, документ или событие…</button>
   <div class="scrim" data-scrim></div>
   <div class="palette" data-palette data-index="{% url 'dashboard:search_index' %}" role="dialog" aria-label="Поиск">
