@@ -26,6 +26,7 @@ from django.contrib.auth.models import Permission
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client, override_settings
 
+from accounts.management.commands.demo_users import GUEST
 from cases.models import Case, Origin, Record
 
 PATRONYMIC = r"[А-ЯЁ][а-яё]+(?:ич|вна|чна|тична|оглы|кызы)"  # «-ич» ловит и «Ильич», «Кузьмич»
@@ -167,6 +168,9 @@ class Command(BaseCommand):
     def reader():
         """Read-only user of the database copy: views everything, writes nothing."""
         user, _ = get_user_model().objects.get_or_create(username=READER)
+        # the copy is shown as the demonstration account of the sign-in page
+        user.first_name, user.last_name = GUEST["name"]
+        user.save(update_fields=["first_name", "last_name"])
         user.user_permissions.set(
             Permission.objects.filter(
                 content_type__app_label="cases", codename__in=READER_PERMISSIONS
